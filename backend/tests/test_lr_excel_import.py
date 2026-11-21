@@ -393,3 +393,165 @@ async def test_lr_import_continues_from_last_series_count(test_db):
         assert nov2_lr.lr_number == "LR-DEL-0007"
         assert nov2_lr.job.job_number == "JOB-DEL-0007"
 
+
+@pytest.mark.asyncio
+async def test_lr_import_missing_mandatory_columns(test_db):
+    """
+    Verify:
+    When an uploaded Excel or CSV file is missing mandatory columns in the header row
+    (e.g. Truck Number and Consignee), the import fails early, notifies the user
+    of the exact missing column names, and does not create any partial records.
+    """
+    async with test_db() as session:
+        # Create Excel missing 'Truck Number' and 'Consignee'
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = "LR_Booking_Import"
+        ws.append([
+            "LR Number",
+            "Date of LR / Booking Date *",
+            "Billing Customer *",
+            "Consignor *",
+            # "Consignee *" is intentionally omitted!
+            "Origin Hub / City *",
+            "Destination Hub / City *",
+            # "Truck Number *" is intentionally omitted!
+            "Cargo Description",
+        ])
+        ws.append([
+            "", "2026-11-10", "Client A", "Shipper A", "Delhi", "Mumbai", "Steel Pipes"
+        ])
+        buf = io.BytesIO()
+        wb.save(buf)
+
+        res = await import_lrs_from_excel(
+            db=session,
+            file_bytes=buf.getvalue(),
+            filename="missing_cols.xlsx",
+            user_id=1,
+            office_id=1,
+        )
+
+        assert res["status"] == "FAILED"
+        assert "Consignee" in res["missing_headers"]
+        assert "Truck Number" in res["missing_headers"]
+        assert res["imported_count"] == 0
+        assert res["failed_count"] == 1
+        assert res["summary_report"]["status"] == "FAILED"
+        assert "Consignee" in res["summary_report"]["missing_columns"]
+        assert "Truck Number" in res["summary_report"]["missing_columns"]
+
+
+@pytest.mark.asyncio
+async def test_lr_import_date_and_numeric_exceptions(test_db):
+    """
+    Verify:
+    1. Unparseable date format is flagged as an exception with field 'Booking Date'.
+    2. Non-numeric text in freight or package count is flagged as a numeric exception.
+    3. Valid rows still import successfully (partial success).
+    4. Comprehensive summary report captures counts and success rate.
+    """
+    async with test_db() as session:
+        rows = [
+            # Row 1: Invalid Date format
+            [
+                "", "32-13-2026", "Test Client", "Shipper 1", "Receiver 1",
+                "Delhi", "Mumbai", "DL01AA1111", "Driver 1", "9876543210",
+                "Cargo 1", "10", "2.0", "2.0", "10000", "0",
+                "To Be Billed", "INV-1", "50000", "EWB-1", "",
+            ],
+            # Row 2: Valid Row
+            [
+                "", "2026-11-12", "Test Client", "Shipper 2", "Receiver 2",
+                "Delhi", "Mumbai", "DL01AA2222", "Driver 2", "9876543211",
+                "Cargo 2", "15", "3.0", "3.0", "15000", "0",
+                "To Be Billed", "INV-2", "75000", "EWB-2", "",
+            ],
+            # Row 3: Invalid numeric freight amount
+            [
+                "", "2026-11-13", "Test Client", "Shipper 3", "Receiver 3",
+                "Delhi", "Mumbai", "DL01AA3333", "Driver 3", "9876543212",
+                "Cargo 3", "20", "4.0", "4.0", "INVALID_AMOUNT", "0",
+                "To Be Billed", "INV-3", "90000", "EWB-3", "",
+            ],
+        ]
+        excel_bytes = create_sample_lr_excel(rows)
+
+        res = await import_lrs_from_excel(
+            db=session,
+            file_bytes=excel_bytes,
+            filename="exception_handling.xlsx",
+            user_id=1,
+            office_id=1,
+        )
+
+        assert res["status"] == "PARTIAL_SUCCESS"
+        assert res["imported_count"] == 1
+        assert res["failed_count"] == 2
+        assert len(res["errors"]) == 2
+
+        # Check errors detail
+        date_err = next((e for e in res["errors"] if e.get("field") == "Booking Date"), None)
+        assert date_err is not None
+        assert "Invalid date format" in date_err["reason"]
+
+        freight_err = next((e for e in res["errors"] if e.get("field") == "Freight Amount"), None)
+        assert freight_err is not None
+        assert "Invalid numeric format" in freight_err["reason"]
+
+        # Check summary report
+        report = res["summary_report"]
+        assert report["status"] == "PARTIAL_SUCCESS"
+        assert report["total_rows"] == 3
+        assert report["imported_count"] == 1
+        assert report["failed_count"] == 2
+        assert report["success_rate_percent"] == 33.3
+
+
+@pytest.mark.asyncio
+async def test_lr_import_duplicates_reporting_with_metadata(test_db):
+    """
+    Verify:
+    1. Duplicate consignments (same vehicle, route, date, shipper, receiver) are skipped.
+    2. Rich metadata (vehicle_number, route, lr_date, duplicate_type) is provided.
+    3. User notification detail is accurate and clear.
+    """
+    async with test_db() as session:
+        rows = [
+            # Row 1: Original
+            [
+                "", "2026-11-15", "Dup Client", "Dup Shipper", "Dup Receiver",
+                "Delhi", "Jaipur", "RJ14AA9999", "Driver X", "9876543200",
+                "Pipes", "50", "10.0", "10.0", "25000", "5000",
+                "To Be Billed", "INV-D1", "120000", "EWB-D1", "",
+            ],
+            # Row 2: Exact duplicate of Row 1 within the same file
+            [
+                "", "2026-11-15", "Dup Client", "Dup Shipper", "Dup Receiver",
+                "Delhi", "Jaipur", "RJ14AA9999", "Driver X", "9876543200",
+                "Pipes", "50", "10.0", "10.0", "25000", "5000",
+                "To Be Billed", "INV-D1", "120000", "EWB-D1", "",
+            ],
+        ]
+        excel_bytes = create_sample_lr_excel(rows)
+
+        res = await import_lrs_from_excel(
+            db=session,
+            file_bytes=excel_bytes,
+            filename="duplicates.xlsx",
+            user_id=1,
+            office_id=1,
+        )
+
+        assert res["imported_count"] == 1
+        assert res["skipped_duplicate_count"] == 1
+        assert len(res["skipped_duplicates"]) == 1
+
+        dup_info = res["skipped_duplicates"][0]
+        assert dup_info["row"] == 3  # Excel row 3
+        assert dup_info["vehicle_number"] == "RJ14AA9999"
+        assert "Delhi" in dup_info["route"] and "Jaipur" in dup_info["route"]
+        assert dup_info["duplicate_type"] == "EXCEL_FILE_DUPLICATE"
+        assert "Duplicate consignment repeated" in dup_info["reason"]
+
+

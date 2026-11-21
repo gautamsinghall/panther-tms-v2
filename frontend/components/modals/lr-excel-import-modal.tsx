@@ -19,6 +19,7 @@ import {
   Building2,
   Truck,
   ArrowRight,
+  FileText,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { apiClient, getApiBaseUrl } from "@/lib/api-client";
@@ -27,6 +28,9 @@ import { getStoredAuth, getActiveOffice, OfficeSummary } from "@/lib/auth";
 interface SkippedDuplicate {
   row: number;
   lr_number?: string;
+  vehicle_number?: string;
+  route?: string;
+  lr_date?: string;
   reason: string;
   duplicate_type?: string;
 }
@@ -34,6 +38,8 @@ interface SkippedDuplicate {
 interface RowError {
   row: number;
   lr_number?: string;
+  field?: string;
+  column?: string;
   reason: string;
 }
 
@@ -50,14 +56,29 @@ interface ImportedLR {
   lr_date: string;
 }
 
-interface LRExcelImportResult {
+interface SummaryReport {
+  status: string;
   total_rows: number;
   imported_count: number;
   skipped_duplicate_count: number;
   failed_count: number;
+  success_rate_percent: number;
+  missing_columns: string[];
+  execution_summary: string;
+  generated_at: string;
+}
+
+interface LRExcelImportResult {
+  status?: string;
+  total_rows: number;
+  imported_count: number;
+  skipped_duplicate_count: number;
+  failed_count: number;
+  missing_headers?: string[];
   skipped_duplicates: SkippedDuplicate[];
   errors: RowError[];
   imported_lrs: ImportedLR[];
+  summary_report?: SummaryReport;
 }
 
 interface LRExcelImportModalProps {
@@ -79,6 +100,7 @@ export function LRExcelImportModal({
   const [isUploading, setIsUploading] = useState(false);
   const [isDownloadingTemplate, setIsDownloadingTemplate] = useState(false);
   const [importResult, setImportResult] = useState<LRExcelImportResult | null>(null);
+  const [activeTab, setActiveTab] = useState<"overview" | "created" | "skipped" | "errors">("overview");
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [applySeriesPrefixSuffix, setApplySeriesPrefixSuffix] = useState<boolean>(true);
@@ -252,6 +274,7 @@ export function LRExcelImportModal({
       );
 
       setImportResult(result);
+      setActiveTab("overview");
       if (result.imported_count > 0) {
         onSuccess();
       }
@@ -260,6 +283,91 @@ export function LRExcelImportModal({
     } finally {
       setIsUploading(false);
     }
+  };
+
+  const handleDownloadAuditReport = () => {
+    if (!importResult) return;
+    const lines: string[] = [];
+    lines.push("================================================================================");
+    lines.push("                 PANTHER TMS - LR & JOB EXCEL IMPORT AUDIT REPORT               ");
+    lines.push("================================================================================");
+    lines.push(`Generated: ${new Date().toLocaleString()}`);
+    lines.push(`Target Office: ${activeOffice?.name || "All Offices / Head Office"} ${activeOffice?.code ? `(${activeOffice.code})` : ""}`);
+    lines.push(`File Uploaded: ${selectedFile?.name || "Uploaded File"}`);
+    lines.push(`Overall Status: ${importResult.summary_report?.status || (importResult.imported_count > 0 ? "PARTIAL_SUCCESS" : "FAILED")}`);
+    lines.push(`Total Processed Rows: ${importResult.total_rows}`);
+    lines.push(`Successfully Created LRs & Jobs: ${importResult.imported_count}`);
+    lines.push(`Skipped Duplicate Consignments: ${importResult.skipped_duplicate_count}`);
+    lines.push(`Failed / Exception Rows: ${importResult.failed_count}`);
+    if (importResult.summary_report?.success_rate_percent !== undefined) {
+      lines.push(`Success Rate: ${importResult.summary_report.success_rate_percent}%`);
+    }
+    lines.push("");
+
+    if (importResult.missing_headers && importResult.missing_headers.length > 0) {
+      lines.push("--------------------------------------------------------------------------------");
+      lines.push("CRITICAL HEADER ERROR - MISSING MANDATORY COLUMNS");
+      lines.push("--------------------------------------------------------------------------------");
+      lines.push(`Missing Columns: ${importResult.missing_headers.join(", ")}`);
+      lines.push("");
+    }
+
+    lines.push("--------------------------------------------------------------------------------");
+    lines.push(`[1] SUCCESSFULLY CREATED CONSIGNMENTS (${importResult.imported_lrs.length})`);
+    lines.push("--------------------------------------------------------------------------------");
+    if (importResult.imported_lrs.length === 0) {
+      lines.push("No consignments were created.");
+    } else {
+      importResult.imported_lrs.forEach((lr, idx) => {
+        lines.push(`${idx + 1}. LR Number: ${lr.lr_number} | Job Number: ${lr.job_number} | Date: ${lr.lr_date}`);
+        lines.push(`   Route: ${lr.origin} -> ${lr.destination} | Truck: ${lr.vehicle_number}`);
+        lines.push(`   Consignor: ${lr.consigner} | Consignee: ${lr.consignee}`);
+      });
+    }
+    lines.push("");
+
+    lines.push("--------------------------------------------------------------------------------");
+    lines.push(`[2] SKIPPED DUPLICATES - DOUBLE-ENTRY PROTECTION (${importResult.skipped_duplicates.length})`);
+    lines.push("--------------------------------------------------------------------------------");
+    if (importResult.skipped_duplicates.length === 0) {
+      lines.push("No duplicates encountered.");
+    } else {
+      importResult.skipped_duplicates.forEach((dup, idx) => {
+        lines.push(`${idx + 1}. Row ${dup.row} | Type: ${dup.duplicate_type || "DUPLICATE"}`);
+        lines.push(`   LR / Identifier: ${dup.lr_number || "AUTO"} | Truck: ${dup.vehicle_number || "N/A"}`);
+        lines.push(`   Route: ${dup.route || "N/A"} | Date: ${dup.lr_date || "N/A"}`);
+        lines.push(`   Reason: ${dup.reason}`);
+      });
+    }
+    lines.push("");
+
+    lines.push("--------------------------------------------------------------------------------");
+    lines.push(`[3] FAILED ROWS & EXCEPTIONS (${importResult.errors.length})`);
+    lines.push("--------------------------------------------------------------------------------");
+    if (importResult.errors.length === 0) {
+      lines.push("No row-level errors or exceptions encountered.");
+    } else {
+      importResult.errors.forEach((err, idx) => {
+        lines.push(`${idx + 1}. Row ${err.row}${err.field ? ` [Field: ${err.field}]` : ""}${err.column ? ` [Column: ${err.column}]` : ""}`);
+        lines.push(`   Reason: ${err.reason}`);
+      });
+    }
+    lines.push("");
+    lines.push("================================================================================");
+    lines.push("                                END OF AUDIT REPORT                             ");
+    lines.push("================================================================================");
+
+    const textContent = lines.join("\n");
+    const blob = new Blob([textContent], { type: "text/plain;charset=utf-8" });
+    const downloadUrl = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = downloadUrl;
+    a.download = `PantherTMS_LR_Import_Audit_Report_${new Date().toISOString().slice(0, 10)}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(downloadUrl);
+    a.remove();
+    toast.success("Audit report downloaded successfully.");
   };
 
   const handleCloseAndFinish = () => {
@@ -275,7 +383,7 @@ export function LRExcelImportModal({
       />
 
       {/* Modal Content */}
-      <div className="relative w-full max-w-2xl bg-white dark:bg-[#161218] rounded-2xl shadow-2xl border border-slate-200 dark:border-[#382638] overflow-hidden z-10 animate-in zoom-in-95 duration-150 flex flex-col max-h-[92vh]">
+      <div className="relative w-full max-w-3xl bg-white dark:bg-[#161218] rounded-2xl shadow-2xl border border-slate-200 dark:border-[#382638] overflow-hidden z-10 animate-in zoom-in-95 duration-150 flex flex-col max-h-[92vh]">
         {/* Header */}
         <div className="px-6 py-4 border-b border-slate-100 dark:border-[#2E1D2E] flex items-center justify-between bg-slate-50/70 dark:bg-[#1C1622]/90">
           <div className="flex items-center gap-3">
@@ -577,124 +685,394 @@ export function LRExcelImportModal({
               </div>
             </>
           ) : (
-            /* Results Screen */
-            <div className="space-y-5 animate-in fade-in duration-200">
-              {/* Metric Cards */}
+            /* Enhanced Results Screen with Comprehensive Reporting & Audit Download */
+            <div className="space-y-4 animate-in fade-in duration-200">
+              {/* Missing Headers Critical Alert Banner */}
+              {importResult.missing_headers && importResult.missing_headers.length > 0 && (
+                <div className="p-4 rounded-xl border border-rose-300 dark:border-rose-900 bg-rose-50 dark:bg-rose-950/40 space-y-2.5">
+                  <div className="flex items-center gap-2 text-rose-800 dark:text-rose-200 font-semibold text-sm">
+                    <XCircle className="w-5 h-5 text-rose-600 dark:text-rose-400 shrink-0" />
+                    Missing Required Columns in Spreadsheet Header
+                  </div>
+                  <p className="text-xs text-rose-700 dark:text-rose-300 leading-relaxed">
+                    The uploaded spreadsheet could not be imported because the header row is missing the following mandatory columns:
+                  </p>
+                  <div className="flex flex-wrap gap-1.5 pt-0.5">
+                    {importResult.missing_headers.map((col) => (
+                      <span
+                        key={col}
+                        className="px-2.5 py-1 rounded-md text-xs font-bold bg-white dark:bg-rose-900/60 text-rose-800 dark:text-rose-200 border border-rose-300 dark:border-rose-800 shadow-2xs"
+                      >
+                        {col}
+                      </span>
+                    ))}
+                  </div>
+                  <div className="pt-1 flex items-center gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={handleDownloadTemplate}
+                      disabled={isDownloadingTemplate}
+                      className="bg-white dark:bg-[#1E1724] border-rose-300 dark:border-rose-800 text-rose-800 dark:text-rose-200 hover:bg-rose-100 text-xs font-medium"
+                    >
+                      <Download className="w-3.5 h-3.5 mr-1.5" />
+                      Download Correct Template (.xlsx)
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {/* Status Summary Banner */}
+              <div
+                className={`p-3.5 rounded-xl border flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 ${
+                  importResult.imported_count > 0 && importResult.failed_count === 0 && importResult.skipped_duplicate_count === 0
+                    ? "bg-emerald-50/80 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800/60 text-emerald-900 dark:text-emerald-200"
+                    : importResult.imported_count > 0
+                    ? "bg-amber-50/80 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800/60 text-amber-900 dark:text-amber-200"
+                    : "bg-rose-50/80 dark:bg-rose-950/30 border-rose-200 dark:border-rose-800/60 text-rose-900 dark:text-rose-200"
+                }`}
+              >
+                <div className="flex items-start sm:items-center gap-2.5">
+                  {importResult.imported_count > 0 && importResult.failed_count === 0 && importResult.skipped_duplicate_count === 0 ? (
+                    <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                  ) : importResult.imported_count > 0 ? (
+                    <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0" />
+                  ) : (
+                    <XCircle className="w-5 h-5 text-rose-600 dark:text-rose-400 shrink-0" />
+                  )}
+                  <div>
+                    <div className="text-xs font-bold uppercase tracking-wider flex items-center gap-2">
+                      <span>
+                        {importResult.summary_report?.status === "COMPLETED" || (importResult.imported_count > 0 && importResult.failed_count === 0 && importResult.skipped_duplicate_count === 0)
+                          ? "Import Completed Successfully"
+                          : importResult.imported_count > 0
+                          ? "Partial Import Completed"
+                          : "Import Failed"}
+                      </span>
+                      {importResult.summary_report?.success_rate_percent !== undefined && (
+                        <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-white/80 dark:bg-black/30 border border-current">
+                          {importResult.summary_report.success_rate_percent}% Success
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs opacity-90 mt-0.5">
+                      {importResult.summary_report?.execution_summary ||
+                        `Processed ${importResult.total_rows} rows: ${importResult.imported_count} imported, ${importResult.skipped_duplicate_count} skipped duplicates, ${importResult.failed_count} errors.`}
+                    </p>
+                  </div>
+                </div>
+
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleDownloadAuditReport}
+                  className="shrink-0 bg-white dark:bg-[#1E1724] border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 hover:bg-slate-100 text-xs font-medium shadow-2xs self-start sm:self-center"
+                >
+                  <FileText className="w-3.5 h-3.5 mr-1.5 text-indigo-600 dark:text-indigo-400" />
+                  Download Audit Report (.txt)
+                </Button>
+              </div>
+
+              {/* Metric KPI Cards */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <div className="p-3.5 rounded-xl border border-slate-200 dark:border-[#301E30] bg-slate-50/70 dark:bg-[#1A1420] text-center">
-                  <div className="text-xs font-medium text-slate-500 dark:text-slate-400">Total Rows</div>
-                  <div className="text-xl font-bold text-slate-900 dark:text-white mt-1">
+                <div className="p-3 rounded-xl border border-slate-200 dark:border-[#301E30] bg-slate-50/70 dark:bg-[#1A1420] text-center">
+                  <div className="text-[11px] font-medium text-slate-500 dark:text-slate-400">Total Rows</div>
+                  <div className="text-xl font-bold text-slate-900 dark:text-white mt-0.5">
                     {importResult.total_rows}
                   </div>
                 </div>
 
-                <div className="p-3.5 rounded-xl border border-emerald-200 dark:border-emerald-900/60 bg-emerald-50/70 dark:bg-emerald-950/30 text-center">
-                  <div className="text-xs font-medium text-emerald-700 dark:text-emerald-400 flex items-center justify-center gap-1">
-                    <CheckCircle2 className="w-3.5 h-3.5" /> Imported
+                <div className="p-3 rounded-xl border border-emerald-200 dark:border-emerald-900/60 bg-emerald-50/70 dark:bg-emerald-950/30 text-center">
+                  <div className="text-[11px] font-medium text-emerald-700 dark:text-emerald-400 flex items-center justify-center gap-1">
+                    <CheckCircle2 className="w-3.5 h-3.5" /> Created LRs &amp; Jobs
                   </div>
-                  <div className="text-xl font-bold text-emerald-800 dark:text-emerald-300 mt-1">
+                  <div className="text-xl font-bold text-emerald-800 dark:text-emerald-300 mt-0.5">
                     {importResult.imported_count}
                   </div>
                 </div>
 
-                <div className="p-3.5 rounded-xl border border-amber-200 dark:border-amber-900/60 bg-amber-50/70 dark:bg-amber-950/30 text-center">
-                  <div className="text-xs font-medium text-amber-700 dark:text-amber-400 flex items-center justify-center gap-1">
-                    <AlertTriangle className="w-3.5 h-3.5" /> Skipped Dups
+                <div className="p-3 rounded-xl border border-amber-200 dark:border-amber-900/60 bg-amber-50/70 dark:bg-amber-950/30 text-center">
+                  <div className="text-[11px] font-medium text-amber-700 dark:text-amber-400 flex items-center justify-center gap-1">
+                    <AlertTriangle className="w-3.5 h-3.5" /> Skipped Duplicates
                   </div>
-                  <div className="text-xl font-bold text-amber-800 dark:text-amber-300 mt-1">
+                  <div className="text-xl font-bold text-amber-800 dark:text-amber-300 mt-0.5">
                     {importResult.skipped_duplicate_count}
                   </div>
                 </div>
 
-                <div className="p-3.5 rounded-xl border border-rose-200 dark:border-rose-900/60 bg-rose-50/70 dark:bg-rose-950/30 text-center">
-                  <div className="text-xs font-medium text-rose-700 dark:text-rose-400 flex items-center justify-center gap-1">
-                    <XCircle className="w-3.5 h-3.5" /> Errors
+                <div className="p-3 rounded-xl border border-rose-200 dark:border-rose-900/60 bg-rose-50/70 dark:bg-rose-950/30 text-center">
+                  <div className="text-[11px] font-medium text-rose-700 dark:text-rose-400 flex items-center justify-center gap-1">
+                    <XCircle className="w-3.5 h-3.5" /> Errors &amp; Exceptions
                   </div>
-                  <div className="text-xl font-bold text-rose-800 dark:text-rose-300 mt-1">
+                  <div className="text-xl font-bold text-rose-800 dark:text-rose-300 mt-0.5">
                     {importResult.failed_count}
                   </div>
                 </div>
               </div>
 
-              {/* Skipped Duplicates Section */}
-              {importResult.skipped_duplicate_count > 0 && (
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <h5 className="text-xs font-bold text-amber-900 dark:text-amber-300 uppercase tracking-wider flex items-center gap-1.5">
-                      <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400" />
-                      Skipped Duplicate Consignments ({importResult.skipped_duplicates.length})
-                    </h5>
-                    <span className="text-[11px] text-amber-700 dark:text-amber-400">Protected against double-entry</span>
-                  </div>
-                  <div className="max-h-40 overflow-y-auto border border-amber-200 dark:border-amber-900/60 rounded-lg bg-amber-50/30 dark:bg-amber-950/20 divide-y divide-amber-200/60 dark:divide-amber-900/40">
-                    {importResult.skipped_duplicates.map((dup, idx) => (
-                      <div key={idx} className="p-2.5 text-xs flex items-start justify-between gap-3">
-                        <div className="space-y-0.5">
-                          <span className="font-semibold text-slate-800 dark:text-slate-200">
-                            Row {dup.row}: {dup.lr_number && dup.lr_number !== "AUTO" ? `LR #${dup.lr_number}` : "Consignment"}
-                          </span>
-                          <p className="text-slate-600 dark:text-slate-400">{dup.reason}</p>
-                        </div>
-                        <span className="shrink-0 text-[10px] font-medium px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950/80 text-amber-800 dark:text-amber-300 border border-amber-300/60 dark:border-amber-800/60">
-                          {dup.duplicate_type === "DATABASE_DUPLICATE" ? "DB Existing" : "File Repeated"}
-                        </span>
+              {/* Categorized Tab Bar */}
+              <div className="flex border-b border-slate-200 dark:border-[#301E30] gap-1 text-xs font-medium">
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("overview")}
+                  className={`px-3 py-2 border-b-2 transition-colors cursor-pointer ${
+                    activeTab === "overview"
+                      ? "border-indigo-600 text-indigo-700 dark:text-indigo-400 font-semibold"
+                      : "border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
+                  }`}
+                >
+                  All Overview
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("created")}
+                  className={`px-3 py-2 border-b-2 transition-colors cursor-pointer flex items-center gap-1.5 ${
+                    activeTab === "created"
+                      ? "border-emerald-600 text-emerald-700 dark:text-emerald-400 font-semibold"
+                      : "border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
+                  }`}
+                >
+                  Created LRs
+                  <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300">
+                    {importResult.imported_count}
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("skipped")}
+                  className={`px-3 py-2 border-b-2 transition-colors cursor-pointer flex items-center gap-1.5 ${
+                    activeTab === "skipped"
+                      ? "border-amber-600 text-amber-700 dark:text-amber-400 font-semibold"
+                      : "border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
+                  }`}
+                >
+                  Skipped Duplicates
+                  <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300">
+                    {importResult.skipped_duplicate_count}
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("errors")}
+                  className={`px-3 py-2 border-b-2 transition-colors cursor-pointer flex items-center gap-1.5 ${
+                    activeTab === "errors"
+                      ? "border-rose-600 text-rose-700 dark:text-rose-400 font-semibold"
+                      : "border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
+                  }`}
+                >
+                  Errors &amp; Exceptions
+                  <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-rose-100 dark:bg-rose-950 text-rose-800 dark:text-rose-300">
+                    {importResult.failed_count}
+                  </span>
+                </button>
+              </div>
+
+              {/* Tab 1: Overview (All) */}
+              {activeTab === "overview" && (
+                <div className="space-y-4">
+                  {/* Skipped Duplicates Preview */}
+                  {importResult.skipped_duplicate_count > 0 && (
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <h5 className="text-xs font-bold text-amber-900 dark:text-amber-300 uppercase tracking-wider flex items-center gap-1.5">
+                          <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                          Skipped Duplicate Consignments ({importResult.skipped_duplicates.length})
+                        </h5>
+                        <span className="text-[11px] text-amber-700 dark:text-amber-400">Protected against double-entry</span>
                       </div>
-                    ))}
-                  </div>
+                      <div className="max-h-36 overflow-y-auto border border-amber-200 dark:border-amber-900/60 rounded-lg bg-amber-50/30 dark:bg-amber-950/20 divide-y divide-amber-200/60 dark:divide-amber-900/40">
+                        {importResult.skipped_duplicates.map((dup, idx) => (
+                          <div key={idx} className="p-2.5 text-xs flex items-start justify-between gap-3">
+                            <div className="space-y-0.5">
+                              <span className="font-semibold text-slate-800 dark:text-slate-200">
+                                Row {dup.row}: {dup.lr_number && dup.lr_number !== "AUTO" ? `LR #${dup.lr_number}` : (dup.vehicle_number ? `Truck ${dup.vehicle_number}` : "Consignment")}
+                              </span>
+                              <p className="text-slate-600 dark:text-slate-400">{dup.reason}</p>
+                            </div>
+                            <span className="shrink-0 text-[10px] font-medium px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950/80 text-amber-800 dark:text-amber-300 border border-amber-300/60 dark:border-amber-800/60">
+                              {dup.duplicate_type === "DATABASE_DUPLICATE" ? "DB Existing" : "File Repeated"}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Failed / Error Rows Preview */}
+                  {importResult.failed_count > 0 && (
+                    <div className="space-y-2">
+                      <h5 className="text-xs font-bold text-rose-900 dark:text-rose-300 uppercase tracking-wider flex items-center gap-1.5">
+                        <XCircle className="w-4 h-4 text-rose-600 dark:text-rose-400" />
+                        Exceptions &amp; Failed Rows ({importResult.errors.length})
+                      </h5>
+                      <div className="max-h-36 overflow-y-auto border border-rose-200 dark:border-rose-900/60 rounded-lg bg-rose-50/30 dark:bg-rose-950/20 divide-y divide-rose-200/60 dark:divide-rose-900/40">
+                        {importResult.errors.map((err, idx) => (
+                          <div key={idx} className="p-2.5 text-xs flex items-start justify-between gap-3 text-rose-800 dark:text-rose-300">
+                            <div>
+                              <span className="font-semibold">Row {err.row}: </span>
+                              {err.field && <span className="font-medium text-rose-900 dark:text-rose-200">[{err.field}] </span>}
+                              <span className="text-rose-700 dark:text-rose-400">{err.reason}</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Imported LRs Preview */}
+                  {importResult.imported_count > 0 && (
+                    <div className="space-y-2">
+                      <h5 className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider flex items-center gap-1.5">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                        Successfully Created LRs &amp; Linked Jobs ({importResult.imported_lrs.length})
+                      </h5>
+                      <div className="max-h-40 overflow-y-auto border border-slate-200 dark:border-[#301E30] rounded-lg bg-slate-50/50 dark:bg-[#1A1420]/50 divide-y divide-slate-100 dark:divide-[#281A28]">
+                        {importResult.imported_lrs.map((lr) => (
+                          <div key={lr.id} className="p-2.5 text-xs flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-2">
+                              <span className="font-mono font-semibold text-indigo-700 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/60 px-2 py-0.5 rounded border border-indigo-200 dark:border-indigo-800">
+                                {lr.lr_number}
+                              </span>
+                              <ArrowRight className="w-3 h-3 text-slate-400 shrink-0" />
+                              <span className="font-mono text-[11px] font-semibold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-1.5 py-0.5 rounded border border-emerald-200 dark:border-emerald-800">
+                                Job #{lr.job_number}
+                              </span>
+                              <span className="text-slate-700 dark:text-slate-300 font-medium truncate max-w-[160px] sm:max-w-[240px]">
+                                {lr.consigner} → {lr.consignee}
+                              </span>
+                            </div>
+                            <div className="text-slate-500 dark:text-slate-400 text-[11px] shrink-0 flex items-center gap-2">
+                              <span className="font-mono font-semibold text-slate-600 dark:text-slate-300 flex items-center gap-1">
+                                <Truck className="w-3 h-3 text-slate-400" />
+                                {lr.vehicle_number}
+                              </span>
+                              <span>•</span>
+                              <span>{lr.lr_date}</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
-              {/* Failed / Error Rows Section */}
-              {importResult.failed_count > 0 && (
+              {/* Tab 2: Created LRs Full View */}
+              {activeTab === "created" && (
                 <div className="space-y-2">
-                  <h5 className="text-xs font-bold text-rose-900 dark:text-rose-300 uppercase tracking-wider flex items-center gap-1.5">
-                    <XCircle className="w-4 h-4 text-rose-600 dark:text-rose-400" />
-                    Failed Rows ({importResult.errors.length})
-                  </h5>
-                  <div className="max-h-36 overflow-y-auto border border-rose-200 dark:border-rose-900/60 rounded-lg bg-rose-50/30 dark:bg-rose-950/20 divide-y divide-rose-200/60 dark:divide-rose-900/40">
-                    {importResult.errors.map((err, idx) => (
-                      <div key={idx} className="p-2.5 text-xs flex items-center justify-between gap-3 text-rose-800 dark:text-rose-300">
-                        <span className="font-semibold">Row {err.row}:</span>
-                        <span className="text-rose-700 dark:text-rose-400 flex-1">{err.reason}</span>
-                      </div>
-                    ))}
+                  <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
+                    <span>All {importResult.imported_lrs.length} created LRs are linked to auto-generated sequential Job orders</span>
                   </div>
+                  {importResult.imported_lrs.length === 0 ? (
+                    <div className="p-8 text-center text-xs text-slate-400 border rounded-xl border-dashed">
+                      No LRs were created in this import batch.
+                    </div>
+                  ) : (
+                    <div className="max-h-64 overflow-y-auto border border-slate-200 dark:border-[#301E30] rounded-xl bg-white dark:bg-[#1A1420] divide-y divide-slate-100 dark:divide-[#281A28]">
+                      {importResult.imported_lrs.map((lr) => (
+                        <div key={lr.id} className="p-3 text-xs flex items-center justify-between gap-3 hover:bg-slate-50 dark:hover:bg-[#201828]">
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2">
+                              <span className="font-mono font-bold text-indigo-700 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/60 px-2 py-0.5 rounded border border-indigo-200 dark:border-indigo-800">
+                                {lr.lr_number}
+                              </span>
+                              <ArrowRight className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                              <span className="font-mono font-semibold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-200 dark:border-emerald-800">
+                                Job #{lr.job_number}
+                              </span>
+                            </div>
+                            <div className="text-slate-700 dark:text-slate-300 font-medium">
+                              {lr.consigner} → {lr.consignee} ({lr.origin} to {lr.destination})
+                            </div>
+                          </div>
+                          <div className="text-right text-[11px] text-slate-500 shrink-0 space-y-0.5">
+                            <div className="font-mono font-bold text-slate-700 dark:text-slate-300 flex items-center justify-end gap-1">
+                              <Truck className="w-3.5 h-3.5 text-slate-400" />
+                              {lr.vehicle_number}
+                            </div>
+                            <div>Booking: {lr.lr_date}</div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
 
-              {/* Imported LRs List with Linked Jobs */}
-              {importResult.imported_count > 0 && (
+              {/* Tab 3: Skipped Duplicates Full View */}
+              {activeTab === "skipped" && (
                 <div className="space-y-2">
-                  <h5 className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider flex items-center gap-1.5">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                    Successfully Created LRs &amp; Linked Jobs ({importResult.imported_lrs.length})
-                  </h5>
-                  <div className="max-h-48 overflow-y-auto border border-slate-200 dark:border-[#301E30] rounded-lg bg-slate-50/50 dark:bg-[#1A1420]/50 divide-y divide-slate-100 dark:divide-[#281A28]">
-                    {importResult.imported_lrs.map((lr) => (
-                      <div key={lr.id} className="p-2.5 text-xs flex items-center justify-between gap-2">
-                        <div className="flex items-center gap-2">
-                          <span className="font-mono font-semibold text-indigo-700 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/60 px-2 py-0.5 rounded border border-indigo-200 dark:border-indigo-800">
-                            {lr.lr_number}
-                          </span>
-                          <ArrowRight className="w-3 h-3 text-slate-400 shrink-0" />
-                          <span className="font-mono text-[11px] font-semibold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-1.5 py-0.5 rounded border border-emerald-200 dark:border-emerald-800">
-                            Job #{lr.job_number}
-                          </span>
-                          <span className="text-slate-700 dark:text-slate-300 font-medium truncate max-w-[160px] sm:max-w-[220px]">
-                            {lr.consigner} → {lr.consignee}
-                          </span>
-                        </div>
-                        <div className="text-slate-500 dark:text-slate-400 text-[11px] shrink-0 flex items-center gap-2">
-                          <span className="font-mono font-semibold text-slate-600 dark:text-slate-300 flex items-center gap-1">
-                            <Truck className="w-3 h-3 text-slate-400" />
-                            {lr.vehicle_number}
-                          </span>
-                          <span>•</span>
-                          <span>{lr.lr_date}</span>
-                        </div>
-                      </div>
-                    ))}
+                  <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
+                    <span>Duplicates skipped to protect against double-entry and sequence conflicts</span>
                   </div>
+                  {importResult.skipped_duplicates.length === 0 ? (
+                    <div className="p-8 text-center text-xs text-slate-400 border rounded-xl border-dashed">
+                      Zero duplicate consignments encountered.
+                    </div>
+                  ) : (
+                    <div className="max-h-64 overflow-y-auto border border-amber-200 dark:border-amber-900/60 rounded-xl bg-amber-50/20 dark:bg-amber-950/10 divide-y divide-amber-200/60 dark:divide-amber-900/40">
+                      {importResult.skipped_duplicates.map((dup, idx) => (
+                        <div key={idx} className="p-3 text-xs space-y-1 hover:bg-amber-50/50 dark:hover:bg-amber-950/20">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+                              <span className="px-1.5 py-0.2 rounded bg-slate-200 dark:bg-slate-800 text-[10px] font-mono">
+                                Row {dup.row}
+                              </span>
+                              {dup.lr_number && dup.lr_number !== "AUTO" ? `LR #${dup.lr_number}` : (dup.vehicle_number ? `Truck ${dup.vehicle_number}` : "Consignment")}
+                            </span>
+                            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950/80 text-amber-800 dark:text-amber-300 border border-amber-300/60 dark:border-amber-800/60">
+                              {dup.duplicate_type === "DATABASE_DUPLICATE" ? "Database Existing" : "Excel File Repeated"}
+                            </span>
+                          </div>
+                          <p className="text-slate-600 dark:text-slate-400 text-xs leading-relaxed">{dup.reason}</p>
+                          {(dup.route || dup.lr_date) && (
+                            <div className="text-[10px] text-slate-400 flex items-center gap-3 pt-0.5">
+                              {dup.route && <span>Route: {dup.route}</span>}
+                              {dup.lr_date && <span>Date: {dup.lr_date}</span>}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Tab 4: Errors & Exceptions Full View */}
+              {activeTab === "errors" && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
+                    <span>Specific data formatting or validation errors encountered</span>
+                  </div>
+                  {importResult.errors.length === 0 ? (
+                    <div className="p-8 text-center text-xs text-slate-400 border rounded-xl border-dashed">
+                      Zero errors or exceptions encountered.
+                    </div>
+                  ) : (
+                    <div className="max-h-64 overflow-y-auto border border-rose-200 dark:border-rose-900/60 rounded-xl bg-rose-50/20 dark:bg-rose-950/10 divide-y divide-rose-200/60 dark:divide-rose-900/40">
+                      {importResult.errors.map((err, idx) => (
+                        <div key={idx} className="p-3 text-xs space-y-1 hover:bg-rose-50/50 dark:hover:bg-rose-950/20">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="font-semibold text-rose-900 dark:text-rose-200 flex items-center gap-2">
+                              <span className="px-1.5 py-0.2 rounded bg-rose-200/70 dark:bg-rose-900/70 text-[10px] font-mono text-rose-900 dark:text-rose-100">
+                                Row {err.row}
+                              </span>
+                              {err.field ? `Field: ${err.field}` : (err.column ? `Column: ${err.column}` : (err.lr_number ? `LR #${err.lr_number}` : "Data Error"))}
+                            </span>
+                            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-rose-100 dark:bg-rose-950/80 text-rose-800 dark:text-rose-300 border border-rose-300/60 dark:border-rose-800/60">
+                              Exception
+                            </span>
+                          </div>
+                          <p className="text-rose-700 dark:text-rose-400 text-xs leading-relaxed">{err.reason}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -737,19 +1115,32 @@ export function LRExcelImportModal({
             </>
           ) : (
             <>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  setImportResult(null);
-                  setSelectedFile(null);
-                }}
-                className="text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-[#2A1C2A] border-slate-300 dark:border-[#382638]"
-              >
-                <RefreshCw className="w-3.5 h-3.5 mr-1.5" />
-                Import Another File
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setImportResult(null);
+                    setSelectedFile(null);
+                    setActiveTab("overview");
+                  }}
+                  className="text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-[#2A1C2A] border-slate-300 dark:border-[#382638]"
+                >
+                  <RefreshCw className="w-3.5 h-3.5 mr-1.5" />
+                  Import Another File
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleDownloadAuditReport}
+                  className="text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-[#2A1C2A] border-slate-300 dark:border-[#382638] hidden sm:inline-flex"
+                >
+                  <FileText className="w-3.5 h-3.5 mr-1.5 text-indigo-600 dark:text-indigo-400" />
+                  Audit Report (.txt)
+                </Button>
+              </div>
               <Button
                 type="button"
                 size="sm"

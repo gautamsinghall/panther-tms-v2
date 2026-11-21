@@ -1148,6 +1148,16 @@ def _normalize_lr_header(header: str) -> str:
     return clean
 
 
+MANDATORY_LR_COLUMNS = [
+    ("billing_client", "Billing Customer"),
+    ("consigner", "Consignor"),
+    ("consignee", "Consignee"),
+    ("origin_location", "Origin Hub / City"),
+    ("destination_location", "Destination Hub / City"),
+    ("vehicle_number", "Truck Number"),
+]
+
+
 async def import_lrs_from_excel(
     db: AsyncSession,
     file_bytes: bytes,
@@ -1171,67 +1181,144 @@ async def import_lrs_from_excel(
 
     rows_data: List[Dict[str, Any]] = []
 
-    # 1. Parse File into List of dicts
-    is_csv = filename.lower().endswith(".csv")
-    if is_csv:
-        content_str = file_bytes.decode("utf-8-sig", errors="replace")
-        csv_reader = csv.reader(io.StringIO(content_str))
-        headers_raw = next(csv_reader, [])
-        header_map = {idx: _normalize_lr_header(h) for idx, h in enumerate(headers_raw)}
-        for row_idx, row in enumerate(csv_reader, start=2):
-            if not any(row):
-                continue
-            row_dict = {"_row_num": row_idx}
-            for col_idx, val in enumerate(row):
-                key = header_map.get(col_idx)
-                if key:
-                    row_dict[key] = val
-            rows_data.append(row_dict)
-    else:
-        # Excel .xlsx / .xls
-        wb = openpyxl.load_workbook(io.BytesIO(file_bytes), data_only=True)
-        sheet_name = "LR_Booking_Import" if "LR_Booking_Import" in wb.sheetnames else wb.sheetnames[0]
-        ws = wb[sheet_name]
-
-        header_row = None
-        for r in range(1, min(10, ws.max_row + 1)):
-            row_vals = [ws.cell(row=r, column=c).value for c in range(1, ws.max_column + 1)]
-            normalized = [_normalize_lr_header(v) for v in row_vals if v]
-            if "consigner" in normalized or "consignee" in normalized or "billing_client" in normalized or "vehicle_number" in normalized:
-                header_row = r
-                break
-
-        if not header_row:
+    # 1. Parse File into List of dicts with exception handling for corrupted files
+    try:
+        is_csv = filename.lower().endswith(".csv")
+        if is_csv:
+            content_str = file_bytes.decode("utf-8-sig", errors="replace")
+            csv_reader = csv.reader(io.StringIO(content_str))
+            headers_raw = next(csv_reader, [])
+            header_map = {idx: _normalize_lr_header(h) for idx, h in enumerate(headers_raw)}
             header_row = 1
-
-        header_map = {}
-        for c in range(1, ws.max_column + 1):
-            val = ws.cell(row=header_row, column=c).value
-            if val is not None:
-                header_map[c] = _normalize_lr_header(str(val))
-
-        for r in range(header_row + 1, ws.max_row + 1):
-            row_dict = {"_row_num": r}
-            has_val = False
-            for c in range(1, ws.max_column + 1):
-                key = header_map.get(c)
-                if key:
-                    val = ws.cell(row=r, column=c).value
-                    if val is not None and str(val).strip() != "":
-                        has_val = True
+            for row_idx, row in enumerate(csv_reader, start=2):
+                if not any(row):
+                    continue
+                row_dict = {"_row_num": row_idx}
+                for col_idx, val in enumerate(row):
+                    key = header_map.get(col_idx)
+                    if key:
                         row_dict[key] = val
-            if has_val:
                 rows_data.append(row_dict)
+        else:
+            # Excel .xlsx / .xls
+            wb = openpyxl.load_workbook(io.BytesIO(file_bytes), data_only=True)
+            sheet_name = "LR_Booking_Import" if "LR_Booking_Import" in wb.sheetnames else wb.sheetnames[0]
+            ws = wb[sheet_name]
+
+            header_row = None
+            for r in range(1, min(10, ws.max_row + 1)):
+                row_vals = [ws.cell(row=r, column=c).value for c in range(1, ws.max_column + 1)]
+                normalized = [_normalize_lr_header(v) for v in row_vals if v]
+                if any(k in normalized for k in ["consigner", "consignee", "billing_client", "vehicle_number", "lr_number", "origin_location"]):
+                    header_row = r
+                    break
+
+            if not header_row:
+                header_row = 1
+
+            header_map = {}
+            for c in range(1, ws.max_column + 1):
+                val = ws.cell(row=header_row, column=c).value
+                if val is not None and str(val).strip() != "":
+                    header_map[c] = _normalize_lr_header(str(val))
+
+            for r in range(header_row + 1, ws.max_row + 1):
+                row_dict = {"_row_num": r}
+                has_val = False
+                for c in range(1, ws.max_column + 1):
+                    key = header_map.get(c)
+                    if key:
+                        val = ws.cell(row=r, column=c).value
+                        if val is not None and str(val).strip() != "":
+                            has_val = True
+                            row_dict[key] = val
+                if has_val:
+                    rows_data.append(row_dict)
+    except Exception as parse_ex:
+        return {
+            "status": "FAILED",
+            "total_rows": 0,
+            "imported_count": 0,
+            "skipped_duplicate_count": 0,
+            "failed_count": 1,
+            "missing_headers": [],
+            "skipped_duplicates": [],
+            "errors": [
+                {
+                    "row": 0,
+                    "reason": f"Failed to parse uploaded spreadsheet: {str(parse_ex)}. Please ensure it is a valid Excel or CSV file.",
+                }
+            ],
+            "imported_lrs": [],
+            "summary_report": {
+                "status": "FAILED",
+                "total_rows": 0,
+                "imported_count": 0,
+                "skipped_duplicate_count": 0,
+                "failed_count": 1,
+                "success_rate_percent": 0.0,
+                "missing_columns": [],
+                "execution_summary": f"Spreadsheet read failure: {str(parse_ex)}",
+                "generated_at": datetime.now(timezone.utc).isoformat(),
+            },
+        }
+
+    # 2. Check for Missing Mandatory Headers
+    present_canonical_keys = set(header_map.values())
+    missing_headers = [col_display for col_key, col_display in MANDATORY_LR_COLUMNS if col_key not in present_canonical_keys]
+    if missing_headers:
+        missing_desc = ", ".join(missing_headers)
+        return {
+            "status": "FAILED",
+            "total_rows": 0,
+            "imported_count": 0,
+            "skipped_duplicate_count": 0,
+            "failed_count": 1,
+            "missing_headers": missing_headers,
+            "skipped_duplicates": [],
+            "errors": [
+                {
+                    "row": header_row,
+                    "column": missing_desc,
+                    "reason": f"Uploaded file is missing required columns: {missing_desc}. Please download the template or ensure the header row includes these columns.",
+                }
+            ],
+            "imported_lrs": [],
+            "summary_report": {
+                "status": "FAILED",
+                "total_rows": 0,
+                "imported_count": 0,
+                "skipped_duplicate_count": 0,
+                "failed_count": 1,
+                "success_rate_percent": 0.0,
+                "missing_columns": missing_headers,
+                "execution_summary": f"Import failed: Missing required column(s): {missing_desc}.",
+                "generated_at": datetime.now(timezone.utc).isoformat(),
+            },
+        }
 
     if not rows_data:
         return {
+            "status": "FAILED",
             "total_rows": 0,
             "imported_count": 0,
             "skipped_duplicate_count": 0,
             "failed_count": 0,
+            "missing_headers": [],
             "skipped_duplicates": [],
             "errors": [{"row": 1, "reason": "No data rows found in the uploaded file."}],
             "imported_lrs": [],
+            "summary_report": {
+                "status": "FAILED",
+                "total_rows": 0,
+                "imported_count": 0,
+                "skipped_duplicate_count": 0,
+                "failed_count": 0,
+                "success_rate_percent": 0.0,
+                "missing_columns": [],
+                "execution_summary": "No data rows found in the uploaded file.",
+                "generated_at": datetime.now(timezone.utc).isoformat(),
+            },
         }
 
     # Extract & validate fields before sorting
@@ -1265,29 +1352,147 @@ async def import_lrs_from_excel(
         raw_job_no = str(row.get("job_number") or "").strip()
         raw_remarks = str(row.get("remarks") or "").strip()
 
-        # Parse Dates
-        lr_date = _parse_date(row.get("lr_date")) or _parse_date(row.get("dispatch_date")) or date.today()
-        dispatch_date = _parse_date(row.get("dispatch_date")) or lr_date
+        # Parse & Validate Dates with exception handling
+        raw_lr_date = row.get("lr_date")
+        if raw_lr_date is not None and str(raw_lr_date).strip() != "":
+            parsed_lr_date = _parse_date(raw_lr_date)
+            if parsed_lr_date is None:
+                errors.append({
+                    "row": row_num,
+                    "lr_number": raw_lr_no,
+                    "field": "Booking Date",
+                    "reason": f"Invalid date format for Booking Date: '{raw_lr_date}'. Expected format: YYYY-MM-DD or DD/MM/YYYY.",
+                })
+                continue
+            lr_date = parsed_lr_date
+        else:
+            lr_date = date.today()
+
+        raw_dispatch_date = row.get("dispatch_date")
+        if raw_dispatch_date is not None and str(raw_dispatch_date).strip() != "":
+            parsed_dispatch = _parse_date(raw_dispatch_date)
+            if parsed_dispatch is None:
+                errors.append({
+                    "row": row_num,
+                    "lr_number": raw_lr_no,
+                    "field": "Scheduled Dispatch Date",
+                    "reason": f"Invalid date format for Dispatch Date: '{raw_dispatch_date}'. Expected format: YYYY-MM-DD or DD/MM/YYYY.",
+                })
+                continue
+            dispatch_date = parsed_dispatch
+        else:
+            dispatch_date = lr_date
 
         # Check required fields
         if not raw_client:
-            errors.append({"row": row_num, "lr_number": raw_lr_no, "reason": "Missing mandatory field 'Billing Customer'."})
+            errors.append({"row": row_num, "lr_number": raw_lr_no, "field": "Billing Customer", "reason": "Missing mandatory field 'Billing Customer'."})
             continue
         if not raw_consigner:
-            errors.append({"row": row_num, "lr_number": raw_lr_no, "reason": "Missing mandatory field 'Consignor'."})
+            errors.append({"row": row_num, "lr_number": raw_lr_no, "field": "Consignor", "reason": "Missing mandatory field 'Consignor'."})
             continue
         if not raw_consignee:
-            errors.append({"row": row_num, "lr_number": raw_lr_no, "reason": "Missing mandatory field 'Consignee'."})
+            errors.append({"row": row_num, "lr_number": raw_lr_no, "field": "Consignee", "reason": "Missing mandatory field 'Consignee'."})
             continue
         if not raw_origin:
-            errors.append({"row": row_num, "lr_number": raw_lr_no, "reason": "Missing mandatory field 'Origin Hub / City'."})
+            errors.append({"row": row_num, "lr_number": raw_lr_no, "field": "Origin Hub / City", "reason": "Missing mandatory field 'Origin Hub / City'."})
             continue
         if not raw_dest:
-            errors.append({"row": row_num, "lr_number": raw_lr_no, "reason": "Missing mandatory field 'Destination Hub / City'."})
+            errors.append({"row": row_num, "lr_number": raw_lr_no, "field": "Destination Hub / City", "reason": "Missing mandatory field 'Destination Hub / City'."})
             continue
         if not raw_vehicle:
-            errors.append({"row": row_num, "lr_number": raw_lr_no, "reason": "Missing mandatory field 'Truck Number'."})
+            errors.append({"row": row_num, "lr_number": raw_lr_no, "field": "Truck Number", "reason": "Missing mandatory field 'Truck Number'."})
             continue
+
+        # Validate numeric format exceptions
+        if raw_freight is not None and str(raw_freight).strip() != "":
+            try:
+                clean_f = str(raw_freight).replace(",", "").strip()
+                f_val = Decimal(clean_f)
+                if f_val < 0:
+                    raise ValueError("Must be non-negative")
+            except Exception:
+                errors.append({
+                    "row": row_num,
+                    "lr_number": raw_lr_no,
+                    "field": "Freight Amount",
+                    "reason": f"Invalid numeric format for Freight Amount: '{raw_freight}'.",
+                })
+                continue
+
+        if raw_advance is not None and str(raw_advance).strip() != "":
+            try:
+                clean_a = str(raw_advance).replace(",", "").strip()
+                a_val = Decimal(clean_a)
+                if a_val < 0:
+                    raise ValueError("Must be non-negative")
+            except Exception:
+                errors.append({
+                    "row": row_num,
+                    "lr_number": raw_lr_no,
+                    "field": "Advance Amount",
+                    "reason": f"Invalid numeric format for Advance Amount: '{raw_advance}'.",
+                })
+                continue
+
+        if raw_package_count is not None and str(raw_package_count).strip() != "":
+            try:
+                clean_p = str(raw_package_count).replace(",", "").strip()
+                p_val = int(float(clean_p))
+                if p_val < 0:
+                    raise ValueError("Must be non-negative")
+            except Exception:
+                errors.append({
+                    "row": row_num,
+                    "lr_number": raw_lr_no,
+                    "field": "No. of Packages",
+                    "reason": f"Invalid integer format for Packages: '{raw_package_count}'.",
+                })
+                continue
+
+        if raw_actual_weight is not None and str(raw_actual_weight).strip() != "":
+            try:
+                clean_w = str(raw_actual_weight).replace(",", "").strip()
+                w_val = Decimal(clean_w)
+                if w_val < 0:
+                    raise ValueError("Must be non-negative")
+            except Exception:
+                errors.append({
+                    "row": row_num,
+                    "lr_number": raw_lr_no,
+                    "field": "Actual Weight",
+                    "reason": f"Invalid numeric format for Actual Weight: '{raw_actual_weight}'.",
+                })
+                continue
+
+        if raw_chargeable_weight is not None and str(raw_chargeable_weight).strip() != "":
+            try:
+                clean_cw = str(raw_chargeable_weight).replace(",", "").strip()
+                cw_val = Decimal(clean_cw)
+                if cw_val < 0:
+                    raise ValueError("Must be non-negative")
+            except Exception:
+                errors.append({
+                    "row": row_num,
+                    "lr_number": raw_lr_no,
+                    "field": "Charged Weight",
+                    "reason": f"Invalid numeric format for Charged Weight: '{raw_chargeable_weight}'.",
+                })
+                continue
+
+        if raw_invoice_value is not None and str(raw_invoice_value).strip() != "":
+            try:
+                clean_iv = str(raw_invoice_value).replace(",", "").strip()
+                iv_val = Decimal(clean_iv)
+                if iv_val < 0:
+                    raise ValueError("Must be non-negative")
+            except Exception:
+                errors.append({
+                    "row": row_num,
+                    "lr_number": raw_lr_no,
+                    "field": "Invoice Value",
+                    "reason": f"Invalid numeric format for Invoice Value: '{raw_invoice_value}'.",
+                })
+                continue
 
         valid_rows.append({
             "_row_num": row_num,
@@ -1535,6 +1740,9 @@ async def import_lrs_from_excel(
                 skipped_duplicates.append({
                     "row": row_num,
                     "lr_number": effective_lr_no,
+                    "vehicle_number": raw_vehicle,
+                    "route": f"{raw_origin} → {raw_dest}",
+                    "lr_date": lr_date.isoformat(),
                     "reason": f"Duplicate LR Number '{effective_lr_no}' repeated within Excel file (first seen on Row {first_row}).",
                     "duplicate_type": "EXCEL_FILE_DUPLICATE"
                 })
@@ -1550,7 +1758,10 @@ async def import_lrs_from_excel(
             skipped_duplicates.append({
                 "row": row_num,
                 "lr_number": effective_lr_no or "AUTO",
-                "reason": f"Duplicate consignment repeated within Excel file: Same Client, Consignor, Consignee, Route, Vehicle, and Date (matches Row {first_row}).",
+                "vehicle_number": raw_vehicle,
+                "route": f"{raw_origin} → {raw_dest}",
+                "lr_date": lr_date.isoformat(),
+                "reason": f"Duplicate consignment repeated within Excel file: Same Client, Consignor, Consignee, Route ({raw_origin} → {raw_dest}), Vehicle ({raw_vehicle}), and Date ({lr_date.isoformat()}) (matches Row {first_row}).",
                 "duplicate_type": "EXCEL_FILE_DUPLICATE"
             })
             continue
@@ -1571,6 +1782,9 @@ async def import_lrs_from_excel(
                 skipped_duplicates.append({
                     "row": row_num,
                     "lr_number": effective_lr_no,
+                    "vehicle_number": raw_vehicle,
+                    "route": f"{raw_origin} → {raw_dest}",
+                    "lr_date": lr_date.isoformat(),
                     "reason": f"LR Number '{effective_lr_no}' already exists in database (LR #{existing_lr.lr_number}, Status: {existing_lr.status}).",
                     "duplicate_type": "DATABASE_DUPLICATE"
                 })
@@ -1699,7 +1913,10 @@ async def import_lrs_from_excel(
         if db_dup:
             skipped_duplicates.append({
                 "row": row_num,
-                "lr_number": effective_lr_no or raw_lr_no or db_dup.lr_number,
+                "lr_number": effective_lr_no or raw_lr_no or f"LR #{db_dup.lr_number}",
+                "vehicle_number": raw_vehicle,
+                "route": f"{origin_obj.city_name} → {dest_obj.city_name}",
+                "lr_date": lr_date.isoformat(),
                 "reason": f"Active duplicate LR already exists in database: LR #{db_dup.lr_number} for {consigner_obj.name} -> {consignee_obj.name} ({raw_vehicle}) on {lr_date}.",
                 "duplicate_type": "DATABASE_DUPLICATE"
             })
@@ -1956,6 +2173,9 @@ async def import_lrs_from_excel(
             skipped_duplicates.append({
                 "row": row_num,
                 "lr_number": effective_lr_no or raw_lr_no,
+                "vehicle_number": raw_vehicle,
+                "route": f"{origin_obj.city_name if 'origin_obj' in locals() and origin_obj else raw_origin} → {dest_obj.city_name if 'dest_obj' in locals() and dest_obj else raw_dest}",
+                "lr_date": lr_date.isoformat(),
                 "reason": ae.message,
                 "duplicate_type": "DATABASE_DUPLICATE" if ae.error_code == "VOUCHER_NUMBER_ALREADY_USED" else "SERIES_ERROR"
             })
@@ -1970,13 +2190,42 @@ async def import_lrs_from_excel(
     if imported_lrs:
         await db.commit()
 
+    total_rows_count = len(rows_data)
+    imported_count = len(imported_lrs)
+    skipped_count = len(skipped_duplicates)
+    failed_count = len(errors)
+
+    if imported_count > 0 and failed_count == 0 and skipped_count == 0:
+        overall_status = "COMPLETED"
+    elif imported_count > 0:
+        overall_status = "PARTIAL_SUCCESS"
+    else:
+        overall_status = "FAILED"
+
+    success_rate = round((imported_count / total_rows_count * 100), 1) if total_rows_count > 0 else 0.0
+
+    summary_report = {
+        "status": overall_status,
+        "total_rows": total_rows_count,
+        "imported_count": imported_count,
+        "skipped_duplicate_count": skipped_count,
+        "failed_count": failed_count,
+        "success_rate_percent": success_rate,
+        "missing_columns": [],
+        "execution_summary": f"Processed {total_rows_count} rows: {imported_count} LRs imported successfully, {skipped_count} skipped duplicates, {failed_count} exceptions/errors.",
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+    }
+
     return {
-        "total_rows": len(rows_data),
-        "imported_count": len(imported_lrs),
-        "skipped_duplicate_count": len(skipped_duplicates),
-        "failed_count": len(errors),
+        "status": overall_status,
+        "total_rows": total_rows_count,
+        "imported_count": imported_count,
+        "skipped_duplicate_count": skipped_count,
+        "failed_count": failed_count,
+        "missing_headers": [],
         "skipped_duplicates": skipped_duplicates,
         "errors": errors,
         "imported_lrs": imported_lrs,
+        "summary_report": summary_report,
     }
 
