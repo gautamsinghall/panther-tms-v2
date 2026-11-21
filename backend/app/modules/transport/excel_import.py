@@ -347,6 +347,15 @@ async def _resolve_or_create_location(
     return loc_obj
 
 
+MANDATORY_JOB_COLUMNS = [
+    ("billing_client", "Billing Client"),
+    ("origin_location", "Origin Location"),
+    ("destination_location", "Destination Location"),
+    ("consigner", "Consigner"),
+    ("consignee", "Consignee"),
+]
+
+
 async def import_jobs_from_excel(
     db: AsyncSession,
     file_bytes: bytes,
@@ -359,9 +368,9 @@ async def import_jobs_from_excel(
     Parses Excel (.xlsx/.xls) or CSV file, performs deep 2-level deduplication:
     1. Within-Excel duplicate check (job_number, exact business trip duplicate).
     2. Database duplicate check (existing job_number, existing trip matching route, dates, parties).
-    Resolves/auto-creates sub-fields (Billing Client, Origin, Destination, Consigner, Consignee).
-    Supports importing with or without configured series prefix/postfix.
-    Assigns jobs to the specified office_id (fallback to Head Office if unspecified/all).
+    Sorts rows chronologically by date (oldest date gets next available sequence number,
+    first-come first-served on identical dates), resolves/auto-creates sub-fields,
+    and returns a comprehensive audit summary report.
     """
     resolved_office_id = office_id
     if not resolved_office_id or resolved_office_id == 0:
@@ -372,68 +381,271 @@ async def import_jobs_from_excel(
 
     rows_data: List[Dict[str, Any]] = []
 
-    # 1. Parse File into List of dicts
-    is_csv = filename.lower().endswith(".csv")
-    if is_csv:
-        content_str = file_bytes.decode("utf-8-sig", errors="replace")
-        csv_reader = csv.reader(io.StringIO(content_str))
-        headers_raw = next(csv_reader, [])
-        header_map = {idx: _normalize_header(h) for idx, h in enumerate(headers_raw)}
-        for row_idx, row in enumerate(csv_reader, start=2):
-            if not any(row):
-                continue
-            row_dict = {"_row_num": row_idx}
-            for col_idx, val in enumerate(row):
-                key = header_map.get(col_idx)
-                if key:
-                    row_dict[key] = val
-            rows_data.append(row_dict)
-    else:
-        # Excel .xlsx / .xls
-        wb = openpyxl.load_workbook(io.BytesIO(file_bytes), data_only=True)
-        sheet_name = "Job_Orders_Import" if "Job_Orders_Import" in wb.sheetnames else wb.sheetnames[0]
-        ws = wb[sheet_name]
-
-        header_row = None
-        for r in range(1, min(10, ws.max_row + 1)):
-            row_vals = [ws.cell(row=r, column=c).value for c in range(1, ws.max_column + 1)]
-            normalized = [_normalize_header(v) for v in row_vals if v]
-            if "consigner" in normalized or "consignee" in normalized or "origin_location" in normalized or "billing_client" in normalized:
-                header_row = r
-                break
-
-        if not header_row:
+    # 1. Parse File into List of dicts with exception handling for corrupted files
+    try:
+        is_csv = filename.lower().endswith(".csv")
+        if is_csv:
+            content_str = file_bytes.decode("utf-8-sig", errors="replace")
+            csv_reader = csv.reader(io.StringIO(content_str))
+            headers_raw = next(csv_reader, [])
+            header_map = {idx: _normalize_header(h) for idx, h in enumerate(headers_raw)}
             header_row = 1
-
-        header_map = {}
-        for c in range(1, ws.max_column + 1):
-            val = ws.cell(row=header_row, column=c).value
-            if val is not None:
-                header_map[c] = _normalize_header(str(val))
-
-        for r in range(header_row + 1, ws.max_row + 1):
-            row_dict = {"_row_num": r}
-            has_val = False
-            for c in range(1, ws.max_column + 1):
-                key = header_map.get(c)
-                if key:
-                    val = ws.cell(row=r, column=c).value
-                    if val is not None and str(val).strip() != "":
-                        has_val = True
+            for row_idx, row in enumerate(csv_reader, start=2):
+                if not any(row):
+                    continue
+                row_dict = {"_row_num": row_idx}
+                for col_idx, val in enumerate(row):
+                    key = header_map.get(col_idx)
+                    if key:
                         row_dict[key] = val
-            if has_val:
                 rows_data.append(row_dict)
+        else:
+            # Excel .xlsx / .xls
+            wb = openpyxl.load_workbook(io.BytesIO(file_bytes), data_only=True)
+            sheet_name = "Job_Orders_Import" if "Job_Orders_Import" in wb.sheetnames else wb.sheetnames[0]
+            ws = wb[sheet_name]
+
+            header_row = None
+            for r in range(1, min(10, ws.max_row + 1)):
+                row_vals = [ws.cell(row=r, column=c).value for c in range(1, ws.max_column + 1)]
+                normalized = [_normalize_header(v) for v in row_vals if v]
+                if any(k in normalized for k in ["consigner", "consignee", "origin_location", "billing_client", "job_number"]):
+                    header_row = r
+                    break
+
+            if not header_row:
+                header_row = 1
+
+            header_map = {}
+            for c in range(1, ws.max_column + 1):
+                val = ws.cell(row=header_row, column=c).value
+                if val is not None and str(val).strip() != "":
+                    header_map[c] = _normalize_header(str(val))
+
+            for r in range(header_row + 1, ws.max_row + 1):
+                row_dict = {"_row_num": r}
+                has_val = False
+                for c in range(1, ws.max_column + 1):
+                    key = header_map.get(c)
+                    if key:
+                        val = ws.cell(row=r, column=c).value
+                        if val is not None and str(val).strip() != "":
+                            has_val = True
+                            row_dict[key] = val
+                if has_val:
+                    rows_data.append(row_dict)
+    except Exception as parse_ex:
+        return {
+            "status": "FAILED",
+            "total_rows": 0,
+            "imported_count": 0,
+            "skipped_duplicate_count": 0,
+            "failed_count": 1,
+            "missing_headers": [],
+            "skipped_duplicates": [],
+            "errors": [
+                {
+                    "row": 0,
+                    "reason": f"Failed to parse uploaded spreadsheet: {str(parse_ex)}. Please ensure it is a valid Excel or CSV file.",
+                }
+            ],
+            "imported_jobs": [],
+            "summary_report": {
+                "status": "FAILED",
+                "total_rows": 0,
+                "imported_count": 0,
+                "skipped_duplicate_count": 0,
+                "failed_count": 1,
+                "success_rate_percent": 0.0,
+                "missing_columns": [],
+                "execution_summary": f"Spreadsheet read failure: {str(parse_ex)}",
+                "generated_at": datetime.now(timezone.utc).isoformat(),
+            },
+        }
+
+    # 2. Check for Missing Mandatory Headers
+    present_canonical_keys = set(header_map.values())
+    missing_headers = [col_display for col_key, col_display in MANDATORY_JOB_COLUMNS if col_key not in present_canonical_keys]
+    if missing_headers:
+        missing_desc = ", ".join(missing_headers)
+        return {
+            "status": "FAILED",
+            "total_rows": 0,
+            "imported_count": 0,
+            "skipped_duplicate_count": 0,
+            "failed_count": 1,
+            "missing_headers": missing_headers,
+            "skipped_duplicates": [],
+            "errors": [
+                {
+                    "row": header_row,
+                    "column": missing_desc,
+                    "reason": f"Uploaded file is missing required columns: {missing_desc}. Please download the template or ensure the header row includes these columns.",
+                }
+            ],
+            "imported_jobs": [],
+            "summary_report": {
+                "status": "FAILED",
+                "total_rows": 0,
+                "imported_count": 0,
+                "skipped_duplicate_count": 0,
+                "failed_count": 1,
+                "success_rate_percent": 0.0,
+                "missing_columns": missing_headers,
+                "execution_summary": f"Import failed: Missing required column(s): {missing_desc}.",
+                "generated_at": datetime.now(timezone.utc).isoformat(),
+            },
+        }
 
     if not rows_data:
         return {
+            "status": "FAILED",
             "total_rows": 0,
             "imported_count": 0,
             "skipped_duplicate_count": 0,
             "failed_count": 0,
+            "missing_headers": [],
             "skipped_duplicates": [],
             "errors": [{"row": 1, "reason": "No data rows found in the uploaded file."}],
             "imported_jobs": [],
+            "summary_report": {
+                "status": "FAILED",
+                "total_rows": 0,
+                "imported_count": 0,
+                "skipped_duplicate_count": 0,
+                "failed_count": 0,
+                "success_rate_percent": 0.0,
+                "missing_columns": [],
+                "execution_summary": "No data rows found in the uploaded file.",
+                "generated_at": datetime.now(timezone.utc).isoformat(),
+            },
         }
+
+    # Extract & validate fields before sorting
+    valid_rows: List[Dict[str, Any]] = []
+    errors: List[Dict[str, Any]] = []
+    skipped_duplicates: List[Dict[str, Any]] = []
+    imported_jobs: List[Dict[str, Any]] = []
+
+    for row in rows_data:
+        row_num = row.get("_row_num", 0)
+
+        # Extract values
+        raw_job_no = str(row.get("job_number") or "").strip()
+        raw_client = str(row.get("billing_client") or "").strip()
+        raw_origin = str(row.get("origin_location") or "").strip()
+        raw_dest = str(row.get("destination_location") or "").strip()
+        raw_consigner = str(row.get("consigner") or "").strip()
+        raw_consignee = str(row.get("consignee") or "").strip()
+        raw_cargo = str(row.get("cargo_description") or "").strip()
+        raw_weight = row.get("estimated_weight_mt")
+        raw_packages = row.get("estimated_packages")
+        raw_instructions = str(row.get("special_instructions") or "").strip()
+
+        # Parse & Validate Dates with exception handling
+        raw_job_date = row.get("job_date")
+        if raw_job_date is not None and str(raw_job_date).strip() != "":
+            parsed_job_date = _parse_date(raw_job_date)
+            if parsed_job_date is None:
+                errors.append({
+                    "row": row_num,
+                    "job_number": raw_job_no,
+                    "field": "Date of Job Creation",
+                    "reason": f"Invalid date format for Date of Job Creation: '{raw_job_date}'. Expected format: YYYY-MM-DD or DD/MM/YYYY.",
+                })
+                continue
+            job_creation_date = parsed_job_date
+        else:
+            job_creation_date = date.today()
+
+        raw_dispatch_date = row.get("scheduled_dispatch_date")
+        if raw_dispatch_date is not None and str(raw_dispatch_date).strip() != "":
+            parsed_dispatch = _parse_date(raw_dispatch_date)
+            if parsed_dispatch is None:
+                errors.append({
+                    "row": row_num,
+                    "job_number": raw_job_no,
+                    "field": "Scheduled Dispatch Date",
+                    "reason": f"Invalid date format for Scheduled Dispatch Date: '{raw_dispatch_date}'. Expected format: YYYY-MM-DD or DD/MM/YYYY.",
+                })
+                continue
+            dispatch_date = parsed_dispatch
+        else:
+            dispatch_date = job_creation_date
+
+        # Check Required Fields (Matching the Real Form)
+        if not raw_client:
+            errors.append({"row": row_num, "job_number": raw_job_no, "field": "Billing Client", "reason": "Missing mandatory field 'Billing Client'."})
+            continue
+        if not raw_origin:
+            errors.append({"row": row_num, "job_number": raw_job_no, "field": "Origin Location", "reason": "Missing mandatory field 'Origin Location'."})
+            continue
+        if not raw_dest:
+            errors.append({"row": row_num, "job_number": raw_job_no, "field": "Destination Location", "reason": "Missing mandatory field 'Destination Location'."})
+            continue
+        if not raw_consigner:
+            errors.append({"row": row_num, "job_number": raw_job_no, "field": "Consigner", "reason": "Missing mandatory field 'Consigner'."})
+            continue
+        if not raw_consignee:
+            errors.append({"row": row_num, "job_number": raw_job_no, "field": "Consignee", "reason": "Missing mandatory field 'Consignee'."})
+            continue
+
+        # Validate numeric format exceptions
+        weight_val = Decimal("0.000")
+        if raw_weight is not None and str(raw_weight).strip() != "":
+            try:
+                clean_w = str(raw_weight).replace(",", "").strip()
+                w_parsed = Decimal(clean_w)
+                if w_parsed < 0:
+                    raise ValueError("Must be non-negative")
+                weight_val = w_parsed
+            except Exception:
+                errors.append({
+                    "row": row_num,
+                    "job_number": raw_job_no,
+                    "field": "Estimated Weight",
+                    "reason": f"Invalid numeric format for Estimated Weight: '{raw_weight}'.",
+                })
+                continue
+
+        packages_val = 0
+        if raw_packages is not None and str(raw_packages).strip() != "":
+            try:
+                clean_p = str(raw_packages).replace(",", "").strip()
+                p_parsed = int(float(clean_p))
+                if p_parsed < 0:
+                    raise ValueError("Must be non-negative")
+                packages_val = p_parsed
+            except Exception:
+                errors.append({
+                    "row": row_num,
+                    "job_number": raw_job_no,
+                    "field": "Total Packages",
+                    "reason": f"Invalid integer format for Total Packages: '{raw_packages}'.",
+                })
+                continue
+
+        valid_rows.append({
+            "_row_num": row_num,
+            "raw_job_no": raw_job_no,
+            "raw_client": raw_client,
+            "raw_origin": raw_origin,
+            "raw_dest": raw_dest,
+            "raw_consigner": raw_consigner,
+            "raw_consignee": raw_consignee,
+            "raw_cargo": raw_cargo,
+            "weight_val": weight_val,
+            "packages_val": packages_val,
+            "raw_instructions": raw_instructions,
+            "job_creation_date": job_creation_date,
+            "dispatch_date": dispatch_date,
+        })
+
+    # -----------------------------------------------------------------------
+    # CRITICAL SORTING: Chronological Order by Date (Oldest Date First)
+    # If same date: First-Come, First-Served based on original row index
+    # -----------------------------------------------------------------------
+    valid_rows.sort(key=lambda r: (r["job_creation_date"], r["_row_num"]))
 
     # In-memory caches to speed up master resolution (office-scoped and global templates)
     consigner_office_cache: Dict[str, Consigner] = {}
@@ -534,49 +746,34 @@ async def import_jobs_from_excel(
     series_prefix = (job_series.prefix or "") if job_series else (f"{branch_code}-JOB-2026-" if branch_code else "JOB-2026-")
     series_suffix = (job_series.suffix or "") if job_series else ""
 
-    # Tracking sets for In-Excel Duplication Check
+    # Tracking sets for deduplication & collision prevention
     seen_excel_job_numbers: Dict[str, int] = {}    # job_number.lower() -> row_num
     seen_excel_signatures: Dict[str, int] = {}     # business signature -> row_num
+    used_job_numbers: Set[str] = set()
 
-    imported_jobs: List[Dict[str, Any]] = []
-    skipped_duplicates: List[Dict[str, Any]] = []
-    errors: List[Dict[str, Any]] = []
+    # Pre-populate used job numbers from database
+    try:
+        existing_jobs_q = await db.execute(select(Job.job_number))
+        for (jno,) in existing_jobs_q.all():
+            if jno:
+                used_job_numbers.add(str(jno).strip().lower())
+    except Exception:
+        pass
 
-    for row in rows_data:
-        row_num = row.get("_row_num", 0)
-
-        # Extract values
-        raw_job_no = str(row.get("job_number") or "").strip()
-        raw_client = str(row.get("billing_client") or "").strip()
-        raw_origin = str(row.get("origin_location") or "").strip()
-        raw_dest = str(row.get("destination_location") or "").strip()
-        raw_consigner = str(row.get("consigner") or "").strip()
-        raw_consignee = str(row.get("consignee") or "").strip()
-        raw_cargo = str(row.get("cargo_description") or "").strip()
-        raw_weight = row.get("estimated_weight_mt")
-        raw_packages = row.get("estimated_packages")
-        raw_instructions = str(row.get("special_instructions") or "").strip()
-
-        # Parse Dates
-        job_creation_date = _parse_date(row.get("job_date")) or date.today()
-        dispatch_date = _parse_date(row.get("scheduled_dispatch_date")) or job_creation_date
-
-        # Check Required Fields (Matching the Real Form)
-        if not raw_client:
-            errors.append({"row": row_num, "job_number": raw_job_no, "reason": "Missing mandatory field 'Billing Client'."})
-            continue
-        if not raw_origin:
-            errors.append({"row": row_num, "job_number": raw_job_no, "reason": "Missing mandatory field 'Origin Location'."})
-            continue
-        if not raw_dest:
-            errors.append({"row": row_num, "job_number": raw_job_no, "reason": "Missing mandatory field 'Destination Location'."})
-            continue
-        if not raw_consigner:
-            errors.append({"row": row_num, "job_number": raw_job_no, "reason": "Missing mandatory field 'Consigner'."})
-            continue
-        if not raw_consignee:
-            errors.append({"row": row_num, "job_number": raw_job_no, "reason": "Missing mandatory field 'Consignee'."})
-            continue
+    for row in valid_rows:
+        row_num = row["_row_num"]
+        raw_job_no = row["raw_job_no"]
+        raw_client = row["raw_client"]
+        raw_origin = row["raw_origin"]
+        raw_dest = row["raw_dest"]
+        raw_consigner = row["raw_consigner"]
+        raw_consignee = row["raw_consignee"]
+        raw_cargo = row["raw_cargo"]
+        weight_val = row["weight_val"]
+        packages_val = row["packages_val"]
+        raw_instructions = row["raw_instructions"]
+        job_creation_date = row["job_creation_date"]
+        dispatch_date = row["dispatch_date"]
 
         # Determine effective job number based on series prefix/postfix setting
         if raw_job_no:
@@ -602,6 +799,8 @@ async def import_jobs_from_excel(
                 skipped_duplicates.append({
                     "row": row_num,
                     "job_number": effective_job_no,
+                    "route": f"{raw_origin} → {raw_dest}",
+                    "dispatch_date": dispatch_date.isoformat(),
                     "reason": f"Duplicate Job Number '{effective_job_no}' repeated within Excel file (first seen on Row {first_row}).",
                     "duplicate_type": "EXCEL_FILE_DUPLICATE"
                 })
@@ -618,7 +817,9 @@ async def import_jobs_from_excel(
             skipped_duplicates.append({
                 "row": row_num,
                 "job_number": effective_job_no or "AUTO",
-                "reason": f"Duplicate trip order repeated within Excel file: Same Client, Consigner, Consignee, Route, and Date (matches Row {first_row}).",
+                "route": f"{raw_origin} → {raw_dest}",
+                "dispatch_date": dispatch_date.isoformat(),
+                "reason": f"Duplicate trip order repeated within Excel file: Same Client, Consigner, Consignee, Route ({raw_origin} → {raw_dest}), and Date ({dispatch_date.isoformat()}) (matches Row {first_row}).",
                 "duplicate_type": "EXCEL_FILE_DUPLICATE"
             })
             continue
@@ -640,6 +841,8 @@ async def import_jobs_from_excel(
                 skipped_duplicates.append({
                     "row": row_num,
                     "job_number": effective_job_no,
+                    "route": f"{raw_origin} → {raw_dest}",
+                    "dispatch_date": dispatch_date.isoformat(),
                     "reason": f"Job Number '{effective_job_no}' already exists in database (Job #{existing_job.job_number}, Status: {existing_job.status}).",
                     "duplicate_type": "DATABASE_DUPLICATE"
                 })
@@ -778,26 +981,13 @@ async def import_jobs_from_excel(
         if db_dup:
             skipped_duplicates.append({
                 "row": row_num,
-                "job_number": effective_job_no or raw_job_no or db_dup.job_number,
+                "job_number": effective_job_no or raw_job_no or f"Job #{db_dup.job_number}",
+                "route": f"{origin_obj.city_name} → {dest_obj.city_name}",
+                "dispatch_date": dispatch_date.isoformat(),
                 "reason": f"Active duplicate trip order already exists in database: Job #{db_dup.job_number} for {consigner_obj.name} -> {consignee_obj.name} ({origin_obj.city_name} to {dest_obj.city_name}) on {dispatch_date}.",
                 "duplicate_type": "DATABASE_DUPLICATE"
             })
             continue
-
-        # Parse numeric fields safely
-        weight_val = Decimal("0.000")
-        if raw_weight is not None and str(raw_weight).strip() != "":
-            try:
-                weight_val = Decimal(str(raw_weight).replace(",", "").strip())
-            except Exception:
-                weight_val = Decimal("0.000")
-
-        packages_val = 0
-        if raw_packages is not None and str(raw_packages).strip() != "":
-            try:
-                packages_val = int(float(str(raw_packages).replace(",", "").strip()))
-            except Exception:
-                packages_val = 0
 
         # -------------------------------------------------------------------
         # Allocate Voucher Number & Create Job
@@ -821,6 +1011,8 @@ async def import_jobs_from_excel(
                             disp = compute_series_display_data(job_series, real_usage=real_usage) if job_series else {"next_number": 1}
                             next_seq = disp["next_number"]
                             prefix_to_use = series_prefix or (f"{branch_code}-JOB-2026-" if branch_code else "JOB-2026-")
+                            while f"{prefix_to_use}{str(next_seq).zfill(4)}".lower() in used_job_numbers:
+                                next_seq += 1
                             allocated_job_number = f"{prefix_to_use}{str(next_seq).zfill(4)}"
                     else:
                         raise ae
@@ -840,10 +1032,14 @@ async def import_jobs_from_excel(
                     real_usage = await get_real_voucher_usage(db, "JOB")
                     disp = compute_series_display_data(job_series, real_usage=real_usage) if job_series else {"next_number": 1}
                     next_seq = disp["next_number"]
+                    while str(next_seq).lower() in used_job_numbers:
+                        next_seq += 1
                     allocated_job_number = str(next_seq)
                     if job_series:
                         job_series.current_number = next_seq
                         db.add(job_series)
+
+            used_job_numbers.add(allocated_job_number.lower())
 
             new_job = Job(
                 job_number=allocated_job_number,
@@ -880,6 +1076,8 @@ async def import_jobs_from_excel(
             skipped_duplicates.append({
                 "row": row_num,
                 "job_number": effective_job_no or raw_job_no,
+                "route": f"{origin_obj.city_name if 'origin_obj' in locals() and origin_obj else raw_origin} → {dest_obj.city_name if 'dest_obj' in locals() and dest_obj else raw_dest}",
+                "dispatch_date": dispatch_date.isoformat(),
                 "reason": ae.message,
                 "duplicate_type": "DATABASE_DUPLICATE" if ae.error_code == "VOUCHER_NUMBER_ALREADY_USED" else "SERIES_ERROR"
             })
@@ -894,14 +1092,43 @@ async def import_jobs_from_excel(
     if imported_jobs:
         await db.commit()
 
+    total_rows_count = len(rows_data)
+    imported_count = len(imported_jobs)
+    skipped_count = len(skipped_duplicates)
+    failed_count = len(errors)
+
+    if imported_count > 0 and failed_count == 0 and skipped_count == 0:
+        overall_status = "COMPLETED"
+    elif imported_count > 0:
+        overall_status = "PARTIAL_SUCCESS"
+    else:
+        overall_status = "FAILED"
+
+    success_rate = round((imported_count / total_rows_count * 100), 1) if total_rows_count > 0 else 0.0
+
+    summary_report = {
+        "status": overall_status,
+        "total_rows": total_rows_count,
+        "imported_count": imported_count,
+        "skipped_duplicate_count": skipped_count,
+        "failed_count": failed_count,
+        "success_rate_percent": success_rate,
+        "missing_columns": [],
+        "execution_summary": f"Processed {total_rows_count} rows: {imported_count} jobs imported successfully, {skipped_count} skipped duplicates, {failed_count} exceptions/errors.",
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+    }
+
     return {
-        "total_rows": len(rows_data),
-        "imported_count": len(imported_jobs),
-        "skipped_duplicate_count": len(skipped_duplicates),
-        "failed_count": len(errors),
+        "status": overall_status,
+        "total_rows": total_rows_count,
+        "imported_count": imported_count,
+        "skipped_duplicate_count": skipped_count,
+        "failed_count": failed_count,
+        "missing_headers": [],
         "skipped_duplicates": skipped_duplicates,
         "errors": errors,
         "imported_jobs": imported_jobs,
+        "summary_report": summary_report,
     }
 
 
