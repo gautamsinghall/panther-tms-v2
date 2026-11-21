@@ -9,7 +9,12 @@ from app.control.models import Tenant
 from app.tenant_db.models import User, Branch, LR, Job
 from app.modules.transport import service
 from app.services.activity_logger import log_activity
-from app.modules.transport.excel_import import generate_job_import_template, import_jobs_from_excel
+from app.modules.transport.excel_import import (
+    generate_job_import_template,
+    import_jobs_from_excel,
+    generate_lr_import_template,
+    import_lrs_from_excel,
+)
 from app.modules.transport.schemas import (
     VehicleOwnerCreate, VehicleOwnerUpdate, VehicleOwnerResponse,
     DriverCreate, DriverUpdate, DriverResponse,
@@ -742,6 +747,100 @@ def _build_lr_response(l: LR) -> LRResponse:
         created_at=l.created_at,
         updated_at=l.updated_at,
     )
+
+@router.get("/lrs/excel-template")
+async def download_lr_excel_template(
+    current_user: User = Depends(require_permission("transport", "lr_booking", "view")),
+    db: AsyncSession = Depends(get_tenant_db),
+):
+    """
+    Generates and downloads the official LR Booking Excel Import Template
+    with styled header row and clean input columns matching the real LR form.
+    """
+    excel_stream = await generate_lr_import_template(db)
+    return StreamingResponse(
+        excel_stream,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={
+            "Content-Disposition": "attachment; filename=PantherTMS_LR_Booking_Import_Template.xlsx"
+        }
+    )
+
+@router.post("/lrs/import-excel")
+async def import_lrs_excel(
+    file: UploadFile = File(...),
+    apply_series_prefix_suffix: Optional[bool] = Query(None),
+    apply_series_prefix_suffix_form: Optional[str] = Form(None, alias="apply_series_prefix_suffix"),
+    office_id: Optional[int] = Query(None),
+    office_id_form: Optional[str] = Form(None, alias="office_id"),
+    current_user: User = Depends(require_permission("transport", "lr_booking", "create")),
+    current_office: Optional[Branch] = Depends(get_current_office),
+    db: AsyncSession = Depends(get_tenant_db),
+):
+    """
+    Mass imports Lorry Receipts (LR/GR) from an Excel (.xlsx/.xls) or CSV file.
+    - Chronologically sorts records by date (oldest date gets next available series number,
+      first-come first-served for same date).
+    - Automatically creates and links corresponding Job Order for each imported LR.
+    - Enforces 2-level deduplication: within Excel and against database.
+    - Resolves and auto-creates sub-fields (Billing Customer, Origin/Dest Locations, Consignor, Consignee).
+    - Accurately assigns records to the target office.
+    """
+    if not file.filename.lower().endswith((".xlsx", ".xls", ".csv")):
+        raise AppException(
+            status_code=400,
+            error_code="INVALID_FILE_FORMAT",
+            message="Only Excel (.xlsx, .xls) and CSV (.csv) files are supported for mass import."
+        )
+
+    file_bytes = await file.read()
+    if len(file_bytes) == 0:
+        raise AppException(
+            status_code=400,
+            error_code="EMPTY_FILE",
+            message="The uploaded file is empty."
+        )
+
+    should_apply_series = True
+    if apply_series_prefix_suffix is not None:
+        should_apply_series = bool(apply_series_prefix_suffix)
+    elif apply_series_prefix_suffix_form is not None:
+        should_apply_series = str(apply_series_prefix_suffix_form).strip().lower() in ("true", "1", "yes")
+
+    target_office_id = None
+    if office_id is not None and office_id > 0:
+        target_office_id = office_id
+    elif office_id_form is not None:
+        try:
+            val = int(str(office_id_form).strip())
+            if val > 0:
+                target_office_id = val
+        except (ValueError, TypeError):
+            pass
+
+    if not target_office_id and current_office:
+        target_office_id = current_office.id
+
+    res = await import_lrs_from_excel(
+        db=db,
+        file_bytes=file_bytes,
+        filename=file.filename,
+        user_id=current_user.id,
+        apply_series_prefix_suffix=should_apply_series,
+        office_id=target_office_id,
+    )
+    imported_count = res.get("imported_count", 0) if isinstance(res, dict) else getattr(res, "imported_count", 0)
+    await log_activity(
+        db=db,
+        user=current_user,
+        action="LRS_EXCEL_IMPORTED",
+        module="transport",
+        entity_type="LR",
+        office_id=target_office_id,
+        details=f"Imported {imported_count} LRs from {file.filename}",
+        details_json={"filename": file.filename, "imported_count": imported_count},
+    )
+    return res
 
 @router.get("/lrs", response_model=List[LRResponse])
 async def list_lrs(

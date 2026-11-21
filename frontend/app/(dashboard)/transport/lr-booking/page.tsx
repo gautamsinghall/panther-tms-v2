@@ -22,6 +22,7 @@ import {
   Sparkles,
   AlertCircle,
   Smartphone,
+  FileSpreadsheet,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { FilterBar } from "@/components/ui/filter-bar";
@@ -41,6 +42,7 @@ import { getActiveOffice, OfficeSummary, getStoredAuth, getStoredNavigation } fr
 import { canAccessRoute } from "@/lib/permissions";
 import { useWorkspaceTabs } from "@/lib/workspace-tabs-context";
 import { LRViewModal, LRViewRecord } from "@/components/modals/lr-view-modal";
+import { LRExcelImportModal } from "@/components/modals/lr-excel-import-modal";
 import {
   LRInvoiceItemsTable,
   LRInvoiceItem,
@@ -242,6 +244,7 @@ export default function LRBookingPage() {
   const [selectedJob, setSelectedJob] = useState<LinkedJobData | null>(null);
   const [drawerError, setDrawerError] = useState<string | null>(null);
   const [isVehicleTypePromptOpen, setIsVehicleTypePromptOpen] = useState(false);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const { openMasterTab } = useWorkspaceTabs();
 
   const checkOverload = useCallback((vehNum: string, actWt: string | number | undefined, chgWt: string | number | undefined) => {
@@ -2461,6 +2464,14 @@ export default function LRBookingPage() {
           icon: <Plus className="w-4 h-4" />,
           onClick: openCreateDrawer,
         }}
+        secondaryActions={[
+          {
+            label: "Import from Excel",
+            icon: <FileSpreadsheet className="w-4 h-4 text-emerald-600" />,
+            onClick: () => setIsImportModalOpen(true),
+            variant: "outline",
+          },
+        ]}
       />
 
       {!isSeriesLoading && seriesInfo && !seriesInfo.configured && (!manualSeriesData || !manualSeriesData.ranges || manualSeriesData.ranges.length === 0) && (
@@ -2685,6 +2696,16 @@ export default function LRBookingPage() {
           setIsViewModalOpen(false);
           setSelectedLrForView(null);
         }}
+      />
+
+      {/* Mass LR Excel Import Modal */}
+      <LRExcelImportModal
+        isOpen={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
+        onSuccess={() => {
+          loadData();
+        }}
+        activeOffice={activeOffice}
       />
     </div>
   );

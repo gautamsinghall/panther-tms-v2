@@ -13,18 +13,24 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.tenant_db.models import (
     Job,
     JobStatus,
+    LR,
+    LRStatus,
     Branch,
     Consigner,
     Consignee,
     Location,
     BillingClient,
     SeriesMaster,
+    CompanyVehicle,
+    MarketVehicle,
+    LoadType,
 )
 from app.core.errors import AppException
 from app.modules.settings.series_service import (
     allocate_or_validate_voucher_number,
     get_real_voucher_usage,
     compute_series_display_data,
+    format_series_number,
 )
 
 # ---------------------------------------------------------------------------
@@ -897,3 +903,1080 @@ async def import_jobs_from_excel(
         "errors": errors,
         "imported_jobs": imported_jobs,
     }
+
+
+# ---------------------------------------------------------------------------
+# LR Excel Template Generation & Mass Import Engine
+# ---------------------------------------------------------------------------
+
+REAL_LR_INPUT_COLUMNS = [
+    {
+        "key": "lr_number",
+        "header": "LR Number",
+        "required": False,
+        "width": 20,
+    },
+    {
+        "key": "lr_date",
+        "header": "Date of LR / Booking Date",
+        "required": True,
+        "width": 26,
+    },
+    {
+        "key": "billing_client",
+        "header": "Billing Customer",
+        "required": True,
+        "width": 28,
+    },
+    {
+        "key": "consigner",
+        "header": "Consignor",
+        "required": True,
+        "width": 28,
+    },
+    {
+        "key": "consignee",
+        "header": "Consignee",
+        "required": True,
+        "width": 28,
+    },
+    {
+        "key": "origin_location",
+        "header": "Origin Hub / City",
+        "required": True,
+        "width": 24,
+    },
+    {
+        "key": "destination_location",
+        "header": "Destination Hub / City",
+        "required": True,
+        "width": 24,
+    },
+    {
+        "key": "vehicle_number",
+        "header": "Truck Number",
+        "required": True,
+        "width": 20,
+    },
+    {
+        "key": "driver_name",
+        "header": "Driver Name",
+        "required": False,
+        "width": 22,
+    },
+    {
+        "key": "driver_phone",
+        "header": "Driver Mobile No.",
+        "required": False,
+        "width": 20,
+    },
+    {
+        "key": "cargo_description",
+        "header": "Cargo Description",
+        "required": False,
+        "width": 30,
+    },
+    {
+        "key": "package_count",
+        "header": "No. of Packages",
+        "required": False,
+        "width": 18,
+    },
+    {
+        "key": "actual_weight_mt",
+        "header": "Actual Weight (MT)",
+        "required": False,
+        "width": 20,
+    },
+    {
+        "key": "chargeable_weight_mt",
+        "header": "Charged Weight (MT)",
+        "required": False,
+        "width": 20,
+    },
+    {
+        "key": "freight_amount",
+        "header": "Freight Amount (₹)",
+        "required": False,
+        "width": 20,
+    },
+    {
+        "key": "advance_amount",
+        "header": "Advance Amount (₹)",
+        "required": False,
+        "width": 20,
+    },
+    {
+        "key": "payment_type",
+        "header": "Payment Type",
+        "required": False,
+        "width": 18,
+    },
+    {
+        "key": "invoice_no",
+        "header": "Invoice No.",
+        "required": False,
+        "width": 20,
+    },
+    {
+        "key": "invoice_value",
+        "header": "Invoice Value (₹)",
+        "required": False,
+        "width": 20,
+    },
+    {
+        "key": "eway_bill_number",
+        "header": "E-Way Bill No.",
+        "required": False,
+        "width": 22,
+    },
+    {
+        "key": "remarks",
+        "header": "Remarks / Instructions",
+        "required": False,
+        "width": 32,
+    },
+]
+
+
+async def generate_lr_import_template(db: AsyncSession) -> io.BytesIO:
+    """
+    Generates a clean, professional Excel template with ONLY the real input headers
+    matching the LR Booking UI.
+    Contains ZERO demo data — row 2 onwards are clean empty rows ready for user data entry.
+    """
+    wb = openpyxl.Workbook()
+
+    ws = wb.active
+    ws.title = "LR_Booking_Import"
+    ws.views.sheetView[0].showGridLines = True
+
+    # Styling elements
+    header_font = Font(name="Segoe UI", size=11, bold=True, color=HEADER_FONT_COLOR)
+    header_fill = PatternFill(start_color=HEADER_FILL_COLOR, end_color=HEADER_FILL_COLOR, fill_type="solid")
+    regular_font = Font(name="Segoe UI", size=10)
+    thin_border_side = Side(border_style="thin", color=BORDER_COLOR)
+    cell_border = Border(
+        left=thin_border_side,
+        right=thin_border_side,
+        top=thin_border_side,
+        bottom=thin_border_side
+    )
+    center_align = Alignment(horizontal="center", vertical="center", wrap_text=True)
+    left_align = Alignment(horizontal="left", vertical="center")
+
+    # Set Header row (Row 1)
+    ws.row_dimensions[1].height = 32
+    for col_idx, col_def in enumerate(REAL_LR_INPUT_COLUMNS, start=1):
+        cell = ws.cell(row=1, column=col_idx)
+        cell.value = col_def["header"] + (" *" if col_def["required"] else "")
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.alignment = center_align
+        cell.border = cell_border
+        ws.column_dimensions[get_column_letter(col_idx)].width = col_def["width"]
+
+    # Provide 50 clean, pre-bordered blank rows ready for direct data entry (NO DEMO DATA)
+    for r in range(2, 52):
+        ws.row_dimensions[r].height = 22
+        for col_idx in range(1, len(REAL_LR_INPUT_COLUMNS) + 1):
+            cell = ws.cell(row=r, column=col_idx)
+            cell.border = cell_border
+            cell.font = regular_font
+            cell.alignment = left_align
+
+    output = io.BytesIO()
+    wb.save(output)
+    output.seek(0)
+    return output
+
+
+def _normalize_lr_header(header: str) -> str:
+    """Normalize column header to canonical key matching real LR input fields."""
+    clean = re.sub(r"[^a-zA-Z0-9]", "_", str(header or "").strip().lower())
+    clean = re.sub(r"_+", "_", clean).strip("_")
+
+    if any(k in clean for k in ["lr_no", "lr_number", "lr_#", "gr_no", "gr_number", "cn_no", "consignment_note", "consignment_no"]):
+        return "lr_number"
+    if any(k in clean for k in ["date_of_lr", "lr_date", "booking_date", "date_of_booking", "gr_date", "consignment_date", "date"]):
+        return "lr_date"
+    if any(k in clean for k in ["dispatch_date", "scheduled_dispatch", "expected_dispatch"]):
+        return "dispatch_date"
+    if any(k in clean for k in ["billing_client", "billing_party", "billing_customer", "customer", "bill_to", "client"]):
+        return "billing_client"
+    if any(k in clean for k in ["consigner", "consignor", "shipper", "sender"]):
+        return "consigner"
+    if any(k in clean for k in ["consignee", "receiver", "recipient"]):
+        return "consignee"
+    if any(k in clean for k in ["origin_location", "origin_city", "origin", "from_city", "pickup_location", "from"]):
+        return "origin_location"
+    if any(k in clean for k in ["destination_location", "destination_city", "destination", "to_city", "drop_location", "to"]):
+        return "destination_location"
+    if any(k in clean for k in ["vehicle_number", "truck_no", "truck_number", "vehicle_no", "lorry_no", "vehicle", "truck"]):
+        return "vehicle_number"
+    if any(k in clean for k in ["driver_name", "driver"]):
+        return "driver_name"
+    if any(k in clean for k in ["driver_phone", "driver_mobile", "driver_contact", "phone", "mobile"]):
+        return "driver_phone"
+    if any(k in clean for k in ["cargo_description", "cargo", "material", "goods", "commodity", "item", "particulars"]):
+        return "cargo_description"
+    if any(k in clean for k in ["load_type", "load"]):
+        return "load_type"
+    if any(k in clean for k in ["no_of_packages", "package_count", "total_packages", "packages", "pkg", "box", "carton", "units", "quantity"]):
+        return "package_count"
+    if any(k in clean for k in ["actual_weight_mt", "actual_weight", "act_weight", "weight_mt"]):
+        return "actual_weight_mt"
+    if any(k in clean for k in ["chargeable_weight_mt", "chargeable_weight", "charged_weight_mt", "charged_weight", "chrg_weight"]):
+        return "chargeable_weight_mt"
+    if any(k in clean for k in ["freight_amount", "freight", "basic_freight", "freight_rate", "rate"]):
+        return "freight_amount"
+    if any(k in clean for k in ["advance_amount", "advance", "adv_amount"]):
+        return "advance_amount"
+    if any(k in clean for k in ["payment_type", "payment_mode", "payment_terms", "pay_type"]):
+        return "payment_type"
+    if any(k in clean for k in ["invoice_no", "invoice_number", "inv_no", "invoice"]):
+        return "invoice_no"
+    if any(k in clean for k in ["invoice_value", "inv_value", "declared_value"]):
+        return "invoice_value"
+    if any(k in clean for k in ["eway_bill_number", "eway_bill", "ewb_no", "eway_bill_no", "ewb"]):
+        return "eway_bill_number"
+    if any(k in clean for k in ["job_no", "job_number", "job_#"]):
+        return "job_number"
+    if any(k in clean for k in ["instruction", "remark", "note", "remarks", "special_instructions"]):
+        return "remarks"
+
+    return clean
+
+
+async def import_lrs_from_excel(
+    db: AsyncSession,
+    file_bytes: bytes,
+    filename: str,
+    user_id: Optional[int] = None,
+    apply_series_prefix_suffix: bool = True,
+    office_id: Optional[int] = None,
+) -> Dict[str, Any]:
+    """
+    Parses Excel (.xlsx/.xls) or CSV file for Lorry Receipts (LR/GR),
+    sorts rows chronologically by date (oldest date gets next available series number,
+    first-come first-served on identical dates), auto-creates linked Jobs for every LR,
+    and performs deep 2-level deduplication.
+    """
+    resolved_office_id = office_id
+    if not resolved_office_id or resolved_office_id == 0:
+        br_res = await db.execute(
+            select(Branch.id).where(Branch.is_active == True).order_by(Branch.is_head_office.desc(), Branch.id.asc()).limit(1)
+        )
+        resolved_office_id = br_res.scalar_one_or_none()
+
+    rows_data: List[Dict[str, Any]] = []
+
+    # 1. Parse File into List of dicts
+    is_csv = filename.lower().endswith(".csv")
+    if is_csv:
+        content_str = file_bytes.decode("utf-8-sig", errors="replace")
+        csv_reader = csv.reader(io.StringIO(content_str))
+        headers_raw = next(csv_reader, [])
+        header_map = {idx: _normalize_lr_header(h) for idx, h in enumerate(headers_raw)}
+        for row_idx, row in enumerate(csv_reader, start=2):
+            if not any(row):
+                continue
+            row_dict = {"_row_num": row_idx}
+            for col_idx, val in enumerate(row):
+                key = header_map.get(col_idx)
+                if key:
+                    row_dict[key] = val
+            rows_data.append(row_dict)
+    else:
+        # Excel .xlsx / .xls
+        wb = openpyxl.load_workbook(io.BytesIO(file_bytes), data_only=True)
+        sheet_name = "LR_Booking_Import" if "LR_Booking_Import" in wb.sheetnames else wb.sheetnames[0]
+        ws = wb[sheet_name]
+
+        header_row = None
+        for r in range(1, min(10, ws.max_row + 1)):
+            row_vals = [ws.cell(row=r, column=c).value for c in range(1, ws.max_column + 1)]
+            normalized = [_normalize_lr_header(v) for v in row_vals if v]
+            if "consigner" in normalized or "consignee" in normalized or "billing_client" in normalized or "vehicle_number" in normalized:
+                header_row = r
+                break
+
+        if not header_row:
+            header_row = 1
+
+        header_map = {}
+        for c in range(1, ws.max_column + 1):
+            val = ws.cell(row=header_row, column=c).value
+            if val is not None:
+                header_map[c] = _normalize_lr_header(str(val))
+
+        for r in range(header_row + 1, ws.max_row + 1):
+            row_dict = {"_row_num": r}
+            has_val = False
+            for c in range(1, ws.max_column + 1):
+                key = header_map.get(c)
+                if key:
+                    val = ws.cell(row=r, column=c).value
+                    if val is not None and str(val).strip() != "":
+                        has_val = True
+                        row_dict[key] = val
+            if has_val:
+                rows_data.append(row_dict)
+
+    if not rows_data:
+        return {
+            "total_rows": 0,
+            "imported_count": 0,
+            "skipped_duplicate_count": 0,
+            "failed_count": 0,
+            "skipped_duplicates": [],
+            "errors": [{"row": 1, "reason": "No data rows found in the uploaded file."}],
+            "imported_lrs": [],
+        }
+
+    # Extract & validate fields before sorting
+    valid_rows: List[Dict[str, Any]] = []
+    errors: List[Dict[str, Any]] = []
+    skipped_duplicates: List[Dict[str, Any]] = []
+    imported_lrs: List[Dict[str, Any]] = []
+
+    for row in rows_data:
+        row_num = row.get("_row_num", 0)
+        raw_lr_no = str(row.get("lr_number") or "").strip()
+        raw_client = str(row.get("billing_client") or "").strip()
+        raw_consigner = str(row.get("consigner") or "").strip()
+        raw_consignee = str(row.get("consignee") or "").strip()
+        raw_origin = str(row.get("origin_location") or "").strip()
+        raw_dest = str(row.get("destination_location") or "").strip()
+        raw_vehicle = str(row.get("vehicle_number") or "").strip().upper()
+        raw_driver_name = str(row.get("driver_name") or "").strip()
+        raw_driver_phone = str(row.get("driver_phone") or "").strip()
+        raw_cargo = str(row.get("cargo_description") or "").strip()
+        raw_load_type = str(row.get("load_type") or "").strip()
+        raw_package_count = row.get("package_count")
+        raw_actual_weight = row.get("actual_weight_mt")
+        raw_chargeable_weight = row.get("chargeable_weight_mt")
+        raw_freight = row.get("freight_amount")
+        raw_advance = row.get("advance_amount")
+        raw_payment_type = str(row.get("payment_type") or "").strip()
+        raw_invoice_no = str(row.get("invoice_no") or "").strip()
+        raw_invoice_value = row.get("invoice_value")
+        raw_eway_bill = str(row.get("eway_bill_number") or "").strip()
+        raw_job_no = str(row.get("job_number") or "").strip()
+        raw_remarks = str(row.get("remarks") or "").strip()
+
+        # Parse Dates
+        lr_date = _parse_date(row.get("lr_date")) or _parse_date(row.get("dispatch_date")) or date.today()
+        dispatch_date = _parse_date(row.get("dispatch_date")) or lr_date
+
+        # Check required fields
+        if not raw_client:
+            errors.append({"row": row_num, "lr_number": raw_lr_no, "reason": "Missing mandatory field 'Billing Customer'."})
+            continue
+        if not raw_consigner:
+            errors.append({"row": row_num, "lr_number": raw_lr_no, "reason": "Missing mandatory field 'Consignor'."})
+            continue
+        if not raw_consignee:
+            errors.append({"row": row_num, "lr_number": raw_lr_no, "reason": "Missing mandatory field 'Consignee'."})
+            continue
+        if not raw_origin:
+            errors.append({"row": row_num, "lr_number": raw_lr_no, "reason": "Missing mandatory field 'Origin Hub / City'."})
+            continue
+        if not raw_dest:
+            errors.append({"row": row_num, "lr_number": raw_lr_no, "reason": "Missing mandatory field 'Destination Hub / City'."})
+            continue
+        if not raw_vehicle:
+            errors.append({"row": row_num, "lr_number": raw_lr_no, "reason": "Missing mandatory field 'Truck Number'."})
+            continue
+
+        valid_rows.append({
+            "_row_num": row_num,
+            "raw_lr_no": raw_lr_no,
+            "lr_date": lr_date,
+            "dispatch_date": dispatch_date,
+            "raw_client": raw_client,
+            "raw_consigner": raw_consigner,
+            "raw_consignee": raw_consignee,
+            "raw_origin": raw_origin,
+            "raw_dest": raw_dest,
+            "raw_vehicle": raw_vehicle,
+            "raw_driver_name": raw_driver_name,
+            "raw_driver_phone": raw_driver_phone,
+            "raw_cargo": raw_cargo,
+            "raw_load_type": raw_load_type,
+            "raw_package_count": raw_package_count,
+            "raw_actual_weight": raw_actual_weight,
+            "raw_chargeable_weight": raw_chargeable_weight,
+            "raw_freight": raw_freight,
+            "raw_advance": raw_advance,
+            "raw_payment_type": raw_payment_type,
+            "raw_invoice_no": raw_invoice_no,
+            "raw_invoice_value": raw_invoice_value,
+            "raw_eway_bill": raw_eway_bill,
+            "raw_job_no": raw_job_no,
+            "raw_remarks": raw_remarks,
+        })
+
+    # -----------------------------------------------------------------------
+    # CRITICAL SORTING: Chronological Order by Date (Oldest Date First)
+    # If same date: First-Come, First-Served based on original row index
+    # -----------------------------------------------------------------------
+    valid_rows.sort(key=lambda r: (r["lr_date"], r["_row_num"]))
+
+    # In-memory caches to speed up master resolution
+    consigner_office_cache: Dict[str, Consigner] = {}
+    consigner_global_cache: Dict[str, Consigner] = {}
+    consignee_office_cache: Dict[str, Consignee] = {}
+    consignee_global_cache: Dict[str, Consignee] = {}
+    location_cache: Dict[str, Location] = {}
+    billing_client_office_cache: Dict[str, BillingClient] = {}
+    billing_client_global_cache: Dict[str, BillingClient] = {}
+
+    try:
+        all_c_res = await db.execute(select(Consigner).where(Consigner.is_active == True))
+        for c in all_c_res.scalars().all():
+            k_name = c.name.strip().lower()
+            consigner_global_cache[k_name] = c
+            if c.code:
+                consigner_global_cache[c.code.strip().lower()] = c
+            if c.issuing_office_id == resolved_office_id or c.issuing_office_id is None:
+                consigner_office_cache[k_name] = c
+                if c.code:
+                    consigner_office_cache[c.code.strip().lower()] = c
+
+        all_ce_res = await db.execute(select(Consignee).where(Consignee.is_active == True))
+        for ce in all_ce_res.scalars().all():
+            k_name = ce.name.strip().lower()
+            consignee_global_cache[k_name] = ce
+            if ce.code:
+                consignee_global_cache[ce.code.strip().lower()] = ce
+            if ce.issuing_office_id == resolved_office_id or ce.issuing_office_id is None:
+                consignee_office_cache[k_name] = ce
+                if ce.code:
+                    consignee_office_cache[ce.code.strip().lower()] = ce
+
+        all_bc_res = await db.execute(select(BillingClient).where(BillingClient.is_active == True))
+        for bc in all_bc_res.scalars().all():
+            k_name = bc.name.strip().lower()
+            billing_client_global_cache[k_name] = bc
+            if bc.code:
+                billing_client_global_cache[bc.code.strip().lower()] = bc
+            if bc.issuing_office_id == resolved_office_id or bc.issuing_office_id is None:
+                billing_client_office_cache[k_name] = bc
+                if bc.code:
+                    billing_client_office_cache[bc.code.strip().lower()] = bc
+    except Exception:
+        pass
+
+    # Branch Code for default prefix
+    branch_code = ""
+    if resolved_office_id:
+        try:
+            br_obj = await db.get(Branch, resolved_office_id)
+            if br_obj and br_obj.code:
+                branch_code = br_obj.code.strip().upper()
+        except Exception:
+            pass
+
+    # Fetch active SeriesMaster for LR
+    lr_series = None
+    try:
+        stmt_lr_s = (
+            select(SeriesMaster)
+            .where(
+                SeriesMaster.document_type == "LR",
+                SeriesMaster.is_active == True,
+            )
+        )
+        if resolved_office_id:
+            stmt_lr_s = stmt_lr_s.where(
+                or_(
+                    SeriesMaster.issuing_office_id == resolved_office_id,
+                    SeriesMaster.issuing_office_id.is_(None),
+                )
+            ).order_by(
+                case((SeriesMaster.issuing_office_id == resolved_office_id, 1), else_=0).desc(),
+                SeriesMaster.is_default.desc(),
+                SeriesMaster.id.desc(),
+            )
+        else:
+            stmt_lr_s = stmt_lr_s.order_by(SeriesMaster.is_default.desc(), SeriesMaster.id.desc())
+        series_res = await db.execute(stmt_lr_s)
+        lr_series = series_res.scalars().first()
+
+        if not lr_series and resolved_office_id:
+            stmt_fallback = (
+                select(SeriesMaster)
+                .where(
+                    SeriesMaster.document_type == "LR",
+                    SeriesMaster.is_active == True,
+                )
+                .order_by(SeriesMaster.is_default.desc(), SeriesMaster.id.desc())
+            )
+            series_res = await db.execute(stmt_fallback)
+            lr_series = series_res.scalars().first()
+    except Exception:
+        pass
+
+    lr_series_prefix = (lr_series.prefix or "") if lr_series else (f"{branch_code}-LR-2026-" if branch_code else "LR-2026-")
+    lr_series_suffix = (lr_series.suffix or "") if lr_series else ""
+
+    # Fetch active SeriesMaster for JOB
+    job_series = None
+    try:
+        stmt_job_s = (
+            select(SeriesMaster)
+            .where(
+                SeriesMaster.document_type.in_(["JOB", "TRIP"]),
+                SeriesMaster.is_active == True,
+            )
+        )
+        if resolved_office_id:
+            stmt_job_s = stmt_job_s.where(
+                or_(
+                    SeriesMaster.issuing_office_id == resolved_office_id,
+                    SeriesMaster.issuing_office_id.is_(None),
+                )
+            ).order_by(
+                case((SeriesMaster.issuing_office_id == resolved_office_id, 1), else_=0).desc(),
+                SeriesMaster.is_default.desc(),
+                SeriesMaster.id.desc(),
+            )
+        else:
+            stmt_job_s = stmt_job_s.order_by(SeriesMaster.is_default.desc(), SeriesMaster.id.desc())
+        jseries_res = await db.execute(stmt_job_s)
+        job_series = jseries_res.scalars().first()
+
+        if not job_series and resolved_office_id:
+            stmt_jfallback = (
+                select(SeriesMaster)
+                .where(
+                    SeriesMaster.document_type.in_(["JOB", "TRIP"]),
+                    SeriesMaster.is_active == True,
+                )
+                .order_by(SeriesMaster.is_default.desc(), SeriesMaster.id.desc())
+            )
+            jseries_res = await db.execute(stmt_jfallback)
+            job_series = jseries_res.scalars().first()
+    except Exception:
+        pass
+
+    job_series_prefix = (job_series.prefix or "") if job_series else (f"{branch_code}-JOB-2026-" if branch_code else "JOB-2026-")
+    job_series_suffix = (job_series.suffix or "") if job_series else ""
+
+    # Tracking sets for deduplication & collision prevention
+    seen_excel_lr_numbers: Dict[str, int] = {}
+    seen_excel_signatures: Dict[str, int] = {}
+    used_lr_numbers: Set[str] = set()
+    used_job_numbers: Set[str] = set()
+
+    # Pre-populate used numbers from database
+    try:
+        existing_lrs_q = await db.execute(select(LR.lr_number))
+        for (eno,) in existing_lrs_q.all():
+            if eno:
+                used_lr_numbers.add(str(eno).strip().lower())
+        existing_jobs_q = await db.execute(select(Job.job_number))
+        for (jno,) in existing_jobs_q.all():
+            if jno:
+                used_job_numbers.add(str(jno).strip().lower())
+    except Exception:
+        pass
+
+    # Process all rows in sorted chronological order
+    for row in valid_rows:
+        row_num = row["_row_num"]
+        raw_lr_no = row["raw_lr_no"]
+        lr_date = row["lr_date"]
+        dispatch_date = row["dispatch_date"]
+        raw_client = row["raw_client"]
+        raw_consigner = row["raw_consigner"]
+        raw_consignee = row["raw_consignee"]
+        raw_origin = row["raw_origin"]
+        raw_dest = row["raw_dest"]
+        raw_vehicle = row["raw_vehicle"]
+        raw_driver_name = row["raw_driver_name"]
+        raw_driver_phone = row["raw_driver_phone"]
+        raw_cargo = row["raw_cargo"]
+        raw_load_type = row["raw_load_type"]
+        raw_package_count = row["raw_package_count"]
+        raw_actual_weight = row["raw_actual_weight"]
+        raw_chargeable_weight = row["raw_chargeable_weight"]
+        raw_freight = row["raw_freight"]
+        raw_advance = row["raw_advance"]
+        raw_payment_type = row["raw_payment_type"]
+        raw_invoice_no = row["raw_invoice_no"]
+        raw_invoice_value = row["raw_invoice_value"]
+        raw_eway_bill = row["raw_eway_bill"]
+        raw_job_no = row["raw_job_no"]
+        raw_remarks = row["raw_remarks"]
+
+        # Determine effective manual LR number if provided
+        if raw_lr_no:
+            if apply_series_prefix_suffix:
+                formatted_lr_no = raw_lr_no
+                if lr_series_prefix and not formatted_lr_no.lower().startswith(lr_series_prefix.lower()):
+                    formatted_lr_no = f"{lr_series_prefix}{formatted_lr_no}"
+                if lr_series_suffix and not formatted_lr_no.lower().endswith(lr_series_suffix.lower()):
+                    formatted_lr_no = f"{formatted_lr_no}{lr_series_suffix}"
+                effective_lr_no = formatted_lr_no
+            else:
+                effective_lr_no = raw_lr_no
+        else:
+            effective_lr_no = None
+
+        # -------------------------------------------------------------------
+        # Level 1 Deduplication: Within Excel File
+        # -------------------------------------------------------------------
+        if effective_lr_no:
+            lower_lr = effective_lr_no.lower()
+            if lower_lr in seen_excel_lr_numbers:
+                first_row = seen_excel_lr_numbers[lower_lr]
+                skipped_duplicates.append({
+                    "row": row_num,
+                    "lr_number": effective_lr_no,
+                    "reason": f"Duplicate LR Number '{effective_lr_no}' repeated within Excel file (first seen on Row {first_row}).",
+                    "duplicate_type": "EXCEL_FILE_DUPLICATE"
+                })
+                continue
+            seen_excel_lr_numbers[lower_lr] = row_num
+
+        row_signature = (
+            f"{raw_client.lower()}|{raw_consigner.lower()}|{raw_consignee.lower()}|{raw_origin.lower()}|"
+            f"{raw_dest.lower()}|{raw_vehicle.lower()}|{lr_date.isoformat()}"
+        )
+        if row_signature in seen_excel_signatures:
+            first_row = seen_excel_signatures[row_signature]
+            skipped_duplicates.append({
+                "row": row_num,
+                "lr_number": effective_lr_no or "AUTO",
+                "reason": f"Duplicate consignment repeated within Excel file: Same Client, Consignor, Consignee, Route, Vehicle, and Date (matches Row {first_row}).",
+                "duplicate_type": "EXCEL_FILE_DUPLICATE"
+            })
+            continue
+        seen_excel_signatures[row_signature] = row_num
+
+        # -------------------------------------------------------------------
+        # Level 2 Deduplication: Database Check
+        # -------------------------------------------------------------------
+        if effective_lr_no:
+            check_nums = [effective_lr_no.lower()]
+            if raw_lr_no and raw_lr_no.lower() not in check_nums:
+                check_nums.append(raw_lr_no.lower())
+            existing_lr_res = await db.execute(
+                select(LR.id, LR.lr_number, LR.status).where(func.lower(LR.lr_number).in_(check_nums))
+            )
+            existing_lr = existing_lr_res.first()
+            if existing_lr:
+                skipped_duplicates.append({
+                    "row": row_num,
+                    "lr_number": effective_lr_no,
+                    "reason": f"LR Number '{effective_lr_no}' already exists in database (LR #{existing_lr.lr_number}, Status: {existing_lr.status}).",
+                    "duplicate_type": "DATABASE_DUPLICATE"
+                })
+                continue
+
+        # -------------------------------------------------------------------
+        # Sub-field Resolution & Auto-creation
+        # -------------------------------------------------------------------
+        # 1. Billing Client
+        client_key = raw_client.lower()
+        client_obj = billing_client_office_cache.get(client_key)
+        if not client_obj:
+            existing_template = billing_client_global_cache.get(client_key)
+            client_obj = BillingClient(
+                name=raw_client,
+                code=existing_template.code if existing_template else None,
+                company_name=existing_template.company_name if existing_template else None,
+                contact_person=existing_template.contact_person if existing_template else None,
+                phone=existing_template.phone if existing_template else None,
+                email=existing_template.email if existing_template else None,
+                gstin=existing_template.gstin if existing_template else None,
+                pan=existing_template.pan if existing_template else None,
+                tds_rate=existing_template.tds_rate if existing_template else Decimal("0.00"),
+                credit_period_days=existing_template.credit_period_days if existing_template else 30,
+                credit_limit=existing_template.credit_limit if existing_template else Decimal("0.00"),
+                payment_terms=existing_template.payment_terms if existing_template else None,
+                address=existing_template.address if existing_template else None,
+                city=existing_template.city if existing_template else None,
+                state=existing_template.state if existing_template else None,
+                pincode=existing_template.pincode if existing_template else None,
+                country=existing_template.country if existing_template else "India",
+                is_active=True,
+                issuing_office_id=resolved_office_id,
+            )
+            db.add(client_obj)
+            await db.flush()
+            billing_client_office_cache[client_key] = client_obj
+            billing_client_global_cache[client_key] = client_obj
+
+        # 2. Consigner
+        consigner_key = raw_consigner.lower()
+        consigner_obj = consigner_office_cache.get(consigner_key)
+        if not consigner_obj:
+            existing_template = consigner_global_cache.get(consigner_key)
+            consigner_obj = Consigner(
+                name=raw_consigner,
+                code=existing_template.code if existing_template else None,
+                contact_person=existing_template.contact_person if existing_template else None,
+                phone=existing_template.phone if existing_template else None,
+                email=existing_template.email if existing_template else None,
+                gstin=existing_template.gstin if existing_template else None,
+                pan=existing_template.pan if existing_template else None,
+                address=existing_template.address if existing_template else None,
+                city=existing_template.city if existing_template else None,
+                state=existing_template.state if existing_template else None,
+                pincode=existing_template.pincode if existing_template else None,
+                country=existing_template.country if existing_template else "India",
+                is_active=True,
+                issuing_office_id=resolved_office_id,
+            )
+            db.add(consigner_obj)
+            await db.flush()
+            consigner_office_cache[consigner_key] = consigner_obj
+            consigner_global_cache[consigner_key] = consigner_obj
+
+        # 3. Consignee
+        consignee_key = raw_consignee.lower()
+        consignee_obj = consignee_office_cache.get(consignee_key)
+        if not consignee_obj:
+            existing_template = consignee_global_cache.get(consignee_key)
+            consignee_obj = Consignee(
+                name=raw_consignee,
+                code=existing_template.code if existing_template else None,
+                contact_person=existing_template.contact_person if existing_template else None,
+                phone=existing_template.phone if existing_template else None,
+                email=existing_template.email if existing_template else None,
+                gstin=existing_template.gstin if existing_template else None,
+                pan=existing_template.pan if existing_template else None,
+                address=existing_template.address if existing_template else None,
+                city=existing_template.city if existing_template else None,
+                state=existing_template.state if existing_template else None,
+                pincode=existing_template.pincode if existing_template else None,
+                country=existing_template.country if existing_template else "India",
+                is_active=True,
+                issuing_office_id=resolved_office_id,
+            )
+            db.add(consignee_obj)
+            await db.flush()
+            consignee_office_cache[consignee_key] = consignee_obj
+            consignee_global_cache[consignee_key] = consignee_obj
+
+        # 4. Origin Location
+        origin_obj = await _resolve_or_create_location(
+            db=db,
+            raw_location=raw_origin,
+            resolved_office_id=resolved_office_id,
+            location_cache=location_cache,
+        )
+
+        # 5. Destination Location
+        dest_obj = await _resolve_or_create_location(
+            db=db,
+            raw_location=raw_dest,
+            resolved_office_id=resolved_office_id,
+            location_cache=location_cache,
+        )
+
+        # 6. Database Business Duplicate Check
+        db_dup_query = (
+            select(LR.id, LR.lr_number, LR.status)
+            .where(
+                LR.consigner_id == consigner_obj.id,
+                LR.consignee_id == consignee_obj.id,
+                LR.origin_location_id == origin_obj.id,
+                LR.destination_location_id == dest_obj.id,
+                func.upper(LR.vehicle_number) == raw_vehicle.upper(),
+                LR.lr_date == lr_date,
+                LR.status != LRStatus.CANCELLED.value,
+            )
+        )
+        if resolved_office_id:
+            db_dup_query = db_dup_query.where(LR.issuing_office_id == resolved_office_id)
+
+        db_dup_res = await db.execute(db_dup_query)
+        db_dup = db_dup_res.first()
+        if db_dup:
+            skipped_duplicates.append({
+                "row": row_num,
+                "lr_number": effective_lr_no or raw_lr_no or db_dup.lr_number,
+                "reason": f"Active duplicate LR already exists in database: LR #{db_dup.lr_number} for {consigner_obj.name} -> {consignee_obj.name} ({raw_vehicle}) on {lr_date}.",
+                "duplicate_type": "DATABASE_DUPLICATE"
+            })
+            continue
+
+        # 7. Vehicle Source Identification
+        vehicle_source = "MARKET"
+        cv_stmt = select(CompanyVehicle.id).where(func.upper(CompanyVehicle.vehicle_number) == raw_vehicle.upper())
+        cv_res = await db.execute(cv_stmt)
+        if cv_res.scalar_one_or_none():
+            vehicle_source = "COMPANY"
+
+        # Parse numeric and weight fields safely
+        actual_weight_val = Decimal("0.000")
+        if raw_actual_weight is not None and str(raw_actual_weight).strip() != "":
+            try:
+                actual_weight_val = Decimal(str(raw_actual_weight).replace(",", "").strip())
+            except Exception:
+                actual_weight_val = Decimal("0.000")
+
+        chargeable_weight_val = Decimal("0.000")
+        if raw_chargeable_weight is not None and str(raw_chargeable_weight).strip() != "":
+            try:
+                chargeable_weight_val = Decimal(str(raw_chargeable_weight).replace(",", "").strip())
+            except Exception:
+                chargeable_weight_val = actual_weight_val
+        else:
+            chargeable_weight_val = actual_weight_val
+
+        packages_val = 0
+        if raw_package_count is not None and str(raw_package_count).strip() != "":
+            try:
+                packages_val = int(float(str(raw_package_count).replace(",", "").strip()))
+            except Exception:
+                packages_val = 0
+
+        freight_val = Decimal("0.00")
+        if raw_freight is not None and str(raw_freight).strip() != "":
+            try:
+                freight_val = Decimal(str(raw_freight).replace(",", "").strip())
+            except Exception:
+                freight_val = Decimal("0.00")
+
+        advance_val = Decimal("0.00")
+        if raw_advance is not None and str(raw_advance).strip() != "":
+            try:
+                advance_val = Decimal(str(raw_advance).replace(",", "").strip())
+            except Exception:
+                advance_val = Decimal("0.00")
+
+        balance_val = max(Decimal("0.00"), freight_val - advance_val)
+
+        inv_val = Decimal("0.00")
+        if raw_invoice_value is not None and str(raw_invoice_value).strip() != "":
+            try:
+                inv_val = Decimal(str(raw_invoice_value).replace(",", "").strip())
+            except Exception:
+                inv_val = Decimal("0.00")
+
+        # -------------------------------------------------------------------
+        # Allocate LR Number & Job Number, Auto-Create Linked Job Order
+        # -------------------------------------------------------------------
+        try:
+            # 1. Allocate LR Number
+            allocated_lr_number = None
+            if effective_lr_no:
+                allocated_lr_number = effective_lr_no
+                used_lr_numbers.add(allocated_lr_number.lower())
+            elif apply_series_prefix_suffix:
+                try:
+                    allocated_lr_number = await allocate_or_validate_voucher_number(
+                        db,
+                        "LR",
+                        manual_number=None,
+                        issuing_office_id=resolved_office_id,
+                    )
+                    while allocated_lr_number.lower() in used_lr_numbers:
+                        # Collision with previous row in same batch: generate next
+                        real_usage = await get_real_voucher_usage(db, "LR", prefix=lr_series_prefix)
+                        disp = compute_series_display_data(lr_series, real_usage=real_usage) if lr_series else {"next_number": 1}
+                        n_seq = disp["next_number"] + len(used_lr_numbers)
+                        allocated_lr_number = format_series_number(lr_series_prefix, n_seq, lr_series_suffix)
+                    used_lr_numbers.add(allocated_lr_number.lower())
+                except AppException as ae:
+                    if ae.error_code in ("SERIES_NOT_CONFIGURED", "MANUAL_SERIES_NOT_CONFIGURED"):
+                        real_usage = await get_real_voucher_usage(db, "LR", prefix=lr_series_prefix)
+                        disp = compute_series_display_data(lr_series, real_usage=real_usage) if lr_series else {"next_number": 1}
+                        next_seq = disp["next_number"]
+                        prefix_to_use = lr_series_prefix or (f"{branch_code}-LR-2026-" if branch_code else "LR-2026-")
+                        fmt_num = format_series_number(prefix_to_use, next_seq, lr_series_suffix)
+                        while fmt_num.lower() in used_lr_numbers:
+                            next_seq += 1
+                            fmt_num = format_series_number(prefix_to_use, next_seq, lr_series_suffix)
+                        allocated_lr_number = fmt_num
+                        used_lr_numbers.add(allocated_lr_number.lower())
+                        if lr_series:
+                            lr_series.current_number = next_seq
+                            db.add(lr_series)
+                    else:
+                        raise ae
+            else:
+                # Without series prefix/postfix: sequential integer string
+                real_usage = await get_real_voucher_usage(db, "LR")
+                disp = compute_series_display_data(lr_series, real_usage=real_usage) if lr_series else {"next_number": 1}
+                next_seq = disp["next_number"]
+                while str(next_seq).lower() in used_lr_numbers:
+                    next_seq += 1
+                allocated_lr_number = str(next_seq)
+                used_lr_numbers.add(allocated_lr_number.lower())
+                if lr_series:
+                    lr_series.current_number = next_seq
+                    db.add(lr_series)
+
+            # 2. Auto-Create Linked Job Order (Auto-allocated Job Number in exact chronological sequence)
+            allocated_job_number = None
+            if raw_job_no:
+                allocated_job_number = raw_job_no
+                used_job_numbers.add(allocated_job_number.lower())
+            elif apply_series_prefix_suffix:
+                try:
+                    allocated_job_number = await allocate_or_validate_voucher_number(
+                        db,
+                        "JOB",
+                        manual_number=None,
+                        issuing_office_id=resolved_office_id,
+                    )
+                    while allocated_job_number.lower() in used_job_numbers:
+                        real_usage = await get_real_voucher_usage(db, "JOB", prefix=job_series_prefix)
+                        disp = compute_series_display_data(job_series, real_usage=real_usage) if job_series else {"next_number": 1}
+                        j_seq = disp["next_number"] + len(used_job_numbers)
+                        allocated_job_number = format_series_number(job_series_prefix, j_seq, job_series_suffix)
+                    used_job_numbers.add(allocated_job_number.lower())
+                except AppException as ae:
+                    if ae.error_code in ("SERIES_NOT_CONFIGURED", "MANUAL_SERIES_NOT_CONFIGURED"):
+                        real_usage = await get_real_voucher_usage(db, "JOB", prefix=job_series_prefix)
+                        disp = compute_series_display_data(job_series, real_usage=real_usage) if job_series else {"next_number": 1}
+                        next_j_seq = disp["next_number"]
+                        j_prefix_to_use = job_series_prefix or (f"{branch_code}-JOB-2026-" if branch_code else "JOB-2026-")
+                        j_fmt_num = format_series_number(j_prefix_to_use, next_j_seq, job_series_suffix)
+                        while j_fmt_num.lower() in used_job_numbers:
+                            next_j_seq += 1
+                            j_fmt_num = format_series_number(j_prefix_to_use, next_j_seq, job_series_suffix)
+                        allocated_job_number = j_fmt_num
+                        used_job_numbers.add(allocated_job_number.lower())
+                        if job_series:
+                            job_series.current_number = next_j_seq
+                            db.add(job_series)
+                    else:
+                        raise ae
+            else:
+                real_usage = await get_real_voucher_usage(db, "JOB")
+                disp = compute_series_display_data(job_series, real_usage=real_usage) if job_series else {"next_number": 1}
+                next_j_seq = disp["next_number"]
+                while str(next_j_seq).lower() in used_job_numbers:
+                    next_j_seq += 1
+                allocated_job_number = str(next_j_seq)
+                used_job_numbers.add(allocated_job_number.lower())
+                if job_series:
+                    job_series.current_number = next_j_seq
+                    db.add(job_series)
+
+            new_job = Job(
+                job_number=allocated_job_number,
+                job_date=lr_date,
+                expected_dispatch_date=dispatch_date,
+                consigner_id=consigner_obj.id,
+                consignee_id=consignee_obj.id,
+                origin_location_id=origin_obj.id,
+                destination_location_id=dest_obj.id,
+                billing_client_id=client_obj.id,
+                billing_party=client_obj.name,
+                cargo_description=raw_cargo or None,
+                estimated_weight_mt=chargeable_weight_val or actual_weight_val or Decimal("0.000"),
+                estimated_packages=packages_val,
+                special_instructions=raw_remarks or None,
+                status=JobStatus.BOOKED.value,
+                created_by_user_id=user_id,
+                issuing_office_id=resolved_office_id,
+            )
+            db.add(new_job)
+            await db.flush()
+
+            # 3. Create LR Linked to the Auto-Created Job
+            inv_items = []
+            if raw_invoice_no or raw_eway_bill or inv_val > 0:
+                inv_items.append({
+                    "invoice_no": raw_invoice_no or "",
+                    "invoice_date": lr_date.isoformat(),
+                    "invoice_value": float(inv_val),
+                    "eway_bill_number": raw_eway_bill or "",
+                    "eway_bill_date": lr_date.isoformat(),
+                    "eway_bill_expiry": None,
+                    "packages": packages_val,
+                    "weight_mt": float(chargeable_weight_val or actual_weight_val),
+                    "description": raw_cargo or "",
+                })
+
+            new_lr = LR(
+                lr_number=allocated_lr_number,
+                lr_date=lr_date,
+                dispatch_date=dispatch_date,
+                job_id=new_job.id,
+                consigner_id=consigner_obj.id,
+                consignee_id=consignee_obj.id,
+                origin_location_id=origin_obj.id,
+                destination_location_id=dest_obj.id,
+                billing_customer_id=client_obj.id,
+                vehicle_source=vehicle_source,
+                vehicle_number=raw_vehicle,
+                driver_name=raw_driver_name or None,
+                driver_phone=raw_driver_phone or None,
+                package_count=packages_val,
+                actual_weight_mt=actual_weight_val,
+                chargeable_weight_mt=chargeable_weight_val,
+                freight_rate=freight_val,
+                freight_amount=freight_val,
+                loading_charges=Decimal("0.00"),
+                unloading_charges=Decimal("0.00"),
+                other_charges=Decimal("0.00"),
+                total_freight_amount=freight_val,
+                advance_amount=advance_val,
+                balance_amount=balance_val,
+                payment_type=raw_payment_type or "To Be Billed",
+                invoice_no=raw_invoice_no or None,
+                invoice_value=inv_val,
+                eway_bill_number=raw_eway_bill or None,
+                particulars=raw_cargo or None,
+                booking_status="Booked",
+                status=LRStatus.BOOKED.value,
+                remarks=raw_remarks or None,
+                created_by_user_id=user_id,
+                issuing_office_id=resolved_office_id,
+                invoice_items=inv_items,
+            )
+            new_lr.job = new_job
+            db.add(new_lr)
+            await db.flush()
+
+            imported_lrs.append({
+                "id": new_lr.id,
+                "lr_number": new_lr.lr_number,
+                "job_id": new_job.id,
+                "job_number": new_job.job_number,
+                "issuing_office_id": new_lr.issuing_office_id,
+                "consigner": consigner_obj.name,
+                "consignee": consignee_obj.name,
+                "origin": origin_obj.city_name,
+                "destination": dest_obj.city_name,
+                "vehicle_number": raw_vehicle,
+                "lr_date": lr_date.isoformat(),
+            })
+
+        except AppException as ae:
+            skipped_duplicates.append({
+                "row": row_num,
+                "lr_number": effective_lr_no or raw_lr_no,
+                "reason": ae.message,
+                "duplicate_type": "DATABASE_DUPLICATE" if ae.error_code == "VOUCHER_NUMBER_ALREADY_USED" else "SERIES_ERROR"
+            })
+        except Exception as create_err:
+            errors.append({
+                "row": row_num,
+                "lr_number": effective_lr_no or raw_lr_no,
+                "reason": f"Failed to create LR: {str(create_err)}"
+            })
+
+    # Commit all successful inserts
+    if imported_lrs:
+        await db.commit()
+
+    return {
+        "total_rows": len(rows_data),
+        "imported_count": len(imported_lrs),
+        "skipped_duplicate_count": len(skipped_duplicates),
+        "failed_count": len(errors),
+        "skipped_duplicates": skipped_duplicates,
+        "errors": errors,
+        "imported_lrs": imported_lrs,
+    }
+
