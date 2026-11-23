@@ -152,6 +152,8 @@ interface VendorOption {
   gstin?: string;
   pan?: string;
   phone?: string;
+  total_due_amount?: number;
+  due_bills_count?: number;
 }
 
 interface DriverOption {
@@ -216,6 +218,7 @@ export default function PaymentVoucherPage() {
 
   // Master data
   const [vendors, setVendors] = useState<VendorOption[]>([]);
+  const [vendorsWithDueBills, setVendorsWithDueBills] = useState<VendorOption[]>([]);
   const [drivers, setDrivers] = useState<DriverOption[]>([]);
   const [hireChallans, setHireChallans] = useState<HireChallanOption[]>([]);
   const [bankAccounts, setBankAccounts] = useState<AccountOption[]>([]);
@@ -261,6 +264,18 @@ export default function PaymentVoucherPage() {
   const [allocations, setAllocations] = useState<Record<number, AllocationRow>>({});
   const [isLoadingOpenBills, setIsLoadingOpenBills] = useState(false);
 
+  // Filter vendors with due bills when paying against bills
+  const displayedVendors = useMemo(() => {
+    if (paymentType === "AGAINST_REF") {
+      if (selectedVendorId && !vendorsWithDueBills.some((v) => String(v.id) === String(selectedVendorId))) {
+        const match = vendors.find((v) => String(v.id) === String(selectedVendorId));
+        if (match) return [match, ...vendorsWithDueBills];
+      }
+      return vendorsWithDueBills;
+    }
+    return vendors;
+  }, [paymentType, vendorsWithDueBills, vendors, selectedVendorId]);
+
   // Drawer 2: View Voucher Details & Ledger
   const [selectedVoucher, setSelectedVoucher] = useState<VoucherRecord | null>(null);
   const [isLedgerOpen, setIsLedgerOpen] = useState(false);
@@ -283,12 +298,13 @@ export default function PaymentVoucherPage() {
       const activeOffice = getActiveOffice();
       const officeParam = activeOffice?.id ? `?office_id=${activeOffice.id}` : "";
 
-      const [stdRes, athRes, bthRes, sInfo, vendorsRes, driversRes, challansRes, accountsRes] = await Promise.all([
+      const [stdRes, athRes, bthRes, sInfo, vendorsRes, dueVendorsRes, driversRes, challansRes, accountsRes] = await Promise.all([
         apiClient<VoucherRecord[]>("/api/v1/accounts/vouchers?voucher_type=PAYMENT_VOUCHER").catch(() => []),
         apiClient<VoucherRecord[]>("/api/v1/accounts/vouchers?voucher_type=PAYMENT_ATH").catch(() => []),
         apiClient<VoucherRecord[]>("/api/v1/accounts/vouchers?voucher_type=PAYMENT_BTH").catch(() => []),
         apiClient<any>(`/api/v1/settings/series/check/PAYMENT_VOUCHER${officeParam}`).catch(() => null),
         apiClient<VendorOption[]>("/api/v1/general/vendors").catch(() => []),
+        apiClient<VendorOption[]>("/api/v1/accounts/vendors/with-due-bills").catch(() => []),
         apiClient<DriverOption[]>("/api/v1/transport/drivers").catch(() => []),
         apiClient<HireChallanOption[]>("/api/v1/transport/hire-challans").catch(() => []),
         apiClient<AccountOption[]>("/api/v1/misc/accounts").catch(() => []),
@@ -302,6 +318,7 @@ export default function PaymentVoucherPage() {
       setData(unique);
       setSeriesInfo(sInfo);
       setVendors(vendorsRes);
+      setVendorsWithDueBills(dueVendorsRes);
       setDrivers(driversRes);
       setHireChallans(challansRes);
 
@@ -1282,15 +1299,32 @@ export default function PaymentVoucherPage() {
                       }}
                       className="w-full h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#303036] bg-white dark:bg-[#101013] text-slate-900 dark:text-[#F5F5F7] placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all shadow-2xs"
                     >
-                      <option value="">-- Choose Vendor / Supplier --</option>
-                      {vendors.map((v) => (
+                      <option value="">
+                        {paymentType === "AGAINST_REF"
+                          ? displayedVendors.length > 0
+                            ? `-- Choose Vendor with Due Bills (${displayedVendors.length}) --`
+                            : "-- No Vendors with Due Bills Found --"
+                          : "-- Choose Vendor / Supplier --"}
+                      </option>
+                      {displayedVendors.map((v) => (
                         <option key={v.id} value={v.id}>
-                          {v.name} {v.gstin ? `(${v.gstin})` : ""}
+                          {v.name}
+                          {v.gstin ? ` (${v.gstin})` : ""}
+                          {paymentType === "AGAINST_REF" && v.total_due_amount !== undefined
+                            ? ` — Due: ${formatCurrency(v.total_due_amount)} (${v.due_bills_count} bill${v.due_bills_count !== 1 ? "s" : ""})`
+                            : ""}
                         </option>
                       ))}
                     </select>
+                    {paymentType === "AGAINST_REF" && (
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+                        {displayedVendors.length > 0
+                          ? `Showing only vendors with tagged open/due purchase bills (${displayedVendors.length} available).`
+                          : "No vendors currently have outstanding due purchase bills."}
+                      </p>
+                    )}
                   </div>
-                  {!selectedVendorId && (
+                  {paymentType !== "AGAINST_REF" && !selectedVendorId && (
                     <div>
                       <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 tracking-tight mb-1 font-semibold">
                         Or Enter Vendor Name

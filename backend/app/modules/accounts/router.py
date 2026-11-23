@@ -551,6 +551,19 @@ async def create_purchase_bill_payment_endpoint(
     return map_voucher_response(pmt)
 
 
+@router.get("/vendors/with-due-bills", response_model=List[schemas.VendorDueBillSummary])
+async def get_vendors_with_due_bills_endpoint(
+    session: AsyncSession = Depends(get_tenant_db),
+    current_user: User = Depends(get_current_user),
+    _perm: bool = Depends(require_permission("accounts", "payment_voucher", "view")),
+):
+    """
+    Get all vendors with tagged due bills (unpaid or partially paid purchase bills),
+    along with their total outstanding amount and bill counts.
+    """
+    return await service.get_vendors_with_due_bills(session)
+
+
 @router.get("/vendors/{vendor_id}/open-bills", response_model=List[schemas.OpenBillItem])
 async def get_vendor_open_bills(
     vendor_id: int,

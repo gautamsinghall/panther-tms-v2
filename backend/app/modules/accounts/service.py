@@ -2984,22 +2984,31 @@ async def get_open_bills_for_vendor(session: AsyncSession, vendor_id: int) -> Li
     Fetch all unpaid or partially paid purchase bills and supplier invoices
     for a vendor, ordered by date ASC (FIFO).
     """
-    stmt = (
-        select(Voucher)
-        .where(
-            Voucher.vendor_id == vendor_id,
-            Voucher.is_void == False,
-            Voucher.voucher_type.in_([VoucherType.NORMAL_PURCHASE.value, VoucherType.GENERAL_PURCHASE.value]),
-            Voucher.payment_status.in_(["UNPAID", "PARTIALLY_PAID"]),
+    vend = await session.get(Vendor, vendor_id)
+    where_clause = [
+        Voucher.is_void == False,
+        Voucher.voucher_type.in_([VoucherType.NORMAL_PURCHASE.value, VoucherType.GENERAL_PURCHASE.value]),
+        Voucher.payment_status.in_(["UNPAID", "PARTIALLY_PAID"]),
+    ]
+    if vend and vend.name:
+        where_clause.append(
+            or_(
+                Voucher.vendor_id == vendor_id,
+                and_(Voucher.vendor_id.is_(None), func.lower(Voucher.party_name) == func.lower(vend.name)),
+            )
         )
-        .order_by(Voucher.voucher_date.asc(), Voucher.id.asc())
-    )
+    else:
+        where_clause.append(Voucher.vendor_id == vendor_id)
+
+    stmt = select(Voucher).where(*where_clause).order_by(Voucher.voucher_date.asc(), Voucher.id.asc())
     res = await session.execute(stmt)
     vouchers = res.scalars().all()
 
     today = date.today()
     items = []
     for v in vouchers:
+        if v.vendor_id is None:
+            v.vendor_id = vendor_id
         bal = v.balance_amount if v.balance_amount is not None else v.net_amount
         if bal <= Decimal("0.00"):
             continue
@@ -3027,6 +3036,83 @@ async def get_open_bills_for_vendor(session: AsyncSession, vendor_id: int) -> Li
             )
         )
     return items
+
+
+async def get_vendors_with_due_bills(session: AsyncSession) -> List[schemas.VendorDueBillSummary]:
+    """
+    Fetch all vendors having tagged due purchase bills (unpaid or partially paid)
+    with remaining balance > 0.
+    """
+    stmt = (
+        select(
+            Voucher.id,
+            Voucher.vendor_id,
+            Voucher.party_name,
+            Voucher.balance_amount,
+            Voucher.net_amount,
+        )
+        .where(
+            Voucher.is_void == False,
+            Voucher.voucher_type.in_([VoucherType.NORMAL_PURCHASE.value, VoucherType.GENERAL_PURCHASE.value]),
+            Voucher.payment_status.in_(["UNPAID", "PARTIALLY_PAID"]),
+        )
+    )
+    vouchers = (await session.execute(stmt)).all()
+    if not vouchers:
+        return []
+
+    due_by_vendor: dict[int, dict] = {}
+    vouchers_needing_vendor_match = []
+
+    for v in vouchers:
+        bal = v.balance_amount if v.balance_amount is not None else v.net_amount
+        if bal is None or bal <= Decimal("0.00"):
+            continue
+        if v.vendor_id:
+            if v.vendor_id not in due_by_vendor:
+                due_by_vendor[v.vendor_id] = {"total_due_amount": Decimal("0.00"), "due_bills_count": 0}
+            due_by_vendor[v.vendor_id]["total_due_amount"] += Decimal(str(bal))
+            due_by_vendor[v.vendor_id]["due_bills_count"] += 1
+        elif v.party_name:
+            vouchers_needing_vendor_match.append((v, bal))
+
+    if vouchers_needing_vendor_match:
+        names = [v.party_name.strip() for v, _ in vouchers_needing_vendor_match if v.party_name]
+        if names:
+            v_res = await session.execute(select(Vendor).where(Vendor.name.in_(names)))
+            v_name_map = {vend.name.lower(): vend.id for vend in v_res.scalars().all()}
+            for v, bal in vouchers_needing_vendor_match:
+                matched_id = v_name_map.get(v.party_name.strip().lower())
+                if matched_id:
+                    if matched_id not in due_by_vendor:
+                        due_by_vendor[matched_id] = {"total_due_amount": Decimal("0.00"), "due_bills_count": 0}
+                    due_by_vendor[matched_id]["total_due_amount"] += Decimal(str(bal))
+                    due_by_vendor[matched_id]["due_bills_count"] += 1
+
+    if not due_by_vendor:
+        return []
+
+    vendors_res = await session.execute(
+        select(Vendor).where(Vendor.id.in_(list(due_by_vendor.keys()))).order_by(Vendor.name.asc())
+    )
+    vendors = vendors_res.scalars().all()
+
+    result = []
+    for vend in vendors:
+        info = due_by_vendor.get(vend.id)
+        if info:
+            result.append(
+                schemas.VendorDueBillSummary(
+                    id=vend.id,
+                    name=vend.name,
+                    gstin=vend.gstin,
+                    pan=vend.pan,
+                    phone=vend.phone,
+                    total_due_amount=info["total_due_amount"],
+                    due_bills_count=info["due_bills_count"],
+                )
+            )
+    return result
 
 
 # ------------------------------------------------------------------------------

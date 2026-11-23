@@ -319,6 +319,16 @@ class OpenBillItem(BaseModel):
     hire_challan_id: Optional[int] = None
 
 
+class VendorDueBillSummary(BaseModel):
+    id: int
+    name: str
+    gstin: Optional[str] = None
+    pan: Optional[str] = None
+    phone: Optional[str] = None
+    total_due_amount: Decimal = Decimal("0.00")
+    due_bills_count: int = 0
+
+
 class ContraAccountItem(BaseModel):
     id: int
     name: str

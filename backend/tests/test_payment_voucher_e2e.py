@@ -506,3 +506,12 @@ async def test_get_open_bills_for_vendor(e2e_session: AsyncSession):
     assert open_bills[0].balance_amount == Decimal("5000.00")
     assert open_bills[1].id == b2.id
     assert open_bills[1].balance_amount == Decimal("15000.00")
+
+    # Verify get_vendors_with_due_bills returns vendor 1 with aggregated due
+    due_vendors = await accounts_service.get_vendors_with_due_bills(session)
+    vendor_ids = [v.id for v in due_vendors]
+    assert 1 in vendor_ids
+    v1_summary = next(v for v in due_vendors if v.id == 1)
+    assert v1_summary.due_bills_count == 2
+    assert v1_summary.total_due_amount == Decimal("20000.00")
+
