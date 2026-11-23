@@ -130,6 +130,7 @@ export const ALL_NAVIGATION_MODULES: NavGroup[] = [
     title: "Home",
     items: [
       { feature: "overview", title: "Overview Dashboard", href: "/" },
+      { feature: "consignment_360", title: "Consignment 360°", href: "/transport/consignment-360" },
     ],
   },
   {
@@ -153,7 +154,6 @@ export const ALL_NAVIGATION_MODULES: NavGroup[] = [
     id: "transport",
     title: "Transport",
     items: [
-      { feature: "consignment_360", title: "Consignment 360°", href: "/transport/consignment-360" },
       { feature: "jobs", title: "Job Creation", href: "/transport/jobs" },
       { feature: "lr_booking", title: "GR/LR Booking", href: "/transport/lr-booking" },
       { feature: "hire_challan", title: "Hire Challan", href: "/transport/hire-challan" },

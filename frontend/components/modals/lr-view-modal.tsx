@@ -24,6 +24,7 @@ export interface LRViewRecord {
   id: number;
   lr_number: string;
   lr_date: string;
+  dispatch_date?: string;
   issuing_office_id?: number;
   issuing_office_name?: string;
   issuing_office_code?: string;

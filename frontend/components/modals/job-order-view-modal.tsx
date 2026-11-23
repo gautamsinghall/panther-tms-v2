@@ -89,8 +89,8 @@ interface JobOrderViewModalProps {
   isOpen: boolean;
   job: JobViewRecord | null;
   onClose: () => void;
-  onEdit: (job: JobViewRecord) => void;
-  onBookLR: (jobId: number) => void;
+  onEdit?: (job: JobViewRecord) => void;
+  onBookLR?: (jobId: number) => void;
 }
 
 export function JobOrderViewModal({
@@ -577,19 +577,21 @@ export function JobOrderViewModal({
           <div className="flex items-center gap-2 flex-wrap">
 
             {/* Secondary: Edit */}
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                onClose();
-                onEdit(job);
-              }}
-              className="text-xs font-medium h-8 gap-1.5 bg-white border-slate-300 text-slate-700 hover:bg-slate-100 dark:bg-[#1F202B] dark:border-[#2B2D3D] dark:text-slate-200 dark:hover:bg-[#262837] shadow-2xs cursor-pointer"
-            >
-              <Pencil className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
-              <span>Edit</span>
-            </Button>
+            {onEdit && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  onClose();
+                  onEdit(job);
+                }}
+                className="text-xs font-medium h-8 gap-1.5 bg-white border-slate-300 text-slate-700 hover:bg-slate-100 dark:bg-[#1F202B] dark:border-[#2B2D3D] dark:text-slate-200 dark:hover:bg-[#262837] shadow-2xs cursor-pointer"
+              >
+                <Pencil className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+                <span>Edit</span>
+              </Button>
+            )}
 
             {/* Secondary: Print */}
             <Button
@@ -638,7 +640,7 @@ export function JobOrderViewModal({
                 <Truck className="w-3.5 h-3.5" />
                 <span>View LR #{job.lr_number}</span>
               </Button>
-            ) : job.status === "OPEN" ? (
+            ) : job.status === "OPEN" && onBookLR ? (
               <Button
                 ref={primaryActionRef}
                 type="button"

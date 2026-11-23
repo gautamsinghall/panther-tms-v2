@@ -22,12 +22,16 @@ import {
   Loader2,
   ShieldCheck,
   Package,
+  Printer,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { KpiCard } from "@/components/ui/kpi-card";
 import { Button } from "@/components/ui/button";
 import { apiClient } from "@/lib/api-client";
 import { cn } from "@/lib/utils";
+import { LRViewModal, LRViewRecord } from "@/components/modals/lr-view-modal";
+import { JobOrderViewModal, JobViewRecord } from "@/components/modals/job-order-view-modal";
+import { TransportInvoicePrintModal } from "@/components/modals/transport-invoice-print-modal";
 
 interface LifecycleStage {
   stage_id: number;
@@ -100,6 +104,12 @@ function Consignment360Content() {
   const [showDropdown, setShowDropdown] = useState(false);
   const searchContainerRef = useRef<HTMLDivElement>(null);
 
+  // Modals state for Print Previews
+  const [printLr, setPrintLr] = useState<LRViewRecord | null>(null);
+  const [printJob, setPrintJob] = useState<JobViewRecord | null>(null);
+  const [printInvoice, setPrintInvoice] = useState<any | null>(null);
+  const [isOpeningModal, setIsOpeningModal] = useState<string | null>(null);
+
   // Fetch 360 data
   const fetch360Data = useCallback(async (query: string) => {
     const q = query.trim();
@@ -125,12 +135,17 @@ function Consignment360Content() {
     }
   }, []);
 
-  // Fetch autocomplete suggestions
+  // Fetch autocomplete suggestions (only when user types)
   const fetchSuggestions = useCallback(async (query: string) => {
+    const q = query.trim();
+    if (!q) {
+      setSuggestions([]);
+      return;
+    }
     setIsSuggesting(true);
     try {
       const res = await apiClient<SuggestionItem[]>(
-        `/api/v1/transport/consignment-360/search?q=${encodeURIComponent(query)}&limit=8`
+        `/api/v1/transport/consignment-360/search?q=${encodeURIComponent(q)}&limit=8`
       );
       setSuggestions(res || []);
     } catch {
@@ -140,15 +155,13 @@ function Consignment360Content() {
     }
   }, []);
 
-  // Initial load
+  // Initial load: only run when URL query param exists
   useEffect(() => {
     if (initialQuery) {
       setSearchQuery(initialQuery);
       fetch360Data(initialQuery);
-    } else {
-      fetchSuggestions("");
     }
-  }, [initialQuery, fetch360Data, fetchSuggestions]);
+  }, [initialQuery, fetch360Data]);
 
   // Click outside listener for dropdown
   useEffect(() => {
@@ -181,8 +194,98 @@ function Consignment360Content() {
 
   const handleInputChange = (val: string) => {
     setSearchQuery(val);
-    setShowDropdown(true);
-    fetchSuggestions(val);
+    if (val.trim()) {
+      setShowDropdown(true);
+      fetchSuggestions(val);
+    } else {
+      setShowDropdown(false);
+      setSuggestions([]);
+    }
+  };
+
+  // Open LR Print Modal
+  const handleOpenLrPrint = async (lrId?: number) => {
+    const targetId = lrId || data?.lr?.id;
+    if (!targetId && !data?.lr) return;
+    setIsOpeningModal("lr");
+    try {
+      if (targetId) {
+        const fullLr = await apiClient<LRViewRecord>(`/api/v1/transport/lrs/${targetId}`);
+        setPrintLr(fullLr);
+      } else {
+        throw new Error("No LR ID");
+      }
+    } catch {
+      if (data?.lr) {
+        setPrintLr({
+          ...data.lr,
+          id: data.lr.id || 0,
+          lr_number: data.lr.lr_number,
+          lr_date: data.lr.lr_date || "",
+          vehicle_source: data.lr.vehicle_source || "MARKET",
+          vehicle_number: data.lr.vehicle_number || "",
+          package_count: data.lr.package_count || 0,
+          chargeable_weight_mt: data.lr.chargeable_weight_mt || 0,
+          total_freight_amount: data.lr.total_freight_amount || 0,
+          advance_amount: data.lr.advance_amount || 0,
+          balance_amount: data.lr.balance_amount || 0,
+        });
+      }
+    } finally {
+      setIsOpeningModal(null);
+    }
+  };
+
+  // Open Job Print Modal
+  const handleOpenJobPrint = async (jobId?: number) => {
+    const targetId = jobId || data?.job?.id;
+    if (!targetId && !data?.job) return;
+    setIsOpeningModal("job");
+    try {
+      if (targetId) {
+        const fullJob = await apiClient<JobViewRecord>(`/api/v1/transport/jobs/${targetId}`);
+        setPrintJob(fullJob);
+      } else {
+        throw new Error("No Job ID");
+      }
+    } catch {
+      if (data?.job) {
+        setPrintJob({
+          ...data.job,
+          id: data.job.id || 0,
+          job_number: data.job.job_number,
+          job_date: data.job.job_date || "",
+          status: data.job.status || "BOOKED",
+          consigner_id: 0,
+          consignee_id: 0,
+          created_at: "",
+        });
+      }
+    } finally {
+      setIsOpeningModal(null);
+    }
+  };
+
+  // Open Invoice Print Modal
+  const handleOpenInvoicePrint = async (voucherId?: number) => {
+    const targetId = voucherId || (data?.invoices?.length ? data.invoices[0].id : null);
+    if (!targetId && !data?.invoices?.length) return;
+    setIsOpeningModal("invoice");
+    try {
+      if (targetId) {
+        const fullVoucher = await apiClient<any>(`/api/v1/accounts/vouchers/${targetId}`);
+        setPrintInvoice(fullVoucher);
+      } else {
+        throw new Error("No Voucher ID");
+      }
+    } catch {
+      const inv = data?.invoices?.find((i) => i.id === targetId) || data?.invoices?.[0];
+      if (inv) {
+        setPrintInvoice(inv);
+      }
+    } finally {
+      setIsOpeningModal(null);
+    }
   };
 
   const formatCurrency = (amt?: number) => {
@@ -201,7 +304,7 @@ function Consignment360Content() {
         title="Consignment 360° Traceability"
         description="Search any LR or Job number for complete lifecycle, hire contracts, delivery POD, and profit margin."
         breadcrumbs={[
-          { label: "Transport", href: "/transport/lr-booking" },
+          { label: "Home", href: "/" },
           { label: "Consignment 360°" },
         ]}
         primaryAction={{
@@ -217,30 +320,32 @@ function Consignment360Content() {
       {/* 2. Standardized Search Bar (styled exactly like TMS FilterBar) */}
       <div
         ref={searchContainerRef}
-        className="relative bg-white dark:bg-[#17171B] border border-slate-200/90 dark:border-[#303036] rounded-xl px-3.5 py-2.5 shadow-2xs"
+        className="relative bg-white dark:bg-[#17171B] border border-blue-200/90 dark:border-blue-900/40 rounded-xl px-3.5 py-2.5 shadow-2xs"
       >
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5">
           {/* Input field */}
           <form onSubmit={handleSearchSubmit} className="relative flex-1 max-w-xl">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-blue-500" />
             <input
               type="text"
               value={searchQuery}
               onFocus={() => {
-                setShowDropdown(true);
-                if (suggestions.length === 0) fetchSuggestions(searchQuery);
+                if (searchQuery.trim().length > 0) {
+                  setShowDropdown(true);
+                  if (suggestions.length === 0) fetchSuggestions(searchQuery);
+                }
               }}
               onChange={(e) => handleInputChange(e.target.value)}
-              placeholder="Search LR number, Job number, Challan, or Vehicle..."
-              className="w-full pl-9 pr-8 py-2 text-xs bg-slate-50/60 dark:bg-[#202026] border border-slate-200 dark:border-[#303036] rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500 text-slate-800 dark:text-slate-100 placeholder:text-slate-400 font-sans"
+              placeholder="Search LR number (e.g. LR-26110086), Job number, or Challan..."
+              className="w-full pl-9 pr-8 py-2 text-xs bg-slate-50/70 dark:bg-[#202026] border border-slate-200 dark:border-[#303036] rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 text-slate-800 dark:text-slate-100 placeholder:text-slate-400 font-sans"
             />
             {searchQuery && (
               <button
                 type="button"
                 onClick={() => {
                   setSearchQuery("");
-                  setShowDropdown(true);
-                  fetchSuggestions("");
+                  setShowDropdown(false);
+                  setSuggestions([]);
                 }}
                 className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
               >
@@ -256,7 +361,7 @@ function Consignment360Content() {
               size="sm"
               onClick={handleSearchSubmit}
               disabled={isLoading || !searchQuery.trim()}
-              className="px-4 py-2 text-xs font-semibold"
+              className="px-4 py-2 text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white"
             >
               {isLoading ? (
                 <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" />
@@ -268,31 +373,11 @@ function Consignment360Content() {
           </div>
         </div>
 
-        {/* Quick Suggestion Chips */}
-        {!searchQuery && suggestions.length > 0 && (
-          <div className="mt-2.5 pt-2 border-t border-slate-100 dark:border-[#26262c] flex flex-wrap items-center gap-1.5 text-[11px]">
-            <span className="text-slate-400 font-medium">Recent Quick Pick:</span>
-            {suggestions.slice(0, 6).map((s) => (
-              <button
-                key={`${s.type}-${s.id}`}
-                type="button"
-                onClick={() => handleSelectSuggestion(s)}
-                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-100 hover:bg-indigo-50 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-medium transition-colors border border-transparent hover:border-indigo-200 dark:hover:border-indigo-800 cursor-pointer"
-              >
-                <span className="font-semibold text-indigo-600 dark:text-indigo-400">
-                  {s.type === "LR" ? "LR" : s.type === "JOB" ? "Job" : "HC"}:
-                </span>
-                <span>{s.number}</span>
-              </button>
-            ))}
-          </div>
-        )}
-
-        {/* Autocomplete Dropdown */}
-        {showDropdown && suggestions.length > 0 && (
-          <div className="absolute left-0 right-0 top-full mt-1.5 bg-white dark:bg-[#17171B] border border-slate-200 dark:border-[#303036] rounded-xl shadow-lg z-50 max-h-72 overflow-y-auto">
-            <div className="px-3.5 py-1.5 border-b border-slate-100 dark:border-[#26262c] text-[10px] font-semibold text-slate-400 uppercase tracking-wider flex justify-between">
-              <span>{searchQuery ? "Matching Records" : "Recent Records"}</span>
+        {/* Autocomplete Dropdown (only when actively searching) */}
+        {showDropdown && searchQuery.trim().length > 0 && suggestions.length > 0 && (
+          <div className="absolute left-0 right-0 top-full mt-1.5 bg-white dark:bg-[#17171B] border border-blue-200 dark:border-[#303036] rounded-xl shadow-lg z-50 max-h-72 overflow-y-auto">
+            <div className="px-3.5 py-1.5 border-b border-slate-100 dark:border-[#26262c] text-[10px] font-semibold text-blue-600 dark:text-blue-400 uppercase tracking-wider flex justify-between">
+              <span>Matching Records</span>
               {isSuggesting && <span className="animate-pulse">Loading...</span>}
             </div>
             <div className="divide-y divide-slate-100 dark:divide-[#26262c]">
@@ -301,17 +386,17 @@ function Consignment360Content() {
                   key={`${item.type}-${item.id}`}
                   type="button"
                   onClick={() => handleSelectSuggestion(item)}
-                  className="w-full px-3.5 py-2 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-[#202026] transition-colors text-left group cursor-pointer"
+                  className="w-full px-3.5 py-2 flex items-center justify-between hover:bg-blue-50/60 dark:hover:bg-[#202026] transition-colors text-left group cursor-pointer"
                 >
                   <div className="flex items-center gap-2.5 min-w-0">
                     <div
                       className={cn(
                         "p-1.5 rounded-md shrink-0 text-xs",
                         item.type === "LR"
-                          ? "bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-blue-300"
+                          ? "bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300"
                           : item.type === "JOB"
-                          ? "bg-purple-50 text-purple-600 dark:bg-purple-950/40 dark:text-purple-300"
-                          : "bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-300"
+                          ? "bg-purple-100 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300"
+                          : "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300"
                       )}
                     >
                       {item.type === "LR" ? (
@@ -343,7 +428,7 @@ function Consignment360Content() {
                         {item.status}
                       </span>
                     )}
-                    <ChevronRight className="w-3.5 h-3.5 text-slate-300 group-hover:text-indigo-600 transition-colors" />
+                    <ChevronRight className="w-3.5 h-3.5 text-slate-300 group-hover:text-blue-600 transition-colors" />
                   </div>
                 </button>
               ))}
@@ -354,8 +439,8 @@ function Consignment360Content() {
 
       {/* 3. Loading State */}
       {isLoading && (
-        <div className="bg-white dark:bg-[#17171B] border border-slate-200/90 dark:border-[#303036] rounded-xl p-10 text-center shadow-2xs">
-          <div className="w-8 h-8 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
+        <div className="bg-white dark:bg-[#17171B] border border-blue-200/90 dark:border-blue-900/40 rounded-xl p-10 text-center shadow-2xs">
+          <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
           <div className="text-xs font-semibold text-slate-800 dark:text-slate-200">
             Loading Consignment 360°...
           </div>
@@ -365,7 +450,7 @@ function Consignment360Content() {
         </div>
       )}
 
-      {/* 4. Not Found State (Standard TMS Empty State) */}
+      {/* 4. Not Found State */}
       {!isLoading && searchedNotFound && (
         <div className="bg-white dark:bg-[#17171B] border border-slate-200/90 dark:border-[#303036] rounded-xl p-10 text-center shadow-2xs">
           <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-400 flex items-center justify-center mx-auto mb-2.5">
@@ -377,38 +462,20 @@ function Consignment360Content() {
           <div className="text-[11px] text-slate-400 mt-1 max-w-sm mx-auto">
             Please check the LR number, Job number, or Challan number and try again.
           </div>
-          {suggestions.length > 0 && (
-            <div className="mt-4 pt-3 border-t border-slate-100 dark:border-[#26262c] flex flex-wrap items-center justify-center gap-1.5 text-[11px]">
-              <span className="text-slate-400 font-medium">Or pick an existing record:</span>
-              {suggestions.slice(0, 5).map((s) => (
-                <button
-                  key={`nf-${s.type}-${s.id}`}
-                  type="button"
-                  onClick={() => handleSelectSuggestion(s)}
-                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-100 hover:bg-indigo-50 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-medium transition-colors border border-transparent hover:border-indigo-200 dark:hover:border-indigo-800 cursor-pointer"
-                >
-                  <span className="font-semibold text-indigo-600 dark:text-indigo-400">
-                    {s.type === "LR" ? "LR" : s.type === "JOB" ? "Job" : "HC"}:
-                  </span>
-                  <span>{s.number}</span>
-                </button>
-              ))}
-            </div>
-          )}
         </div>
       )}
 
       {/* 5. Clean Initial Screen (Before Search) */}
       {!isLoading && !data && !searchedNotFound && (
-        <div className="bg-white dark:bg-[#17171B] border border-slate-200/90 dark:border-[#303036] rounded-xl p-12 text-center shadow-2xs">
-          <div className="w-11 h-11 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 flex items-center justify-center mx-auto mb-3">
+        <div className="bg-white dark:bg-[#17171B] border border-blue-200/80 dark:border-blue-900/40 rounded-xl p-12 text-center shadow-2xs">
+          <div className="w-11 h-11 rounded-xl bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 flex items-center justify-center mx-auto mb-3">
             <ScanSearch className="w-5 h-5" />
           </div>
           <div className="text-sm font-semibold text-slate-900 dark:text-white">
             Search Any LR or Job Number
           </div>
           <div className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-md mx-auto">
-            Type an LR number, Job number, or Challan number in the search bar above to trace where it is linked, view operational vouchers, and check P&amp;L profitability.
+            Type an LR number (e.g. LR-26110086), Job number, or Challan number in the search bar above to trace where it is linked, view operational vouchers, and preview printable copies.
           </div>
         </div>
       )}
@@ -416,10 +483,10 @@ function Consignment360Content() {
       {/* 6. Active Consignment 360 Overview Screen */}
       {!isLoading && data && (
         <div className="space-y-4">
-          {/* Top Info Banner with Quick Actions */}
-          <div className="bg-white dark:bg-[#17171B] border border-slate-200/90 dark:border-[#303036] rounded-xl px-4 py-3 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          {/* Top Info Banner with High-Visibility Blue Action Buttons */}
+          <div className="bg-white dark:bg-[#17171B] border border-blue-200/90 dark:border-blue-900/50 rounded-xl px-4 py-3 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div className="flex flex-wrap items-center gap-2.5">
-              <span className="px-2 py-0.5 text-[10px] font-bold rounded bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300 uppercase">
+              <span className="px-2 py-0.5 text-[10px] font-bold rounded bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300 uppercase">
                 {data.matched_type}
               </span>
               <h3 className="text-sm font-bold text-slate-900 dark:text-white">
@@ -427,7 +494,7 @@ function Consignment360Content() {
                   ? `LR #${data.lr.lr_number}`
                   : data.job
                   ? `Job #${data.job.job_number}`
-                  : `Challan #${data.hire_challan.challan_number}`}
+                  : `Challan #${data.hire_challan?.challan_number}`}
               </h3>
               {data.lr?.booking_status && (
                 <span className="px-2 py-0.5 text-[10px] font-semibold rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
@@ -441,45 +508,55 @@ function Consignment360Content() {
               )}
             </div>
 
-            {/* Quick action buttons */}
+            {/* Quick action prominent blue buttons */}
             <div className="flex items-center gap-2">
               {data.lr && (
                 <button
                   type="button"
-                  onClick={() => router.push(`/transport/lr-booking?search=${encodeURIComponent(data.lr.lr_number)}`)}
-                  className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-medium rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition-colors cursor-pointer"
+                  onClick={() => handleOpenLrPrint(data.lr.id)}
+                  disabled={isOpeningModal === "lr"}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-blue-600 hover:bg-blue-700 text-white shadow-xs transition-colors cursor-pointer"
                 >
-                  <FileText className="w-3 h-3 text-slate-500" />
+                  {isOpeningModal === "lr" ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <Printer className="w-3.5 h-3.5" />
+                  )}
                   <span>Open LR</span>
-                  <ExternalLink className="w-2.5 h-2.5 text-slate-400" />
+                  <ExternalLink className="w-2.5 h-2.5 opacity-80" />
                 </button>
               )}
               {data.hire_challan && (
                 <button
                   type="button"
                   onClick={() => router.push(`/transport/hire-challan?search=${encodeURIComponent(data.hire_challan.challan_number)}`)}
-                  className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-medium rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition-colors cursor-pointer"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-sky-600 hover:bg-sky-700 text-white shadow-xs transition-colors cursor-pointer"
                 >
-                  <Truck className="w-3 h-3 text-slate-500" />
+                  <Truck className="w-3.5 h-3.5" />
                   <span>Open Challan</span>
-                  <ExternalLink className="w-2.5 h-2.5 text-slate-400" />
+                  <ExternalLink className="w-2.5 h-2.5 opacity-80" />
                 </button>
               )}
-              {data.invoices.length > 0 && (
+              {data.invoices && data.invoices.length > 0 && (
                 <button
                   type="button"
-                  onClick={() => router.push(`/accounts/transport-invoice?search=${encodeURIComponent(data.invoices[0].voucher_number)}`)}
-                  className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-medium rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition-colors cursor-pointer"
+                  onClick={() => handleOpenInvoicePrint(data.invoices[0].id)}
+                  disabled={isOpeningModal === "invoice"}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs transition-colors cursor-pointer"
                 >
-                  <Receipt className="w-3 h-3 text-slate-500" />
+                  {isOpeningModal === "invoice" ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <Printer className="w-3.5 h-3.5" />
+                  )}
                   <span>Open Invoice</span>
-                  <ExternalLink className="w-2.5 h-2.5 text-slate-400" />
+                  <ExternalLink className="w-2.5 h-2.5 opacity-80" />
                 </button>
               )}
             </div>
           </div>
 
-          {/* Standard KPI Cards Strip (4 columns matching TMS style) */}
+          {/* Standard KPI Cards Strip (4 columns) */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             <KpiCard
               title="Customer Freight Revenue"
@@ -522,10 +599,10 @@ function Consignment360Content() {
             />
           </div>
 
-          {/* 8-Stage Lifecycle Status Tracker */}
-          <div className="bg-white dark:bg-[#17171B] border border-slate-200/90 dark:border-[#303036] rounded-xl p-4 shadow-2xs">
-            <div className="text-xs font-semibold text-slate-800 dark:text-slate-200 uppercase tracking-wider mb-3 flex items-center gap-1.5">
-              <RotateCcw className="w-3.5 h-3.5 text-indigo-600" />
+          {/* 8-Stage Lifecycle Status Tracker (Highlighted with crisp Blue / Emerald Visibility) */}
+          <div className="bg-white dark:bg-[#17171B] border border-blue-200/90 dark:border-blue-900/40 rounded-xl p-4 shadow-2xs">
+            <div className="text-xs font-semibold text-blue-800 dark:text-blue-300 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+              <RotateCcw className="w-3.5 h-3.5 text-blue-600" />
               <span>Consignment 8-Stage Lifecycle Progress</span>
             </div>
 
@@ -541,12 +618,12 @@ function Consignment360Content() {
                     className={cn(
                       "p-3 rounded-lg border transition-all text-xs",
                       isDone
-                        ? "bg-emerald-50/30 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-900/50"
+                        ? "bg-emerald-50/50 dark:bg-emerald-950/20 border-emerald-300 dark:border-emerald-800 shadow-2xs"
                         : isCurrent
-                        ? "bg-indigo-50/50 dark:bg-indigo-950/30 border-indigo-300 dark:border-indigo-800 ring-1 ring-indigo-500/20"
+                        ? "bg-blue-50/80 dark:bg-blue-950/40 border-blue-400 dark:border-blue-600 ring-2 ring-blue-500/30 shadow-xs"
                         : isSkipped
                         ? "bg-slate-50 dark:bg-slate-800/40 border-slate-200 dark:border-slate-800 opacity-60"
-                        : "bg-white dark:bg-[#17171B] border-slate-200 dark:border-[#303036]"
+                        : "bg-blue-50/20 dark:bg-[#181926] border-blue-200/80 dark:border-blue-900/40 hover:border-blue-300"
                     )}
                   >
                     <div className="flex items-center justify-between gap-1.5 mb-1">
@@ -557,10 +634,10 @@ function Consignment360Content() {
                             isDone
                               ? "bg-emerald-600 text-white"
                               : isCurrent
-                              ? "bg-indigo-600 text-white animate-pulse"
+                              ? "bg-blue-600 text-white animate-pulse"
                               : isSkipped
                               ? "bg-slate-300 dark:bg-slate-700 text-slate-700 dark:text-slate-300"
-                              : "bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400"
+                              : "bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 border border-blue-300 dark:border-blue-700"
                           )}
                         >
                           {isDone ? <Check className="w-2.5 h-2.5 stroke-[3]" /> : stg.stage_id}
@@ -576,10 +653,10 @@ function Consignment360Content() {
                           isDone
                             ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
                             : isCurrent
-                            ? "bg-indigo-100 text-indigo-800 dark:bg-indigo-950 dark:text-indigo-300"
+                            ? "bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300"
                             : isSkipped
                             ? "bg-slate-200 text-slate-600 dark:bg-slate-800 dark:text-slate-400"
-                            : "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400"
+                            : "bg-blue-50 text-blue-600 dark:bg-blue-950/50 dark:text-blue-300 border border-blue-200/60"
                         )}
                       >
                         {stg.status.replace("_", " ")}
@@ -605,7 +682,7 @@ function Consignment360Content() {
           {/* Operational Cards Grid (2 columns) */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {/* 1. Job Order Card */}
-            <div className="bg-white dark:bg-[#17171B] border border-slate-200/90 dark:border-[#303036] rounded-xl p-4 shadow-2xs space-y-3">
+            <div className="bg-white dark:bg-[#17171B] border border-blue-200/80 dark:border-blue-900/40 rounded-xl p-4 shadow-2xs space-y-3">
               <div className="flex items-center justify-between border-b border-slate-100 dark:border-[#26262c] pb-2.5">
                 <div className="flex items-center gap-2">
                   <div className="p-1.5 rounded-md bg-purple-50 text-purple-600 dark:bg-purple-950/40 dark:text-purple-400">
@@ -613,7 +690,7 @@ function Consignment360Content() {
                   </div>
                   <div>
                     <h4 className="font-semibold text-slate-800 dark:text-slate-200">
-                      Job Order & Cargo Indent
+                      Job Order &amp; Cargo Indent
                     </h4>
                   </div>
                 </div>
@@ -621,9 +698,15 @@ function Consignment360Content() {
                 {data.job && (
                   <button
                     type="button"
-                    onClick={() => router.push(`/transport/jobs?search=${encodeURIComponent(data.job.job_number)}`)}
-                    className="text-[11px] text-indigo-600 hover:text-indigo-700 font-semibold flex items-center gap-0.5 cursor-pointer"
+                    onClick={() => handleOpenJobPrint(data.job.id)}
+                    disabled={isOpeningModal === "job"}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-lg bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/60 dark:hover:bg-blue-900/80 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 transition-colors cursor-pointer shadow-2xs"
                   >
+                    {isOpeningModal === "job" ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" />
+                    ) : (
+                      <Printer className="w-3.5 h-3.5 mr-1" />
+                    )}
                     <span>View Job</span>
                     <ChevronRight className="w-3.5 h-3.5" />
                   </button>
@@ -692,7 +775,7 @@ function Consignment360Content() {
                             className={cn(
                               "px-2 py-0.5 rounded text-[11px] font-medium border cursor-pointer",
                               data.lr?.lr_number === item.lr_number
-                                ? "bg-indigo-600 text-white border-indigo-600"
+                                ? "bg-blue-600 text-white border-blue-600"
                                 : "bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300"
                             )}
                           >
@@ -711,7 +794,7 @@ function Consignment360Content() {
             </div>
 
             {/* 2. Lorry Receipt (LR) Card */}
-            <div className="bg-white dark:bg-[#17171B] border border-slate-200/90 dark:border-[#303036] rounded-xl p-4 shadow-2xs space-y-3">
+            <div className="bg-white dark:bg-[#17171B] border border-blue-200/80 dark:border-blue-900/40 rounded-xl p-4 shadow-2xs space-y-3">
               <div className="flex items-center justify-between border-b border-slate-100 dark:border-[#26262c] pb-2.5">
                 <div className="flex items-center gap-2">
                   <div className="p-1.5 rounded-md bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-blue-400">
@@ -727,9 +810,15 @@ function Consignment360Content() {
                 {data.lr && (
                   <button
                     type="button"
-                    onClick={() => router.push(`/transport/lr-booking?search=${encodeURIComponent(data.lr.lr_number)}`)}
-                    className="text-[11px] text-indigo-600 hover:text-indigo-700 font-semibold flex items-center gap-0.5 cursor-pointer"
+                    onClick={() => handleOpenLrPrint(data.lr.id)}
+                    disabled={isOpeningModal === "lr"}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-lg bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/60 dark:hover:bg-blue-900/80 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 transition-colors cursor-pointer shadow-2xs"
                   >
+                    {isOpeningModal === "lr" ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" />
+                    ) : (
+                      <Printer className="w-3.5 h-3.5 mr-1" />
+                    )}
                     <span>View LR</span>
                     <ChevronRight className="w-3.5 h-3.5" />
                   </button>
@@ -752,14 +841,14 @@ function Consignment360Content() {
                   </div>
                   <div>
                     <span className="text-slate-400 text-[11px] block">Vehicle</span>
-                    <span className="font-mono text-slate-800 dark:text-slate-200">
+                    <span className="font-medium font-mono text-slate-800 dark:text-slate-200">
                       {data.lr.vehicle_number} ({data.lr.vehicle_source})
                     </span>
                   </div>
                   <div>
                     <span className="text-slate-400 text-[11px] block">Driver</span>
                     <span className="text-slate-800 dark:text-slate-200">
-                      {data.lr.driver_name} {data.lr.driver_phone !== "N/A" && `(${data.lr.driver_phone})`}
+                      {data.lr.driver_name || "N/A"}
                     </span>
                   </div>
                   <div>
@@ -770,26 +859,26 @@ function Consignment360Content() {
                   </div>
                   <div>
                     <span className="text-slate-400 text-[11px] block">Customer Freight</span>
-                    <span className="font-bold text-slate-900 dark:text-white">
-                      {formatCurrency(data.lr.total_freight_amount)} ({data.lr.payment_type})
+                    <span className="font-semibold text-emerald-600">
+                      {formatCurrency(data.lr.total_freight_amount)} ({data.lr.payment_type || "TO_PAY"})
                     </span>
                   </div>
                   <div className="col-span-2">
-                    <span className="text-slate-400 text-[11px] block">Weight & Packages</span>
+                    <span className="text-slate-400 text-[11px] block">Weight &amp; Packages</span>
                     <span className="text-slate-800 dark:text-slate-200">
-                      {data.lr.package_count} pkgs • {data.lr.chargeable_weight_mt} MT chargeable (Actual: {data.lr.actual_weight_mt} MT)
+                      {data.lr.package_count} pkgs • {data.lr.chargeable_weight_mt} MT chargeable (Actual: {data.lr.actual_weight_mt || data.lr.chargeable_weight_mt} MT)
                     </span>
                   </div>
                 </div>
               ) : (
                 <div className="text-xs text-slate-400 italic py-2 text-center">
-                  Consignment LR not yet booked.
+                  No LR issued for this job yet.
                 </div>
               )}
             </div>
 
-            {/* 3. Lorry Hire Contract (Challan) Card */}
-            <div className="bg-white dark:bg-[#17171B] border border-slate-200/90 dark:border-[#303036] rounded-xl p-4 shadow-2xs space-y-3">
+            {/* 3. Lorry Hire Contract (Hire Challan) */}
+            <div className="bg-white dark:bg-[#17171B] border border-blue-200/80 dark:border-blue-900/40 rounded-xl p-4 shadow-2xs space-y-3">
               <div className="flex items-center justify-between border-b border-slate-100 dark:border-[#26262c] pb-2.5">
                 <div className="flex items-center gap-2">
                   <div className="p-1.5 rounded-md bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400">
@@ -806,7 +895,7 @@ function Consignment360Content() {
                   <button
                     type="button"
                     onClick={() => router.push(`/transport/hire-challan?search=${encodeURIComponent(data.hire_challan.challan_number)}`)}
-                    className="text-[11px] text-indigo-600 hover:text-indigo-700 font-semibold flex items-center gap-0.5 cursor-pointer"
+                    className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-lg bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/60 dark:hover:bg-blue-900/80 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 transition-colors cursor-pointer shadow-2xs"
                   >
                     <span>View Challan</span>
                     <ChevronRight className="w-3.5 h-3.5" />
@@ -869,7 +958,7 @@ function Consignment360Content() {
             </div>
 
             {/* 4. Destination Hub Arrival & Delivery POD Card */}
-            <div className="bg-white dark:bg-[#17171B] border border-slate-200/90 dark:border-[#303036] rounded-xl p-4 shadow-2xs space-y-3">
+            <div className="bg-white dark:bg-[#17171B] border border-blue-200/80 dark:border-blue-900/40 rounded-xl p-4 shadow-2xs space-y-3">
               <div className="flex items-center justify-between border-b border-slate-100 dark:border-[#26262c] pb-2.5">
                 <div className="flex items-center gap-2">
                   <div className="p-1.5 rounded-md bg-amber-50 text-amber-600 dark:bg-amber-950/40 dark:text-amber-400">
@@ -877,7 +966,7 @@ function Consignment360Content() {
                   </div>
                   <div>
                     <h4 className="font-semibold text-slate-800 dark:text-slate-200">
-                      Hub Arrival & Delivery POD
+                      Hub Arrival &amp; Delivery POD
                     </h4>
                   </div>
                 </div>
@@ -886,7 +975,7 @@ function Consignment360Content() {
                   <button
                     type="button"
                     onClick={() => router.push(`/transport/pod-records?search=${encodeURIComponent(data.pod_record.pod_number)}`)}
-                    className="text-[11px] text-indigo-600 hover:text-indigo-700 font-semibold flex items-center gap-0.5 cursor-pointer"
+                    className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-lg bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/60 dark:hover:bg-blue-900/80 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 transition-colors cursor-pointer shadow-2xs"
                   >
                     <span>View POD</span>
                     <ChevronRight className="w-3.5 h-3.5" />
@@ -983,7 +1072,7 @@ function Consignment360Content() {
           </div>
 
           {/* Linked Accounting Vouchers & Ledgers */}
-          <div className="bg-white dark:bg-[#17171B] border border-slate-200/90 dark:border-[#303036] rounded-xl p-4 shadow-2xs space-y-3">
+          <div className="bg-white dark:bg-[#17171B] border border-blue-200/80 dark:border-blue-900/40 rounded-xl p-4 shadow-2xs space-y-3">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-100 dark:border-[#26262c] pb-2.5 gap-2">
               <div className="flex items-center gap-2">
                 <div className="p-1.5 rounded-md bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400">
@@ -1037,13 +1126,18 @@ function Consignment360Content() {
                   <tbody className="divide-y divide-slate-100 dark:divide-[#26262c]">
                     {/* Invoices */}
                     {data.invoices.map((v) => (
-                      <tr key={`inv-${v.id}`} className="hover:bg-slate-50/60 dark:hover:bg-[#202026]/40">
+                      <tr
+                        key={`inv-${v.id}`}
+                        onClick={() => handleOpenInvoicePrint(v.id)}
+                        className="hover:bg-blue-50/50 dark:hover:bg-[#202026]/40 cursor-pointer"
+                        title="Click to Print / Preview Invoice"
+                      >
                         <td className="py-2 px-3">
                           <span className="font-semibold px-1.5 py-0.2 rounded bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300 text-[9px]">
                             CUSTOMER INVOICE
                           </span>
                         </td>
-                        <td className="py-2 px-3 font-medium text-slate-900 dark:text-slate-100">
+                        <td className="py-2 px-3 font-medium text-blue-600 dark:text-blue-400 underline decoration-dotted">
                           {v.voucher_number}
                         </td>
                         <td className="py-2 px-3 text-slate-400">{v.voucher_date}</td>
@@ -1100,10 +1194,10 @@ function Consignment360Content() {
 
                     {/* Purchases */}
                     {data.purchases.map((v) => (
-                      <tr key={`pur-${v.id}`} className="hover:bg-slate-50/60 dark:hover:bg-[#202026]/40">
+                      <tr key={`purch-${v.id}`} className="hover:bg-slate-50/60 dark:hover:bg-[#202026]/40">
                         <td className="py-2 px-3">
                           <span className="font-semibold px-1.5 py-0.2 rounded bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 text-[9px]">
-                            EXPENSE / PURCHASE
+                            VENDOR PURCHASE
                           </span>
                         </td>
                         <td className="py-2 px-3 font-medium text-slate-900 dark:text-slate-100">
@@ -1114,15 +1208,22 @@ function Consignment360Content() {
                         <td className="py-2 px-3 text-right font-bold text-slate-900 dark:text-white">
                           {formatCurrency(v.net_amount)}
                         </td>
-                        <td className="py-2 px-3 text-right text-slate-500">
+                        <td className="py-2 px-3 text-right text-emerald-600 font-medium">
                           {formatCurrency(v.paid_amount)}
                         </td>
-                        <td className="py-2 px-3 text-right text-slate-500">
+                        <td className="py-2 px-3 text-right font-semibold text-amber-600">
                           {formatCurrency(v.balance_amount)}
                         </td>
                         <td className="py-2 px-3 text-center">
-                          <span className="px-1.5 py-0.2 rounded text-[9px] font-medium bg-slate-100 dark:bg-slate-800 text-slate-600">
-                            {v.payment_status}
+                          <span
+                            className={cn(
+                              "px-1.5 py-0.2 rounded text-[9px] font-bold uppercase",
+                              v.balance_amount <= 0
+                                ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
+                                : "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300"
+                            )}
+                          >
+                            {v.balance_amount <= 0 ? "PAID" : "DUE"}
                           </span>
                         </td>
                       </tr>
@@ -1133,7 +1234,7 @@ function Consignment360Content() {
                       <tr key={`pay-${v.id}`} className="hover:bg-slate-50/60 dark:hover:bg-[#202026]/40">
                         <td className="py-2 px-3">
                           <span className="font-semibold px-1.5 py-0.2 rounded bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300 text-[9px]">
-                            DRIVER / VENDOR PAY
+                            VENDOR PAYOUT
                           </span>
                         </td>
                         <td className="py-2 px-3 font-medium text-slate-900 dark:text-slate-100">
@@ -1160,6 +1261,32 @@ function Consignment360Content() {
           </div>
         </div>
       )}
+
+      {/* Print Preview Modals */}
+      {printLr && (
+        <LRViewModal
+          isOpen={!!printLr}
+          lr={printLr}
+          onClose={() => setPrintLr(null)}
+        />
+      )}
+
+      {printJob && (
+        <JobOrderViewModal
+          isOpen={!!printJob}
+          job={printJob}
+          onClose={() => setPrintJob(null)}
+        />
+      )}
+
+      {printInvoice && (
+        <TransportInvoicePrintModal
+          isOpen={!!printInvoice}
+          invoice={printInvoice}
+          linkedLr={data?.lr}
+          onClose={() => setPrintInvoice(null)}
+        />
+      )}
     </div>
   );
 }
@@ -1169,7 +1296,7 @@ export default function Consignment360Page() {
     <Suspense
       fallback={
         <div className="p-12 text-center font-sans">
-          <div className="w-6 h-6 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
+          <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
           <span className="text-xs text-slate-500">Loading Consignment 360°...</span>
         </div>
       }

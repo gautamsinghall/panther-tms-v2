@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   LogOut,
@@ -13,6 +14,7 @@ import {
   Moon,
   Menu,
   Calendar,
+  ScanSearch,
 } from "lucide-react";
 import { usePantherAI } from "@/components/ai";
 import { DropdownMenu } from "@/components/ui/dropdown-menu";
@@ -199,8 +201,17 @@ export function Header() {
           <Search className="w-4 h-4" />
         </button>
 
-        {/* Action Controls: Notifications, Theme Switch & Parth AI */}
+        {/* Action Controls: Consignment 360, Notifications, Theme Switch & Parth AI */}
         <div className="flex items-center gap-1 sm:gap-1.5">
+          <Link
+            href="/transport/consignment-360"
+            aria-label="Consignment 360° Traceability"
+            title="Consignment 360° Traceability (Search any LR / Job)"
+            className="hidden sm:flex items-center gap-1.5 px-2 sm:px-2.5 py-1.5 rounded-xl text-xs font-semibold text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/50 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 border border-indigo-200/80 dark:border-indigo-800/60 transition-colors cursor-pointer select-none shrink-0"
+          >
+            <ScanSearch className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400 shrink-0" />
+            <span className="hidden xl:inline">360° Trace</span>
+          </Link>
           <button
             type="button"
             onClick={toggleAI}

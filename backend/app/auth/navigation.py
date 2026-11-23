@@ -44,6 +44,7 @@ ALL_NAVIGATION_MODULES = [
         "title": "Home",
         "items": [
             {"feature": "overview", "title": "Overview Dashboard", "href": "/"},
+            {"feature": "consignment_360", "title": "Consignment 360°", "href": "/transport/consignment-360"},
         ],
     },
     {
@@ -67,7 +68,6 @@ ALL_NAVIGATION_MODULES = [
         "id": "transport",
         "title": "Transport",
         "items": [
-            {"feature": "consignment_360", "title": "Consignment 360°", "href": "/transport/consignment-360"},
             {"feature": "jobs", "title": "Job Creation", "href": "/transport/jobs"},
             {"feature": "lr_booking", "title": "GR/LR Booking", "href": "/transport/lr-booking"},
             {"feature": "hire_challan", "title": "Hire Challan", "href": "/transport/hire-challan"},
@@ -322,7 +322,8 @@ def build_user_navigation(current_user: Any, tenant: Any) -> list:
                 allowed_features.add((mod_norm, feat_norm))
                 allowed_features.add((mod_norm.replace("_", "-"), feat_norm))
                 allowed_features.add((mod_norm.replace("-", "_"), feat_norm))
-                if mod_norm == "transport" and feat_norm in ("lr_booking", "jobs", "hire_challan", "consignment_360"):
+                if (mod_norm in ("transport", "home") and feat_norm in ("lr_booking", "jobs", "hire_challan", "consignment_360", "overview")) or mod_norm == "home":
+                    allowed_features.add(("home", "consignment_360"))
                     allowed_features.add(("transport", "consignment_360"))
                 if mod_norm in ("tracking", "transport") and feat_norm in ("tracking", "sim_tracking"):
                     allowed_features.add(("tracking", "tracking"))

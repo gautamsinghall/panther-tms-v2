@@ -3338,6 +3338,13 @@ def _build_search_variants(raw_query: str) -> List[str]:
         if unpadded and unpadded not in variants:
             variants.append(unpadded)
 
+    # Common prefixes from digits
+    if digits:
+        for pfx in ('LR-', 'LR', 'JOB-', 'JOB', 'HC-', 'HC'):
+            comb = f"{pfx}{digits}"
+            if comb not in variants:
+                variants.append(comb)
+
     return variants
 
 
@@ -3526,11 +3533,49 @@ async def get_consignment_360(
     matched_job: Optional[Job] = None
     matched_hc: Optional[HireChallan] = None
 
+    is_lr_query = q.upper().startswith('LR')
     is_job_query = q.upper().startswith('JOB')
     is_hc_query = q.upper().startswith('HC')
 
     # 1. Search order depending on pattern prefix
-    if is_job_query:
+    if is_lr_query:
+        lr_conds = []
+        for v in variants:
+            lr_conds.append(LR.lr_number.ilike(v))
+            lr_conds.append(LR.lr_number.ilike(f'%{v}%'))
+            lr_conds.append(LR.vehicle_number.ilike(v))
+            lr_conds.append(LR.invoice_no.ilike(f'%{v}%'))
+
+        lr_stmt = (
+            select(LR)
+            .options(
+                selectinload(LR.consigner),
+                selectinload(LR.consignee),
+                selectinload(LR.origin_location),
+                selectinload(LR.destination_location),
+                selectinload(LR.issuing_office),
+                selectinload(LR.billing_customer),
+                selectinload(LR.load_type_rel),
+                selectinload(LR.packing_method),
+                selectinload(LR.hire_challan).selectinload(HireChallan.owner),
+                selectinload(LR.hire_challan).selectinload(HireChallan.vendor),
+                selectinload(LR.hire_challan).selectinload(HireChallan.driver),
+                selectinload(LR.hire_challan).selectinload(HireChallan.issuing_office),
+                selectinload(LR.pod_record),
+            )
+            .where(or_(*lr_conds))
+            .order_by(
+                case((LR.lr_number.ilike(q), 0), else_=1),
+                case((LR.lr_number.ilike(f'%{q}%'), 0), else_=1),
+                desc(LR.created_at),
+            )
+            .limit(1)
+        )
+        matched_lr = (await db.execute(lr_stmt)).scalar_one_or_none()
+        if matched_lr:
+            matched_type = 'LR'
+
+    elif is_job_query:
         j_conds = []
         for v in variants:
             j_conds.append(Job.job_number.ilike(v))
@@ -3579,7 +3624,7 @@ async def get_consignment_360(
             matched_type = 'HIRE_CHALLAN'
 
     # If not found yet, check LR across all variants
-    if not matched_job and not matched_hc:
+    if not matched_lr and not matched_job and not matched_hc:
         lr_conds = []
         for v in variants:
             lr_conds.append(LR.lr_number.ilike(v))
@@ -3590,7 +3635,6 @@ async def get_consignment_360(
         lr_stmt = (
             select(LR)
             .options(
-                selectinload(LR.job),
                 selectinload(LR.consigner),
                 selectinload(LR.consignee),
                 selectinload(LR.origin_location),
@@ -3685,9 +3729,7 @@ async def get_consignment_360(
             )
             hc = (await db.execute(hc_sub_stmt)).scalar_one_or_none()
 
-        if not job and lr.job:
-            job = lr.job
-        elif not job and lr.job_id:
+        if not job and lr.job_id:
             job_sub_stmt = (
                 select(Job)
                 .options(
@@ -3710,7 +3752,6 @@ async def get_consignment_360(
             lr_sub_stmt = (
                 select(LR)
                 .options(
-                    selectinload(LR.job),
                     selectinload(LR.consigner),
                     selectinload(LR.consignee),
                     selectinload(LR.origin_location),
@@ -3737,7 +3778,6 @@ async def get_consignment_360(
             lr_sub_stmt = (
                 select(LR)
                 .options(
-                    selectinload(LR.job),
                     selectinload(LR.consigner),
                     selectinload(LR.consignee),
                     selectinload(LR.origin_location),
