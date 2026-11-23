@@ -3269,3 +3269,854 @@ async def get_gps_history(db: AsyncSession, vehicle_number: str, date_filter: st
             speed=truck.speed if truck else 0,
         ),
     )
+
+
+# ===========================================================================
+# Consignment 360° & Lifecycle Traceability
+# ===========================================================================
+
+def _fmt_date(d: Any) -> Optional[str]:
+    if d is None:
+        return None
+    if hasattr(d, "strftime"):
+        return d.strftime("%d %b %Y")
+    return str(d)
+
+
+def _fmt_money(val: Any) -> float:
+    if val is None:
+        return 0.0
+    try:
+        return float(val)
+    except (ValueError, TypeError):
+        return 0.0
+
+
+async def search_consignment_360_suggestions(
+    db: AsyncSession,
+    query: str = "",
+    limit: int = 8,
+) -> List[Dict[str, Any]]:
+    """Quick autocomplete / live suggestions for Consignment 360 search."""
+    cleaned = (query or "").strip()
+    results: List[Dict[str, Any]] = []
+
+    if not cleaned:
+        # Default: 4 recent LRs and 4 recent Jobs
+        recent_lrs_stmt = (
+            select(LR)
+            .options(
+                selectinload(LR.consigner),
+                selectinload(LR.consignee),
+                selectinload(LR.origin_location),
+                selectinload(LR.destination_location),
+            )
+            .order_by(desc(LR.created_at))
+            .limit(4)
+        )
+        lrs_res = await db.execute(recent_lrs_stmt)
+        for lr in lrs_res.scalars().all():
+            origin = lr.origin_location.city if lr.origin_location else ""
+            dest = lr.destination_location.city if lr.destination_location else ""
+            route = f"{origin} -> {dest}" if origin or dest else "General Consignment"
+            results.append({
+                "id": lr.id,
+                "type": "LR",
+                "number": lr.lr_number,
+                "title": f"LR #{lr.lr_number}",
+                "subtitle": f"{route} | {lr.consigner.name if lr.consigner else 'Direct Party'}",
+                "date": _fmt_date(lr.lr_date),
+                "status": lr.booking_status or lr.status or "BOOKED",
+                "vehicle_number": lr.vehicle_number,
+            })
+
+        recent_jobs_stmt = (
+            select(Job)
+            .options(
+                selectinload(Job.consigner),
+                selectinload(Job.origin_location),
+                selectinload(Job.destination_location),
+            )
+            .order_by(desc(Job.created_at))
+            .limit(4)
+        )
+        jobs_res = await db.execute(recent_jobs_stmt)
+        for j in jobs_res.scalars().all():
+            origin = j.origin_location.city if j.origin_location else ""
+            dest = j.destination_location.city if j.destination_location else ""
+            route = f"{origin} -> {dest}" if origin or dest else "Cargo Movement"
+            results.append({
+                "id": j.id,
+                "type": "JOB",
+                "number": j.job_number,
+                "title": f"Job #{j.job_number}",
+                "subtitle": f"{route} | {j.consigner.name if j.consigner else 'Direct Party'}",
+                "date": _fmt_date(j.job_date),
+                "status": j.status or "ACTIVE",
+                "vehicle_number": None,
+            })
+        return results[:limit]
+
+    pattern = f"%{cleaned}%"
+
+    # Search LRs
+    lr_stmt = (
+        select(LR)
+        .options(
+            selectinload(LR.consigner),
+            selectinload(LR.consignee),
+            selectinload(LR.origin_location),
+            selectinload(LR.destination_location),
+        )
+        .where(
+            or_(
+                LR.lr_number.ilike(pattern),
+                LR.vehicle_number.ilike(pattern),
+                LR.invoice_no.ilike(pattern),
+                LR.container_no.ilike(pattern),
+            )
+        )
+        .order_by(desc(LR.created_at))
+        .limit(limit)
+    )
+    lr_res = await db.execute(lr_stmt)
+    for lr in lr_res.scalars().all():
+        origin = lr.origin_location.city if lr.origin_location else ""
+        dest = lr.destination_location.city if lr.destination_location else ""
+        route = f"{origin} -> {dest}" if origin or dest else "General Consignment"
+        results.append({
+            "id": lr.id,
+            "type": "LR",
+            "number": lr.lr_number,
+            "title": f"LR #{lr.lr_number}",
+            "subtitle": f"{route} | {lr.consigner.name if lr.consigner else 'Direct Party'}",
+            "date": _fmt_date(lr.lr_date),
+            "status": lr.booking_status or lr.status or "BOOKED",
+            "vehicle_number": lr.vehicle_number,
+        })
+
+    # Search Jobs
+    job_stmt = (
+        select(Job)
+        .options(
+            selectinload(Job.consigner),
+            selectinload(Job.origin_location),
+            selectinload(Job.destination_location),
+        )
+        .where(
+            or_(
+                Job.job_number.ilike(pattern),
+                Job.cargo_description.ilike(pattern),
+            )
+        )
+        .order_by(desc(Job.created_at))
+        .limit(limit)
+    )
+    job_res = await db.execute(job_stmt)
+    for j in job_res.scalars().all():
+        origin = j.origin_location.city if j.origin_location else ""
+        dest = j.destination_location.city if j.destination_location else ""
+        route = f"{origin} -> {dest}" if origin or dest else "Cargo Movement"
+        results.append({
+            "id": j.id,
+            "type": "JOB",
+            "number": j.job_number,
+            "title": f"Job #{j.job_number}",
+            "subtitle": f"{route} | {j.consigner.name if j.consigner else 'Direct Party'}",
+            "date": _fmt_date(j.job_date),
+            "status": j.status or "ACTIVE",
+            "vehicle_number": None,
+        })
+
+    # Search Hire Challans
+    hc_stmt = (
+        select(HireChallan)
+        .options(
+            selectinload(HireChallan.vendor),
+            selectinload(HireChallan.driver),
+        )
+        .where(
+            or_(
+                HireChallan.challan_number.ilike(pattern),
+                HireChallan.vehicle_number.ilike(pattern),
+            )
+        )
+        .order_by(desc(HireChallan.created_at))
+        .limit(limit)
+    )
+    hc_res = await db.execute(hc_stmt)
+    for hc in hc_res.scalars().all():
+        results.append({
+            "id": hc.id,
+            "type": "HIRE_CHALLAN",
+            "number": hc.challan_number,
+            "title": f"Challan #{hc.challan_number}",
+            "subtitle": f"Truck {hc.vehicle_number or 'N/A'} | {hc.from_location or ''} -> {hc.to_location or ''}",
+            "date": _fmt_date(hc.challan_date),
+            "status": hc.status or "ISSUED",
+            "vehicle_number": hc.vehicle_number,
+        })
+
+    return results[:limit]
+
+
+async def get_consignment_360(
+    db: AsyncSession,
+    query: str,
+) -> Optional[Dict[str, Any]]:
+    """Fetches complete 360-degree traceability for an LR, Job, or Hire Challan."""
+    q = (query or "").strip()
+    if not q:
+        return None
+
+    matched_type = "LR"
+    matched_lr: Optional[LR] = None
+    matched_job: Optional[Job] = None
+    matched_hc: Optional[HireChallan] = None
+
+    is_job_query = q.upper().startswith("JOB")
+    is_hc_query = q.upper().startswith("HC")
+
+    # 1. Search order depending on pattern prefix
+    if is_job_query:
+        # Check Job exact, then partial
+        j_stmt = (
+            select(Job)
+            .options(
+                selectinload(Job.consigner),
+                selectinload(Job.consignee),
+                selectinload(Job.origin_location),
+                selectinload(Job.destination_location),
+                selectinload(Job.billing_client),
+                selectinload(Job.issuing_office),
+                selectinload(Job.lrs),
+            )
+            .where(or_(Job.job_number.ilike(q), Job.job_number.ilike(f"%{q}%")))
+            .order_by(case((Job.job_number.ilike(q), 0), else_=1), desc(Job.created_at))
+            .limit(1)
+        )
+        matched_job = (await db.execute(j_stmt)).scalar_one_or_none()
+        if matched_job:
+            matched_type = "JOB"
+
+    elif is_hc_query:
+        # Check HireChallan exact, then partial
+        hc_stmt = (
+            select(HireChallan)
+            .options(
+                selectinload(HireChallan.owner),
+                selectinload(HireChallan.vendor),
+                selectinload(HireChallan.driver),
+                selectinload(HireChallan.issuing_office),
+                selectinload(HireChallan.lr),
+            )
+            .where(or_(HireChallan.challan_number.ilike(q), HireChallan.challan_number.ilike(f"%{q}%")))
+            .order_by(case((HireChallan.challan_number.ilike(q), 0), else_=1), desc(HireChallan.created_at))
+            .limit(1)
+        )
+        matched_hc = (await db.execute(hc_stmt)).scalar_one_or_none()
+        if matched_hc:
+            matched_type = "HIRE_CHALLAN"
+
+    # If not found yet, check LR
+    if not matched_job and not matched_hc:
+        lr_stmt = (
+            select(LR)
+            .options(
+                selectinload(LR.job),
+                selectinload(LR.consigner),
+                selectinload(LR.consignee),
+                selectinload(LR.origin_location),
+                selectinload(LR.destination_location),
+                selectinload(LR.issuing_office),
+                selectinload(LR.billing_customer),
+                selectinload(LR.load_type_rel),
+                selectinload(LR.packing_method),
+                selectinload(LR.hire_challan).selectinload(HireChallan.owner),
+                selectinload(LR.hire_challan).selectinload(HireChallan.vendor),
+                selectinload(LR.hire_challan).selectinload(HireChallan.driver),
+                selectinload(LR.hire_challan).selectinload(HireChallan.issuing_office),
+                selectinload(LR.pod_record),
+            )
+            .where(
+                or_(
+                    LR.lr_number.ilike(q),
+                    LR.lr_number.ilike(f"%{q}%"),
+                    LR.vehicle_number.ilike(q),
+                    LR.invoice_no.ilike(q),
+                )
+            )
+            .order_by(
+                case((LR.lr_number.ilike(q), 0), else_=1),
+                case((LR.lr_number.ilike(f"%{q}%"), 0), else_=1),
+                desc(LR.created_at),
+            )
+            .limit(1)
+        )
+        matched_lr = (await db.execute(lr_stmt)).scalar_one_or_none()
+        if matched_lr:
+            matched_type = "LR"
+
+    # Fallbacks if still not matched
+    if not matched_lr and not matched_job and not matched_hc:
+        # Try Job fallback
+        j_stmt = (
+            select(Job)
+            .options(
+                selectinload(Job.consigner),
+                selectinload(Job.consignee),
+                selectinload(Job.origin_location),
+                selectinload(Job.destination_location),
+                selectinload(Job.billing_client),
+                selectinload(Job.issuing_office),
+                selectinload(Job.lrs),
+            )
+            .where(or_(Job.job_number.ilike(f"%{q}%"), Job.cargo_description.ilike(f"%{q}%")))
+            .order_by(desc(Job.created_at))
+            .limit(1)
+        )
+        matched_job = (await db.execute(j_stmt)).scalar_one_or_none()
+        if matched_job:
+            matched_type = "JOB"
+
+    if not matched_lr and not matched_job and not matched_hc:
+        # Try HireChallan fallback
+        hc_stmt = (
+            select(HireChallan)
+            .options(
+                selectinload(HireChallan.owner),
+                selectinload(HireChallan.vendor),
+                selectinload(HireChallan.driver),
+                selectinload(HireChallan.issuing_office),
+                selectinload(HireChallan.lr),
+            )
+            .where(or_(HireChallan.challan_number.ilike(f"%{q}%"), HireChallan.vehicle_number.ilike(f"%{q}%")))
+            .order_by(desc(HireChallan.created_at))
+            .limit(1)
+        )
+        matched_hc = (await db.execute(hc_stmt)).scalar_one_or_none()
+        if matched_hc:
+            matched_type = "HIRE_CHALLAN"
+
+    # If nothing matches anywhere, return None
+    if not matched_lr and not matched_job and not matched_hc:
+        return None
+
+    # Resolve linked entities
+    job: Optional[Job] = matched_job
+    lr: Optional[LR] = matched_lr
+    hc: Optional[HireChallan] = matched_hc
+
+    # If we have an LR, load its HC and Job if not already loaded
+    if lr:
+        if not hc and lr.hire_challan:
+            hc = lr.hire_challan
+        elif not hc:
+            hc_sub_stmt = (
+                select(HireChallan)
+                .options(
+                    selectinload(HireChallan.owner),
+                    selectinload(HireChallan.vendor),
+                    selectinload(HireChallan.driver),
+                    selectinload(HireChallan.issuing_office),
+                )
+                .where(HireChallan.lr_id == lr.id)
+                .limit(1)
+            )
+            hc = (await db.execute(hc_sub_stmt)).scalar_one_or_none()
+
+        if not job and lr.job:
+            job = lr.job
+        elif not job and lr.job_id:
+            job_sub_stmt = (
+                select(Job)
+                .options(
+                    selectinload(Job.consigner),
+                    selectinload(Job.consignee),
+                    selectinload(Job.origin_location),
+                    selectinload(Job.destination_location),
+                    selectinload(Job.billing_client),
+                    selectinload(Job.issuing_office),
+                    selectinload(Job.lrs),
+                )
+                .where(Job.id == lr.job_id)
+                .limit(1)
+            )
+            job = (await db.execute(job_sub_stmt)).scalar_one_or_none()
+
+    elif job and not lr:
+        # Job has linked LRs
+        if job.lrs:
+            first_lr_id = job.lrs[0].id
+            lr_sub_stmt = (
+                select(LR)
+                .options(
+                    selectinload(LR.job),
+                    selectinload(LR.consigner),
+                    selectinload(LR.consignee),
+                    selectinload(LR.origin_location),
+                    selectinload(LR.destination_location),
+                    selectinload(LR.issuing_office),
+                    selectinload(LR.billing_customer),
+                    selectinload(LR.load_type_rel),
+                    selectinload(LR.packing_method),
+                    selectinload(LR.hire_challan).selectinload(HireChallan.owner),
+                    selectinload(LR.hire_challan).selectinload(HireChallan.vendor),
+                    selectinload(LR.hire_challan).selectinload(HireChallan.driver),
+                    selectinload(LR.hire_challan).selectinload(HireChallan.issuing_office),
+                    selectinload(LR.pod_record),
+                )
+                .where(LR.id == first_lr_id)
+                .limit(1)
+            )
+            lr = (await db.execute(lr_sub_stmt)).scalar_one_or_none()
+            if lr and lr.hire_challan:
+                hc = lr.hire_challan
+
+    elif hc and not lr:
+        # HC has linked LR
+        if hc.lr_id:
+            lr_sub_stmt = (
+                select(LR)
+                .options(
+                    selectinload(LR.job),
+                    selectinload(LR.consigner),
+                    selectinload(LR.consignee),
+                    selectinload(LR.origin_location),
+                    selectinload(LR.destination_location),
+                    selectinload(LR.issuing_office),
+                    selectinload(LR.billing_customer),
+                    selectinload(LR.load_type_rel),
+                    selectinload(LR.packing_method),
+                    selectinload(LR.pod_record),
+                )
+                .where(LR.id == hc.lr_id)
+                .limit(1)
+            )
+            lr = (await db.execute(lr_sub_stmt)).scalar_one_or_none()
+            if lr and lr.job_id:
+                job_sub_stmt = (
+                    select(Job)
+                    .options(
+                        selectinload(Job.consigner),
+                        selectinload(Job.consignee),
+                        selectinload(Job.origin_location),
+                        selectinload(Job.destination_location),
+                        selectinload(Job.billing_client),
+                        selectinload(Job.issuing_office),
+                        selectinload(Job.lrs),
+                    )
+                    .where(Job.id == lr.job_id)
+                    .limit(1)
+                )
+                job = (await db.execute(job_sub_stmt)).scalar_one_or_none()
+
+    # Load Arrival Report
+    arrival_report: Optional[ArrivalReport] = None
+    if lr or job:
+        arrival_stmt = (
+            select(ArrivalReport)
+            .where(
+                or_(
+                    ArrivalReport.lr_id == (lr.id if lr else -1),
+                    ArrivalReport.job_id == (job.id if job else -1),
+                )
+            )
+            .order_by(desc(ArrivalReport.arrival_date), desc(ArrivalReport.id))
+            .limit(1)
+        )
+        arrival_report = (await db.execute(arrival_stmt)).scalar_one_or_none()
+
+    # Load POD Record
+    pod_record: Optional[PODRecord] = None
+    if lr:
+        if lr.pod_record:
+            pod_record = lr.pod_record
+        else:
+            pod_stmt = (
+                select(PODRecord)
+                .where(PODRecord.lr_id == lr.id)
+                .order_by(desc(PODRecord.delivery_date), desc(PODRecord.id))
+                .limit(1)
+            )
+            pod_record = (await db.execute(pod_stmt)).scalar_one_or_none()
+
+    # Load Tracking info
+    vehicle_num = (lr.vehicle_number if lr else None) or (hc.vehicle_number if hc else None)
+    tracking_data: Optional[Dict[str, Any]] = None
+    if vehicle_num:
+        ping_stmt = (
+            select(TrackingPing)
+            .where(TrackingPing.vehicle_number == vehicle_num)
+            .order_by(desc(TrackingPing.last_ping_at))
+            .limit(1)
+        )
+        latest_ping = (await db.execute(ping_stmt)).scalar_one_or_none()
+        if latest_ping:
+            tracking_data = {
+                "vehicle_number": latest_ping.vehicle_number,
+                "tracking_mode": latest_ping.tracking_mode or "FASTAG",
+                "location_name": latest_ping.location_name or "In Transit",
+                "latitude": latest_ping.last_latitude,
+                "longitude": latest_ping.last_longitude,
+                "speed_kmh": latest_ping.speed_kmh or 0,
+                "last_ping_at": _fmt_date(latest_ping.last_ping_at),
+                "status": latest_ping.status or "ACTIVE",
+            }
+        else:
+            tracking_data = {
+                "vehicle_number": vehicle_num,
+                "tracking_mode": "FASTAG / GPS",
+                "location_name": "Vehicle Assigned (Awaiting active ping)",
+                "latitude": None,
+                "longitude": None,
+                "speed_kmh": 0,
+                "last_ping_at": None,
+                "status": "DISPATCHED",
+            }
+
+    # Load Accounting Vouchers
+    voucher_conds = []
+    if lr:
+        voucher_conds.append(Voucher.lr_id == lr.id)
+    if hc:
+        voucher_conds.append(Voucher.hire_challan_id == hc.id)
+
+    raw_vouchers: List[Voucher] = []
+    if voucher_conds:
+        v_stmt = (
+            select(Voucher)
+            .where(or_(*voucher_conds), Voucher.is_void == False)
+            .order_by(desc(Voucher.voucher_date), desc(Voucher.id))
+        )
+        raw_vouchers = list((await db.execute(v_stmt)).scalars().all())
+
+    # Invoices and Receipts
+    invoices: List[Dict[str, Any]] = []
+    purchases: List[Dict[str, Any]] = []
+    payments: List[Dict[str, Any]] = []
+    receipts: List[Dict[str, Any]] = []
+
+    invoice_ids = []
+    for v in raw_vouchers:
+        v_dict = {
+            "id": v.id,
+            "voucher_number": v.voucher_number,
+            "voucher_type": v.voucher_type,
+            "voucher_date": _fmt_date(v.voucher_date),
+            "party_name": v.party_name or "N/A",
+            "party_type": v.party_type or "",
+            "reference_number": v.reference_number or "",
+            "total_amount": _fmt_money(v.total_amount),
+            "tax_amount": _fmt_money(v.tax_amount),
+            "net_amount": _fmt_money(v.net_amount),
+            "paid_amount": _fmt_money(v.paid_amount),
+            "balance_amount": _fmt_money(v.balance_amount),
+            "payment_status": v.payment_status or "UNPAID",
+            "narration": v.narration or "",
+        }
+        vtype = (v.voucher_type or "").upper()
+        if "INVOICE" in vtype:
+            invoices.append(v_dict)
+            invoice_ids.append(v.id)
+        elif "PURCHASE" in vtype:
+            purchases.append(v_dict)
+        elif "PAYMENT" in vtype:
+            payments.append(v_dict)
+        elif "RECEIPT" in vtype:
+            receipts.append(v_dict)
+
+    # Check for linked receipt vouchers against invoices
+    if invoice_ids:
+        rcpt_stmt = (
+            select(Voucher)
+            .where(Voucher.against_voucher_id.in_(invoice_ids), Voucher.is_void == False)
+            .order_by(desc(Voucher.voucher_date))
+        )
+        rcpt_res = await db.execute(rcpt_stmt)
+        for rv in rcpt_res.scalars().all():
+            if not any(r["id"] == rv.id for r in receipts):
+                receipts.append({
+                    "id": rv.id,
+                    "voucher_number": rv.voucher_number,
+                    "voucher_type": rv.voucher_type,
+                    "voucher_date": _fmt_date(rv.voucher_date),
+                    "party_name": rv.party_name or "N/A",
+                    "party_type": rv.party_type or "",
+                    "reference_number": rv.reference_number or "",
+                    "total_amount": _fmt_money(rv.total_amount),
+                    "tax_amount": _fmt_money(rv.tax_amount),
+                    "net_amount": _fmt_money(rv.net_amount),
+                    "paid_amount": _fmt_money(rv.paid_amount),
+                    "balance_amount": _fmt_money(rv.balance_amount),
+                    "payment_status": rv.payment_status or "PAID",
+                    "narration": rv.narration or "",
+                })
+
+    # Build Clean Serialized Job Dict
+    job_dict: Optional[Dict[str, Any]] = None
+    if job:
+        linked_lrs = []
+        if job.lrs:
+            for l_item in job.lrs:
+                linked_lrs.append({
+                    "id": l_item.id,
+                    "lr_number": l_item.lr_number,
+                    "lr_date": _fmt_date(l_item.lr_date),
+                    "vehicle_number": l_item.vehicle_number,
+                    "status": l_item.booking_status or l_item.status or "BOOKED",
+                    "total_freight_amount": _fmt_money(l_item.total_freight_amount),
+                })
+        job_dict = {
+            "id": job.id,
+            "job_number": job.job_number,
+            "job_date": _fmt_date(job.job_date),
+            "status": job.status or "OPEN",
+            "consigner_name": job.consigner.name if job.consigner else "N/A",
+            "consignee_name": job.consignee.name if job.consignee else "N/A",
+            "origin_city": job.origin_location.city if job.origin_location else "N/A",
+            "destination_city": job.destination_location.city if job.destination_location else "N/A",
+            "billing_client_name": job.billing_client.name if job.billing_client else (job.billing_party or "N/A"),
+            "cargo_description": job.cargo_description or "General Merchandise",
+            "estimated_weight_mt": _fmt_money(job.estimated_weight_mt),
+            "estimated_packages": job.estimated_packages or 0,
+            "special_instructions": job.special_instructions or "",
+            "linked_lrs": linked_lrs,
+        }
+
+    # Build Clean Serialized LR Dict
+    lr_dict: Optional[Dict[str, Any]] = None
+    if lr:
+        lr_dict = {
+            "id": lr.id,
+            "lr_number": lr.lr_number,
+            "lr_date": _fmt_date(lr.lr_date),
+            "status": lr.status or "ACTIVE",
+            "booking_status": lr.booking_status or "BOOKED",
+            "vehicle_source": lr.vehicle_source or "MARKET",
+            "vehicle_number": lr.vehicle_number or "N/A",
+            "vehicle_type": lr.vehicle_type or "Standard",
+            "driver_name": lr.driver_name or "N/A",
+            "driver_phone": lr.driver_phone or "N/A",
+            "eway_bill_number": lr.eway_bill_number or "N/A",
+            "eway_bill_date": _fmt_date(lr.eway_bill_date),
+            "eway_bill_expiry": _fmt_date(lr.eway_bill_expiry),
+            "consigner_name": lr.consigner.name if lr.consigner else "N/A",
+            "consignee_name": lr.consignee.name if lr.consignee else "N/A",
+            "origin_city": lr.origin_location.city if lr.origin_location else "N/A",
+            "destination_city": lr.destination_location.city if lr.destination_location else "N/A",
+            "billing_customer_name": lr.billing_customer.name if lr.billing_customer else (lr.consigner.name if lr.consigner else "N/A"),
+            "package_count": lr.package_count or 0,
+            "actual_weight_mt": _fmt_money(lr.actual_weight_mt),
+            "chargeable_weight_mt": _fmt_money(lr.chargeable_weight_mt),
+            "freight_rate": _fmt_money(lr.freight_rate),
+            "freight_amount": _fmt_money(lr.freight_amount),
+            "loading_charges": _fmt_money(lr.loading_charges),
+            "unloading_charges": _fmt_money(lr.unloading_charges),
+            "other_charges": _fmt_money(lr.other_charges),
+            "total_freight_amount": _fmt_money(lr.total_freight_amount),
+            "advance_amount": _fmt_money(lr.advance_amount),
+            "balance_amount": _fmt_money(lr.balance_amount),
+            "payment_type": lr.payment_type or "TO_PAY",
+            "invoice_no": lr.invoice_no or "N/A",
+            "invoice_date": _fmt_date(lr.invoice_date),
+            "invoice_value": _fmt_money(lr.invoice_value),
+            "cha_job_number": lr.cha_job_number or "",
+            "container_no": lr.container_no or "",
+            "seal_no": lr.seal_no or "",
+            "is_billed": bool(lr.is_billed),
+            "remarks": lr.remarks or "",
+        }
+
+    # Build Clean Serialized Hire Challan Dict
+    hc_dict: Optional[Dict[str, Any]] = None
+    if hc:
+        hc_dict = {
+            "id": hc.id,
+            "challan_number": hc.challan_number,
+            "challan_date": _fmt_date(hc.challan_date),
+            "status": hc.status or "ISSUED",
+            "vehicle_number": hc.vehicle_number or "N/A",
+            "owner_name": hc.owner.owner_name if hc.owner else "N/A",
+            "vendor_name": hc.vendor.name if hc.vendor else (hc.owner.owner_name if hc.owner else "N/A"),
+            "driver_name": hc.driver_name or (hc.driver.name if hc.driver else "N/A"),
+            "driver_phone": hc.driver_phone or (hc.driver.phone if hc.driver else "N/A"),
+            "from_location": hc.from_location or "N/A",
+            "to_location": hc.to_location or "N/A",
+            "hire_rate": _fmt_money(hc.hire_rate),
+            "advance_amount": _fmt_money(hc.advance_amount),
+            "balance_amount": _fmt_money(hc.balance_amount),
+            "tds_rate": _fmt_money(hc.tds_rate),
+            "tds_amount": _fmt_money(hc.tds_amount),
+            "detention_charge": _fmt_money(hc.detention_charge),
+            "mamul_charges": _fmt_money(hc.mamul_charges),
+            "loading_expenses": _fmt_money(hc.loading_expenses),
+            "unloading_expenses": _fmt_money(hc.unloading_expenses),
+            "net_payable_amount": _fmt_money(hc.net_payable_amount),
+            "remarks": hc.remarks or "",
+        }
+
+    # Build Clean Serialized Arrival Report Dict
+    arrival_dict: Optional[Dict[str, Any]] = None
+    if arrival_report:
+        arrival_dict = {
+            "id": arrival_report.id,
+            "report_number": arrival_report.report_number,
+            "arrival_date": _fmt_date(arrival_report.arrival_date),
+            "destination_hub": arrival_report.destination_hub or "Destination Hub",
+            "packages_received": arrival_report.packages_received or 0,
+            "packages_damaged": arrival_report.packages_damaged or 0,
+            "packages_short": arrival_report.packages_short or 0,
+            "condition_remarks": arrival_report.condition_remarks or "Normal delivery condition",
+            "unloaded_by": arrival_report.unloaded_by or "Hub Supervisor",
+            "receiver_name": arrival_report.receiver_name or "Authorized Storekeeper",
+            "status": arrival_report.status or "COMPLETED",
+        }
+
+    # Build Clean Serialized POD Record Dict
+    pod_dict: Optional[Dict[str, Any]] = None
+    if pod_record:
+        pod_dict = {
+            "id": pod_record.id,
+            "pod_number": pod_record.pod_number or f"POD-{pod_record.id:04d}",
+            "delivery_date": _fmt_date(pod_record.delivery_date),
+            "receiver_name": pod_record.receiver_name or "Consignee",
+            "receiver_phone": pod_record.receiver_phone or "N/A",
+            "received_condition": pod_record.received_condition or "GOOD",
+            "packages_delivered": pod_record.packages_delivered or (lr.package_count if lr else 0),
+            "document_path": pod_record.document_path or "",
+            "verification_status": (pod_record.verification_status or "PENDING").upper(),
+            "remarks": pod_record.remarks or "",
+        }
+
+    # ---------------------------------------------------------------------------
+    # Construct 8-Stage Lifecycle Status Tracker
+    # ---------------------------------------------------------------------------
+    lifecycle_stages = [
+        {
+            "stage_id": 1,
+            "stage_key": "job_indent",
+            "title": "Job Order & Cargo Indent",
+            "status": "completed" if job else "skipped",
+            "doc_number": job.job_number if job else None,
+            "date": _fmt_date(job.job_date) if job else None,
+            "description": f"Cargo indent: {job.cargo_description or 'General Cargo'} ({job.estimated_weight_mt or 0} MT)" if job else "Direct LR booking without prior Job indent",
+        },
+        {
+            "stage_id": 2,
+            "stage_key": "lr_booking",
+            "title": "LR Consignment Booking",
+            "status": "completed" if lr else "pending",
+            "doc_number": lr.lr_number if lr else None,
+            "date": _fmt_date(lr.lr_date) if lr else None,
+            "description": f"Booked for {lr.consigner.name if lr and lr.consigner else 'Client'} -> {lr.consignee.name if lr and lr.consignee else 'Receiver'}" if lr else "LR not yet booked",
+        },
+        {
+            "stage_id": 3,
+            "stage_key": "hire_challan",
+            "title": "Lorry Hire Contract",
+            "status": "completed" if hc else ("pending" if lr and lr.vehicle_source == "MARKET" else "skipped"),
+            "doc_number": hc.challan_number if hc else None,
+            "date": _fmt_date(hc.challan_date) if hc else None,
+            "description": f"Assigned {hc.vehicle_number} (Driver: {hc.driver_name or 'N/A'})" if hc else (f"Company Fleet Truck {lr.vehicle_number}" if lr and lr.vehicle_source == "OWN" else "Hire Challan pending issue"),
+        },
+        {
+            "stage_id": 4,
+            "stage_key": "transit_tracking",
+            "title": "Dispatch & Transit Movement",
+            "status": "completed" if (arrival_report or pod_record) else ("in_progress" if (lr and (lr.booking_status == "IN_TRANSIT" or lr.dispatch_date)) else ("completed" if lr else "pending")),
+            "doc_number": lr.eway_bill_number if lr and lr.eway_bill_number != "N/A" else None,
+            "date": _fmt_date(lr.dispatch_date) if lr and lr.dispatch_date else None,
+            "description": tracking_data["location_name"] if tracking_data else "Consignment dispatched towards destination",
+        },
+        {
+            "stage_id": 5,
+            "stage_key": "hub_arrival",
+            "title": "Destination Hub Unloading",
+            "status": "completed" if arrival_report else "pending",
+            "doc_number": arrival_report.report_number if arrival_report else None,
+            "date": _fmt_date(arrival_report.arrival_date) if arrival_report else None,
+            "description": f"Unloaded {arrival_report.packages_received} pkgs at {arrival_report.destination_hub}" if arrival_report else "Consignment has not arrived at destination hub yet",
+        },
+        {
+            "stage_id": 6,
+            "stage_key": "pod_verification",
+            "title": "Proof of Delivery (POD)",
+            "status": "completed" if (pod_record and pod_record.verification_status in ("VERIFIED", "APPROVED")) else ("in_progress" if pod_record else "pending"),
+            "doc_number": pod_record.pod_number if pod_record else None,
+            "date": _fmt_date(pod_record.delivery_date) if pod_record else None,
+            "description": f"POD Verified. Handed over to {pod_record.receiver_name or 'Consignee'}" if (pod_record and pod_record.verification_status in ("VERIFIED", "APPROVED")) else ("POD submitted, awaiting audit verification" if pod_record else "Awaiting delivery and signed acknowledgement copy"),
+        },
+        {
+            "stage_id": 7,
+            "stage_key": "freight_invoicing",
+            "title": "Customer Freight Invoicing",
+            "status": "completed" if invoices else ("pending" if lr else "pending"),
+            "doc_number": ", ".join(i["voucher_number"] for i in invoices) if invoices else None,
+            "date": invoices[0]["voucher_date"] if invoices else None,
+            "description": f"Invoiced ₹{sum(i['net_amount'] for i in invoices):,.2f} across {len(invoices)} bill(s)" if invoices else (f"Unbilled: ₹{_fmt_money(lr.total_freight_amount):,.2f} ready for freight billing" if lr else "Freight not invoiced"),
+        },
+        {
+            "stage_id": 8,
+            "stage_key": "financial_settlement",
+            "title": "Payment & Margin Settlement",
+            "status": "completed" if (invoices and all(i["balance_amount"] <= 0 for i in invoices) and (not hc or hc.balance_amount <= 0)) else ("in_progress" if (receipts or payments) else "pending"),
+            "doc_number": ", ".join(r["voucher_number"] for r in receipts) if receipts else None,
+            "date": receipts[0]["voucher_date"] if receipts else None,
+            "description": "Customer payments received in full & driver settlement cleared" if (invoices and all(i["balance_amount"] <= 0 for i in invoices)) else "Account settlement & balance collection in progress",
+        },
+    ]
+
+    # ---------------------------------------------------------------------------
+    # Construct Financial & P&L Summary
+    # ---------------------------------------------------------------------------
+    customer_revenue = sum(i["net_amount"] for i in invoices) if invoices else (_fmt_money(lr.total_freight_amount) if lr else 0.0)
+    invoiced_amount = sum(i["net_amount"] for i in invoices)
+    customer_paid = sum(i["paid_amount"] for i in invoices) + sum(r["net_amount"] for r in receipts if not any(i["paid_amount"] >= r["net_amount"] for i in invoices))
+    # Cap customer_paid if exceeds invoiced
+    if invoiced_amount > 0 and customer_paid > invoiced_amount:
+        customer_paid = invoiced_amount
+    customer_balance = (invoiced_amount - customer_paid) if invoiced_amount > 0 else customer_revenue
+
+    lorry_hire_cost = _fmt_money(hc.net_payable_amount) if hc else 0.0
+    lorry_advance = _fmt_money(hc.advance_amount) if hc else 0.0
+    lorry_balance = _fmt_money(hc.balance_amount) if hc else 0.0
+
+    direct_expenses = sum(p["net_amount"] for p in purchases)
+    total_cost = lorry_hire_cost + direct_expenses
+    gross_profit = customer_revenue - total_cost
+    margin_pct = round((gross_profit / customer_revenue * 100), 2) if customer_revenue > 0 else 0.0
+
+    financial_summary = {
+        "customer_revenue": customer_revenue,
+        "invoiced_amount": invoiced_amount,
+        "customer_paid_amount": customer_paid,
+        "customer_pending_balance": customer_balance,
+        "lorry_hire_cost": lorry_hire_cost,
+        "lorry_advance_paid": lorry_advance,
+        "lorry_balance_payable": lorry_balance,
+        "direct_expenses": direct_expenses,
+        "total_cost": total_cost,
+        "gross_profit": gross_profit,
+        "margin_percentage": margin_pct,
+        "is_billed": bool(invoices or (lr and lr.is_billed)),
+        "is_settled": bool(invoices and customer_balance <= 0 and lorry_balance <= 0),
+    }
+
+    return {
+        "query": q,
+        "matched_type": matched_type,
+        "job": job_dict,
+        "lr": lr_dict,
+        "hire_challan": hc_dict,
+        "arrival_report": arrival_dict,
+        "pod_record": pod_dict,
+        "tracking": tracking_data,
+        "invoices": invoices,
+        "payments": payments,
+        "purchases": purchases,
+        "receipts": receipts,
+        "lifecycle_stages": lifecycle_stages,
+        "financial_summary": financial_summary,
+    }
+

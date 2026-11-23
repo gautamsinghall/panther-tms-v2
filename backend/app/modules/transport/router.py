@@ -32,6 +32,7 @@ from app.modules.transport.schemas import (
     FastagTripCreate, FastagTripUpdate, FastagTripResponse,
     FastagTrackResponse, FastagConfigResponse, TollLogResponse,
     GPSConfigResponse, GPSFleetResponse, GPSTrackResponse, GPSHistoryResponse,
+    Consignment360SearchResult, Consignment360Response,
 )
 
 router = APIRouter(prefix="/transport", tags=["Transport"])
@@ -2017,3 +2018,36 @@ async def geocode_gps_endpoint(
         "latitude": lat,
         "longitude": lng,
     }
+
+
+# ---------------------------------------------------------------------------
+# Consignment 360° Traceability Endpoints
+# ---------------------------------------------------------------------------
+@router.get("/consignment-360/search", response_model=List[Consignment360SearchResult])
+async def search_consignment_360_endpoint(
+    q: str = Query("", description="LR, Job, or Challan search query"),
+    limit: int = Query(8, ge=1, le=20),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_tenant_db),
+):
+    """Consignment 360 autocomplete and live suggestions across LR, Job, and Challan."""
+    _ensure_lr_view_access(current_user)
+    return await service.search_consignment_360_suggestions(db, query=q, limit=limit)
+
+
+@router.get("/consignment-360", response_model=Optional[Consignment360Response])
+async def get_consignment_360_endpoint(
+    q: str = Query(..., description="LR number, Job number, or Challan number"),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_tenant_db),
+):
+    """360-degree complete traceability and lifecycle overview for a consignment."""
+    _ensure_lr_view_access(current_user)
+    data = await service.get_consignment_360(db, query=q)
+    if not data:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"No consignment, job, or challan found matching '{q}'.",
+        )
+    return data
+

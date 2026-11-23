@@ -23,6 +23,7 @@ import {
   AlertCircle,
   Smartphone,
   FileSpreadsheet,
+  ScanSearch,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { FilterBar } from "@/components/ui/filter-bar";
@@ -2204,6 +2205,13 @@ export default function LRBookingPage() {
   ];
 
   const actions: RowAction<LRRecord>[] = [
+    {
+      label: "View 360° Traceability",
+      icon: <ScanSearch className="w-3.5 h-3.5 text-emerald-600" />,
+      onClick: (row) => {
+        router.push(`/transport/consignment-360?q=${encodeURIComponent(row.lr_number)}`);
+      },
+    },
     {
       label: "View & Print LR",
       icon: <Printer className="w-3.5 h-3.5" />,

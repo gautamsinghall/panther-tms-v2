@@ -1149,3 +1149,41 @@ class GPSHistoryResponse(BaseModel):
     route_coordinates: List[List[Any]] = Field(default_factory=list)
     summary: GPSHistorySummary
     pricing_notice: str = "Standard tariff: ₹1.50 per vehicle fetch. Calls are blocked when balance reaches 0. Recharges are managed by system administrator."
+
+
+# ---------------------------------------------------------------------------
+# Consignment 360° & Traceability Schemas
+# ---------------------------------------------------------------------------
+class Consignment360SearchResult(BaseModel):
+    id: int
+    type: str  # "LR" | "JOB" | "HIRE_CHALLAN"
+    number: str
+    title: str
+    subtitle: str
+    date: Optional[str] = None
+    status: Optional[str] = None
+    vehicle_number: Optional[str] = None
+
+
+class Consignment360Response(BaseModel):
+    query: str
+    matched_type: str  # "LR" | "JOB" | "HIRE_CHALLAN"
+    
+    # Core linked entities
+    job: Optional[Dict[str, Any]] = None
+    lr: Optional[Dict[str, Any]] = None
+    hire_challan: Optional[Dict[str, Any]] = None
+    arrival_report: Optional[Dict[str, Any]] = None
+    pod_record: Optional[Dict[str, Any]] = None
+    tracking: Optional[Dict[str, Any]] = None
+    
+    # Financial & Accounting links
+    invoices: List[Dict[str, Any]] = Field(default_factory=list)
+    payments: List[Dict[str, Any]] = Field(default_factory=list)
+    purchases: List[Dict[str, Any]] = Field(default_factory=list)
+    receipts: List[Dict[str, Any]] = Field(default_factory=list)
+    
+    # Lifecycle & P&L Summary
+    lifecycle_stages: List[Dict[str, Any]] = Field(default_factory=list)
+    financial_summary: Dict[str, Any] = Field(default_factory=dict)
+

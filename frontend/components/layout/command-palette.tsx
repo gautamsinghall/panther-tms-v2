@@ -23,6 +23,7 @@ import {
   Layers,
   Loader2,
   BookOpen,
+  ScanSearch,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { apiClient } from "@/lib/api-client";
@@ -41,6 +42,15 @@ interface CommandItem {
 
 const COMMAND_ITEMS: CommandItem[] = [
   // Transport Operations
+  {
+    id: "consignment-360",
+    title: "Consignment 360° Traceability",
+    description: "Search any LR or Job: full lifecycle, challan, tracking, invoices, and P&L",
+    category: "Transport",
+    href: "/transport/consignment-360",
+    icon: <ScanSearch className="w-4 h-4 text-emerald-500" />,
+    keywords: ["360", "consignment 360", "lr search", "job search", "trace", "lifecycle", "p&l", "linked", "search"],
+  },
   {
     id: "lr-booking",
     title: "Book Lorry Receipt (LR / GR)",
@@ -386,8 +396,8 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
               .filter(Boolean)
               .join(" • "),
             category: "LR Record" as const,
-            href: `/transport/lr-booking?search=${encodeURIComponent(lr.lr_number)}`,
-            icon: <FileText className="w-4 h-4 text-blue-600" />,
+            href: `/transport/consignment-360?q=${encodeURIComponent(lr.lr_number)}`,
+            icon: <ScanSearch className="w-4 h-4 text-emerald-600" />,
             keywords: [lr.lr_number, lr.vehicle_number, lr.consigner_name, lr.consignee_name].filter(Boolean),
           }))
         );

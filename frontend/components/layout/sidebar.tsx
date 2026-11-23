@@ -33,6 +33,7 @@ import {
   Building,
   Scale,
   Package,
+  ScanSearch,
   ClipboardList,
   FileText,
   Users,
@@ -152,6 +153,7 @@ export const ALL_NAVIGATION_MODULES: NavGroup[] = [
     id: "transport",
     title: "Transport",
     items: [
+      { feature: "consignment_360", title: "Consignment 360°", href: "/transport/consignment-360" },
       { feature: "jobs", title: "Job Creation", href: "/transport/jobs" },
       { feature: "lr_booking", title: "GR/LR Booking", href: "/transport/lr-booking" },
       { feature: "hire_challan", title: "Hire Challan", href: "/transport/hire-challan" },
@@ -354,6 +356,7 @@ const SUB_ITEM_ICONS_BY_HREF: Record<string, React.ComponentType<{ className?: s
   "/general/load-type": Layers,
 
   // Transport & Tracking
+  "/transport/consignment-360": ScanSearch,
   "/transport/jobs": ClipboardList,
   "/transport/lr-booking": FileText,
   "/transport/hire-challan": FileSpreadsheet,
