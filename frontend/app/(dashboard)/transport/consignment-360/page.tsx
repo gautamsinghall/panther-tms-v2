@@ -32,6 +32,7 @@ import { cn } from "@/lib/utils";
 import { LRViewModal, LRViewRecord } from "@/components/modals/lr-view-modal";
 import { JobOrderViewModal, JobViewRecord } from "@/components/modals/job-order-view-modal";
 import { TransportInvoicePrintModal } from "@/components/modals/transport-invoice-print-modal";
+import { HireChallanViewModal, HireChallanRecord } from "@/components/modals/hire-challan-view-modal";
 
 interface LifecycleStage {
   stage_id: number;
@@ -107,6 +108,7 @@ function Consignment360Content() {
   // Modals state for Print Previews
   const [printLr, setPrintLr] = useState<LRViewRecord | null>(null);
   const [printJob, setPrintJob] = useState<JobViewRecord | null>(null);
+  const [printChallan, setPrintChallan] = useState<HireChallanRecord | null>(null);
   const [printInvoice, setPrintInvoice] = useState<any | null>(null);
   const [isOpeningModal, setIsOpeningModal] = useState<string | null>(null);
 
@@ -259,6 +261,49 @@ function Consignment360Content() {
           consigner_id: 0,
           consignee_id: 0,
           created_at: "",
+        });
+      }
+    } finally {
+      setIsOpeningModal(null);
+    }
+  };
+
+  // Open Hire Challan Print Modal
+  const handleOpenChallanPrint = async (challanId?: number) => {
+    const targetId = challanId || data?.hire_challan?.id;
+    if (!targetId && !data?.hire_challan) return;
+    setIsOpeningModal("challan");
+    try {
+      if (targetId) {
+        const fullChallan = await apiClient<HireChallanRecord>(`/api/v1/transport/hire-challans/${targetId}`);
+        setPrintChallan(fullChallan);
+      } else {
+        throw new Error("No Challan ID");
+      }
+    } catch {
+      if (data?.hire_challan) {
+        setPrintChallan({
+          ...data.hire_challan,
+          id: data.hire_challan.id || 0,
+          challan_number: data.hire_challan.challan_number,
+          challan_date: data.hire_challan.challan_date || "",
+          vehicle_number: data.hire_challan.vehicle_number || "",
+          owner_name: data.hire_challan.owner_name,
+          vendor_name: data.hire_challan.vendor_name,
+          driver_name: data.hire_challan.driver_name,
+          driver_phone: data.hire_challan.driver_phone,
+          from_location: data.hire_challan.from_location,
+          to_location: data.hire_challan.to_location,
+          hire_rate: data.hire_challan.hire_rate || 0,
+          advance_amount: data.hire_challan.advance_amount || 0,
+          balance_amount: data.hire_challan.balance_amount || 0,
+          tds_rate: data.hire_challan.tds_rate || 0,
+          tds_amount: data.hire_challan.tds_amount || 0,
+          detention_charge: data.hire_challan.detention_charge || 0,
+          mamul_charges: data.hire_challan.mamul_charges || 0,
+          net_payable_amount: data.hire_challan.net_payable_amount || 0,
+          status: data.hire_challan.status || "ISSUED",
+          remarks: data.hire_challan.remarks || "",
         });
       }
     } finally {
@@ -529,10 +574,15 @@ function Consignment360Content() {
               {data.hire_challan && (
                 <button
                   type="button"
-                  onClick={() => router.push(`/transport/hire-challan?search=${encodeURIComponent(data.hire_challan.challan_number)}`)}
+                  onClick={() => handleOpenChallanPrint(data.hire_challan.id)}
+                  disabled={isOpeningModal === "challan"}
                   className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-sky-600 hover:bg-sky-700 text-white shadow-xs transition-colors cursor-pointer"
                 >
-                  <Truck className="w-3.5 h-3.5" />
+                  {isOpeningModal === "challan" ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <Printer className="w-3.5 h-3.5" />
+                  )}
                   <span>Open Challan</span>
                   <ExternalLink className="w-2.5 h-2.5 opacity-80" />
                 </button>
@@ -894,9 +944,15 @@ function Consignment360Content() {
                 {data.hire_challan && (
                   <button
                     type="button"
-                    onClick={() => router.push(`/transport/hire-challan?search=${encodeURIComponent(data.hire_challan.challan_number)}`)}
+                    onClick={() => handleOpenChallanPrint(data.hire_challan.id)}
+                    disabled={isOpeningModal === "challan"}
                     className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-lg bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/60 dark:hover:bg-blue-900/80 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 transition-colors cursor-pointer shadow-2xs"
                   >
+                    {isOpeningModal === "challan" ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" />
+                    ) : (
+                      <Printer className="w-3.5 h-3.5 mr-1" />
+                    )}
                     <span>View Challan</span>
                     <ChevronRight className="w-3.5 h-3.5" />
                   </button>
@@ -1276,6 +1332,14 @@ function Consignment360Content() {
           isOpen={!!printJob}
           job={printJob}
           onClose={() => setPrintJob(null)}
+        />
+      )}
+
+      {printChallan && (
+        <HireChallanViewModal
+          isOpen={!!printChallan}
+          challan={printChallan}
+          onClose={() => setPrintChallan(null)}
         />
       )}
 
