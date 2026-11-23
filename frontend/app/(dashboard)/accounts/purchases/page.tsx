@@ -1,7 +1,7 @@
 "use client";
 import { toast, confirmModal } from "@/lib/toast";
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import {
   Plus,
   ShoppingCart,
@@ -31,6 +31,8 @@ import {
   ShieldCheck,
   RefreshCw,
   Pencil,
+  Upload,
+  ExternalLink,
 } from "lucide-react";
 import { KpiCard } from "@/components/ui/kpi-card";
 import { DataTable } from "@/components/tables/data-table";
@@ -244,7 +246,112 @@ export default function PurchasesPage() {
   const [vehicleNumber, setVehicleNumber] = useState<string>("");
   const [linkedHireChallanId, setLinkedHireChallanId] = useState<string>("");
   const [attachmentUrl, setAttachmentUrl] = useState<string>("");
+  const [attachmentName, setAttachmentName] = useState<string>("");
+  const [attachmentSize, setAttachmentSize] = useState<string>("");
+  const [showUrlInput, setShowUrlInput] = useState<boolean>(false);
+  const [isDragging, setIsDragging] = useState<boolean>(false);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [narration, setNarration] = useState<string>("");
+
+  // Open attached document (PDF or image) in new tab
+  const openAttachedDocument = (urlOrDataUrl?: string, title?: string) => {
+    if (!urlOrDataUrl) return;
+    if (urlOrDataUrl.startsWith("http://") || urlOrDataUrl.startsWith("https://")) {
+      window.open(urlOrDataUrl, "_blank", "noopener,noreferrer");
+      return;
+    }
+    if (urlOrDataUrl.startsWith("data:")) {
+      try {
+        const parts = urlOrDataUrl.split(",");
+        const mimeMatch = parts[0].match(/:(.*?);/);
+        const mime = mimeMatch ? mimeMatch[1] : "application/pdf";
+        const byteCharacters = atob(parts[1]);
+        const byteNumbers = new Uint8Array(byteCharacters.length);
+        for (let i = 0; i < byteCharacters.length; i++) {
+          byteNumbers[i] = byteCharacters.charCodeAt(i);
+        }
+        const blob = new Blob([byteNumbers], { type: mime });
+        const blobUrl = URL.createObjectURL(blob);
+        window.open(blobUrl, "_blank");
+        return;
+      } catch (e) {
+        console.error("Failed to open data URL blob", e);
+      }
+    }
+    window.open(urlOrDataUrl, "_blank");
+  };
+
+  // Handle bill document upload
+  const handleFileUpload = (file?: File | null) => {
+    if (!file) return;
+
+    const maxSizeBytes = 10 * 1024 * 1024; // 10 MB limit
+    if (file.size > maxSizeBytes) {
+      toast.error("File size exceeds 10 MB limit. Please select a smaller document.");
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
+    }
+
+    const allowed = [
+      "application/pdf",
+      "image/jpeg",
+      "image/png",
+      "image/jpg",
+      "image/webp",
+    ];
+    if (!allowed.includes(file.type) && !file.name.match(/\.(pdf|jpe?g|png|webp)$/i)) {
+      toast.info("Only PDF and Image files (JPG, PNG, WEBP) are supported.");
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
+    }
+
+    const sizeStr = file.size > 1024 * 1024
+      ? `${(file.size / (1024 * 1024)).toFixed(1)} MB`
+      : `${Math.round(file.size / 1024)} KB`;
+
+    setAttachmentName(file.name);
+    setAttachmentSize(sizeStr);
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      setAttachmentUrl(reader.result as string);
+      toast.success(`Attached "${file.name}"`);
+    };
+    reader.onerror = () => {
+      toast.error("Failed to read file.");
+    };
+    reader.readAsDataURL(file);
+  };
+
+  // Open Add Purchase Bill Drawer cleanly
+  const handleOpenAddDrawer = () => {
+    setEditingVoucher(null);
+    setBillNumber("");
+    setSelectedVendorId("");
+    setManualVendorName("");
+    setVendorGstin("");
+    setVendorState("");
+    setVehicleNumber("");
+    setLinkedHireChallanId("");
+    setAttachmentUrl("");
+    setAttachmentName("");
+    setAttachmentSize("");
+    setShowUrlInput(false);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+    setNarration("");
+    setLineItems([
+      {
+        id: "line-1",
+        description: "",
+        hsn_sac: "9967",
+        quantity: "1",
+        rate: "",
+        discount_amount: "0",
+        tax_category_id: taxCategories[0] ? String(taxCategories[0].id) : "",
+      },
+    ]);
+    setIsCreateOpen(true);
+  };
 
   const [lineItems, setLineItems] = useState<LineItemForm[]>([
     {
@@ -552,6 +659,22 @@ export default function PurchasesPage() {
     setVehicleNumber(tb.vehicle_number || row.cost_center || "");
     setLinkedHireChallanId(row.hire_challan_id ? String(row.hire_challan_id) : "");
     setAttachmentUrl(row.attachment_url || "");
+    if (row.attachment_url) {
+      if (row.attachment_url.startsWith("data:")) {
+        const isPdf = row.attachment_url.startsWith("data:application/pdf");
+        setAttachmentName(isPdf ? "Supplier_Bill.pdf" : "Supplier_Bill_Image");
+        setAttachmentSize("Attached Document");
+        setShowUrlInput(false);
+      } else {
+        setAttachmentName(row.attachment_url.split("/").pop() || "Cloud Document Link");
+        setAttachmentSize("Web Link");
+        setShowUrlInput(true);
+      }
+    } else {
+      setAttachmentName("");
+      setAttachmentSize("");
+      setShowUrlInput(false);
+    }
     setNarration(row.narration || "");
 
     if (row.items && row.items.length > 0) {
@@ -675,6 +798,10 @@ export default function PurchasesPage() {
       setVehicleNumber("");
       setLinkedHireChallanId("");
       setAttachmentUrl("");
+      setAttachmentName("");
+      setAttachmentSize("");
+      setShowUrlInput(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
       setNarration("");
       setLineItems([
         {
@@ -949,6 +1076,16 @@ export default function PurchasesPage() {
                 {row.voucher_number}
               </span>
             )}
+            {row.attachment_url && (
+              <button
+                type="button"
+                onClick={() => openAttachedDocument(row.attachment_url, `Bill-${row.reference_number || row.voucher_number}`)}
+                className="text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 p-0.5 rounded hover:bg-indigo-50 dark:hover:bg-indigo-950/40 inline-flex items-center cursor-pointer transition-colors"
+                title="View attached supplier bill copy"
+              >
+                <Paperclip className="w-3.5 h-3.5" />
+              </button>
+            )}
           </div>
           <div className="flex items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
             <span>Bill Date: {row.reference_date || row.voucher_date}</span>
@@ -1088,6 +1225,12 @@ export default function PurchasesPage() {
   // Table Row Actions
   const actions: RowAction<VoucherRecord>[] = [
     {
+      label: "View Attached Bill",
+      icon: <Paperclip className="w-3.5 h-3.5 text-indigo-600" />,
+      hidden: (row) => !row.attachment_url,
+      onClick: (row) => openAttachedDocument(row.attachment_url, `Bill #${row.reference_number || row.voucher_number}`),
+    },
+    {
       label: "Edit Voucher",
       icon: <Pencil className="w-3.5 h-3.5 text-blue-600" />,
       hidden: (row) => row.is_void || (row.paid_amount !== undefined && Number(row.paid_amount) > 0),
@@ -1141,10 +1284,7 @@ export default function PurchasesPage() {
         primaryAction={{
           label: "Add Purchase Bill",
           icon: <Plus className="w-4 h-4" />,
-          onClick: () => {
-            setEditingVoucher(null);
-            setIsCreateOpen(true);
-          },
+          onClick: handleOpenAddDrawer,
         }}
         secondaryActions={[
           {
@@ -1319,10 +1459,7 @@ export default function PurchasesPage() {
         emptySubtext="Click 'Add Purchase Bill' above to record vendor bills and automatically post double-entry ledger entries."
         emptyAction={{
           label: "Add Purchase Bill",
-          onClick: () => {
-            setEditingVoucher(null);
-            setIsCreateOpen(true);
-          },
+          onClick: handleOpenAddDrawer,
         }}
       />
 
@@ -1738,28 +1875,185 @@ export default function PurchasesPage() {
               <h3 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white">5. Bill Notes & Invoice Attachment (Optional)</h3>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 font-semibold mb-1">Bill Narration</label>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5 items-start">
+              {/* Left Column: Bill Narration */}
+              <div className="space-y-1.5">
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
+                  Bill Narration / Remarks
+                </label>
                 <textarea
-                  rows={2}
-                  placeholder="Notes, driver delivery reference, or work order notes..."
+                  rows={3}
+                  placeholder="Notes, driver delivery reference, workshop repair context, or work order notes..."
                   value={narration}
                   onChange={(e) => setNarration(e.target.value)}
-                  className="w-full h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#303036] bg-white dark:bg-[#101013] text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all shadow-2xs"
+                  className="w-full px-3.5 py-2.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#303036] bg-white dark:bg-[#101013] text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all shadow-2xs resize-none"
                 />
+                <span className="text-[10px] text-slate-500 dark:text-slate-400 block">
+                  Internal remarks and notes for audit trails & voucher printout
+                </span>
               </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 font-semibold mb-1">Invoice Attachment URL / Link</label>
-                <input
-                  type="text"
-                  placeholder="https://... or doc URL"
-                  value={attachmentUrl}
-                  onChange={(e) => setAttachmentUrl(e.target.value)}
-                  className="w-full h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#303036] bg-white dark:bg-[#101013] text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all shadow-2xs"
-                />
-                <span className="text-[10px] text-slate-500 dark:text-slate-400 mt-1 block">Cloud attachment link for supplier PDF/photo</span>
+              {/* Right Column: Invoice Attachment File & Link */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
+                    Attach Supplier Bill / Invoice Copy
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setShowUrlInput(!showUrlInput)}
+                    className="text-[11px] font-medium text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 transition-colors cursor-pointer"
+                  >
+                    {showUrlInput ? "« Attach File (PDF / Image)" : "Or use URL Link »"}
+                  </button>
+                </div>
+
+                {showUrlInput ? (
+                  <div className="space-y-1.5">
+                    <input
+                      type="text"
+                      placeholder="https://... (S3, Google Drive, or document link)"
+                      value={attachmentUrl}
+                      onChange={(e) => {
+                        setAttachmentUrl(e.target.value);
+                        setAttachmentName(e.target.value ? "Cloud Document Link" : "");
+                        setAttachmentSize("Web Link");
+                      }}
+                      className="w-full h-11 px-3.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#303036] bg-white dark:bg-[#101013] text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all shadow-2xs"
+                    />
+                    {attachmentUrl && (
+                      <div className="flex items-center justify-between text-[11px] px-1 text-slate-500">
+                        <button
+                          type="button"
+                          onClick={() => openAttachedDocument(attachmentUrl, "Supplier Bill Link")}
+                          className="text-indigo-600 hover:underline flex items-center gap-1 font-medium cursor-pointer"
+                        >
+                          <Eye className="w-3.5 h-3.5" /> Preview Link
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setAttachmentUrl("");
+                            setAttachmentName("");
+                            setAttachmentSize("");
+                          }}
+                          className="text-rose-500 hover:underline cursor-pointer"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    )}
+                    <span className="text-[10px] text-slate-500 dark:text-slate-400 block">
+                      Direct cloud URL for supplier PDF or scanned receipt
+                    </span>
+                  </div>
+                ) : (
+                  <div>
+                    {/* Hidden file input */}
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      id="purchase_bill_attachment"
+                      accept=".pdf,.jpg,.jpeg,.png,.webp"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) handleFileUpload(file);
+                      }}
+                      className="hidden"
+                    />
+
+                    {attachmentUrl ? (
+                      /* When file is attached */
+                      <div className="p-3 bg-slate-50 dark:bg-[#101013] border border-emerald-200/80 dark:border-emerald-900/40 rounded-xl space-y-1.5">
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <div className="w-9 h-9 rounded-lg bg-emerald-100 dark:bg-emerald-950/60 flex items-center justify-center shrink-0 text-emerald-600 dark:text-emerald-400">
+                              {attachmentUrl.startsWith("data:application/pdf") ? (
+                                <FileText className="w-5 h-5" />
+                              ) : (
+                                <Paperclip className="w-5 h-5" />
+                              )}
+                            </div>
+                            <div className="min-w-0">
+                              <p className="text-xs font-bold text-slate-900 dark:text-white truncate">
+                                {attachmentName || "Attached Bill Document"}
+                              </p>
+                              <div className="flex items-center gap-2 text-[10px] text-slate-500 dark:text-slate-400">
+                                <span>{attachmentSize || (attachmentUrl.startsWith("data:") ? "Uploaded File" : "Document Link")}</span>
+                                <span className="inline-flex items-center gap-0.5 text-emerald-600 font-semibold">
+                                  <Check className="w-3 h-3" /> Attached
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <button
+                              type="button"
+                              onClick={() => openAttachedDocument(attachmentUrl, attachmentName || "Supplier Bill")}
+                              className="px-2.5 py-1 text-xs font-semibold rounded-lg bg-indigo-50 text-indigo-700 hover:bg-indigo-100 dark:bg-indigo-950/40 dark:text-indigo-300 transition-colors inline-flex items-center gap-1 cursor-pointer"
+                              title="Preview Document"
+                            >
+                              <Eye className="w-3.5 h-3.5" />
+                              <span>View</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setAttachmentUrl("");
+                                setAttachmentName("");
+                                setAttachmentSize("");
+                                if (fileInputRef.current) fileInputRef.current.value = "";
+                              }}
+                              className="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors cursor-pointer"
+                              title="Remove Attachment"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      /* Drag & drop / upload zone */
+                      <div
+                        onDragOver={(e) => {
+                          e.preventDefault();
+                          setIsDragging(true);
+                        }}
+                        onDragLeave={(e) => {
+                          e.preventDefault();
+                          setIsDragging(false);
+                        }}
+                        onDrop={(e) => {
+                          e.preventDefault();
+                          setIsDragging(false);
+                          const file = e.dataTransfer.files?.[0];
+                          if (file) handleFileUpload(file);
+                        }}
+                        onClick={() => fileInputRef.current?.click()}
+                        className={cn(
+                          "border-2 border-dashed rounded-xl p-3 text-center cursor-pointer transition-all",
+                          isDragging
+                            ? "border-indigo-500 bg-indigo-50/50 dark:bg-indigo-950/20"
+                            : "border-slate-200 dark:border-[#303036] hover:border-indigo-400 hover:bg-slate-50/50 dark:hover:bg-[#101013]"
+                        )}
+                      >
+                        <div className="flex flex-col items-center justify-center gap-1">
+                          <div className="w-8 h-8 rounded-full bg-indigo-50 dark:bg-indigo-950/40 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
+                            <Upload className="w-4 h-4" />
+                          </div>
+                          <div>
+                            <p className="text-xs font-semibold text-slate-700 dark:text-slate-200">
+                              Click to attach bill (PDF or image)
+                            </p>
+                            <p className="text-[10px] text-slate-400 dark:text-slate-500">
+                              PDF, PNG, JPG or WEBP (up to 10 MB)
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -1980,6 +2274,22 @@ export default function PurchasesPage() {
                 <span className="text-slate-500 dark:text-slate-400">Net Amount:</span>
                 <span className="font-mono font-bold text-indigo-900 dark:text-indigo-300">₹{Number(selectedVoucher.net_amount).toFixed(2)}</span>
               </div>
+              {selectedVoucher.attachment_url && (
+                <div className="flex justify-between items-center pt-2 border-t border-slate-200/60 dark:border-[#303036]">
+                  <span className="text-slate-500 dark:text-slate-400 flex items-center gap-1 font-medium">
+                    <Paperclip className="w-3.5 h-3.5 text-indigo-600" />
+                    Attached Bill Copy:
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => openAttachedDocument(selectedVoucher.attachment_url, `Bill-${selectedVoucher.reference_number || selectedVoucher.voucher_number}`)}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-lg bg-indigo-50 text-indigo-700 hover:bg-indigo-100 dark:bg-indigo-950/40 dark:text-indigo-300 transition-colors cursor-pointer"
+                  >
+                    <Eye className="w-3 h-3" />
+                    View Attachment
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* Double-entry entries */}
@@ -2149,14 +2459,29 @@ export default function PurchasesPage() {
             </div>
 
             {/* Actions */}
-            <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
-              <Button variant="outline" size="sm" onClick={() => setIsPrintModalOpen(false)}>
-                Close
-              </Button>
-              <Button variant="primary" size="sm" onClick={() => window.print()}>
-                <Printer className="w-3.5 h-3.5 mr-1" />
-                Print Voucher
-              </Button>
+            <div className="flex justify-between items-center pt-4 border-t border-gray-200">
+              <div>
+                {printBill.attachment_url && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => openAttachedDocument(printBill.attachment_url, `Bill-${printBill.reference_number || printBill.voucher_number}`)}
+                    className="text-indigo-600 hover:text-indigo-700 print:hidden cursor-pointer"
+                  >
+                    <Paperclip className="w-3.5 h-3.5 mr-1 text-indigo-600" />
+                    View Original Bill Attachment
+                  </Button>
+                )}
+              </div>
+              <div className="flex gap-3">
+                <Button variant="outline" size="sm" onClick={() => setIsPrintModalOpen(false)}>
+                  Close
+                </Button>
+                <Button variant="primary" size="sm" onClick={() => window.print()}>
+                  <Printer className="w-3.5 h-3.5 mr-1" />
+                  Print Voucher
+                </Button>
+              </div>
             </div>
           </div>
         </div>
