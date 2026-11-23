@@ -9,32 +9,25 @@ import {
   FileSpreadsheet,
   CheckCircle2,
   Clock,
-  AlertCircle,
-  TrendingUp,
   IndianRupee,
-  Calendar,
-  MapPin,
-  Building2,
-  User,
-  ShieldCheck,
-  Package,
   Layers,
   ArrowRight,
   ExternalLink,
   Receipt,
-  CreditCard,
-  ShoppingBag,
   RotateCcw,
-  Sparkles,
   ChevronRight,
   ScanSearch,
   Check,
-  XCircle,
-  Printer,
+  X,
+  Loader2,
+  ShieldCheck,
+  Package,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
+import { KpiCard } from "@/components/ui/kpi-card";
+import { Button } from "@/components/ui/button";
 import { apiClient } from "@/lib/api-client";
-import { toast } from "@/lib/toast";
+import { cn } from "@/lib/utils";
 
 interface LifecycleStage {
   stage_id: number;
@@ -99,7 +92,7 @@ function Consignment360Content() {
   const [activeQuery, setActiveQuery] = useState(initialQuery);
   const [isLoading, setIsLoading] = useState(false);
   const [data, setData] = useState<Consignment360Data | null>(null);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [searchedNotFound, setSearchedNotFound] = useState(false);
 
   // Suggestions state
   const [suggestions, setSuggestions] = useState<SuggestionItem[]>([]);
@@ -112,29 +105,27 @@ function Consignment360Content() {
     const q = query.trim();
     if (!q) {
       setData(null);
-      setErrorMsg(null);
+      setSearchedNotFound(false);
       return;
     }
 
     setIsLoading(true);
-    setErrorMsg(null);
+    setSearchedNotFound(false);
     try {
       const res = await apiClient<Consignment360Data>(
         `/api/v1/transport/consignment-360?q=${encodeURIComponent(q)}`
       );
       setData(res);
       setActiveQuery(q);
-    } catch (err: any) {
+    } catch {
       setData(null);
-      setErrorMsg(
-        err?.message || `No consignment, Job, or Hire Challan found matching "${q}".`
-      );
+      setSearchedNotFound(true);
     } finally {
       setIsLoading(false);
     }
   }, []);
 
-  // Fetch suggestions
+  // Fetch autocomplete suggestions
   const fetchSuggestions = useCallback(async (query: string) => {
     setIsSuggesting(true);
     try {
@@ -155,12 +146,11 @@ function Consignment360Content() {
       setSearchQuery(initialQuery);
       fetch360Data(initialQuery);
     } else {
-      // Preload recent items for quick picking
       fetchSuggestions("");
     }
   }, [initialQuery, fetch360Data, fetchSuggestions]);
 
-  // Click outside listener for suggestions dropdown
+  // Click outside listener for dropdown
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (
@@ -205,23 +195,34 @@ function Consignment360Content() {
   };
 
   return (
-    <div className="space-y-6 pb-12">
-      {/* Page Title & Breadcrumb */}
+    <div className="space-y-4 pb-12 font-sans text-xs">
+      {/* 1. Page Header matching standard Panther TMS layout */}
       <PageHeader
         title="Consignment 360° Traceability"
-        description="End-to-end lifecycle, operational links, customer freight billing, vendor hire payouts, and gross profit margin."
+        description="Search any LR or Job number for complete lifecycle, hire contracts, delivery POD, and profit margin."
+        breadcrumbs={[
+          { label: "Transport", href: "/transport/lr-booking" },
+          { label: "Consignment 360°" },
+        ]}
+        primaryAction={{
+          label: "Refresh View",
+          icon: <RotateCcw className="w-3.5 h-3.5" />,
+          onClick: () => {
+            if (searchQuery.trim()) fetch360Data(searchQuery.trim());
+          },
+          variant: "secondary",
+        }}
       />
 
-      {/* Hero Search Box */}
+      {/* 2. Standardized Search Bar (styled exactly like TMS FilterBar) */}
       <div
         ref={searchContainerRef}
-        className="relative bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 sm:p-6 shadow-sm"
+        className="relative bg-white dark:bg-[#17171B] border border-slate-200/90 dark:border-[#303036] rounded-xl px-3.5 py-2.5 shadow-2xs"
       >
-        <form onSubmit={handleSearchSubmit} className="flex flex-col sm:flex-row gap-3">
-          <div className="relative flex-1">
-            <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
-              <ScanSearch className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
-            </div>
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5">
+          {/* Input field */}
+          <form onSubmit={handleSearchSubmit} className="relative flex-1 max-w-xl">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
             <input
               type="text"
               value={searchQuery}
@@ -230,8 +231,8 @@ function Consignment360Content() {
                 if (suggestions.length === 0) fetchSuggestions(searchQuery);
               }}
               onChange={(e) => handleInputChange(e.target.value)}
-              placeholder="Search by LR number, Job number, Hire Challan, or Vehicle number..."
-              className="w-full pl-11 pr-10 py-3 text-sm sm:text-base bg-slate-50 dark:bg-slate-800/80 border border-slate-300 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 text-slate-900 dark:text-white placeholder-slate-400 font-medium"
+              placeholder="Search LR number, Job number, Challan, or Vehicle..."
+              className="w-full pl-9 pr-8 py-2 text-xs bg-slate-50/60 dark:bg-[#202026] border border-slate-200 dark:border-[#303036] rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500 text-slate-800 dark:text-slate-100 placeholder:text-slate-400 font-sans"
             />
             {searchQuery && (
               <button
@@ -241,99 +242,42 @@ function Consignment360Content() {
                   setShowDropdown(true);
                   fetchSuggestions("");
                 }}
-                className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
               >
-                <XCircle className="w-4 h-4" />
+                <X className="w-3.5 h-3.5" />
               </button>
             )}
+          </form>
+
+          {/* Action button */}
+          <div className="flex items-center gap-2 shrink-0">
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={handleSearchSubmit}
+              disabled={isLoading || !searchQuery.trim()}
+              className="px-4 py-2 text-xs font-semibold"
+            >
+              {isLoading ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" />
+              ) : (
+                <Search className="w-3.5 h-3.5 mr-1.5" />
+              )}
+              <span>Trace 360°</span>
+            </Button>
           </div>
+        </div>
 
-          <button
-            type="submit"
-            disabled={isLoading || !searchQuery.trim()}
-            className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white font-semibold text-sm sm:text-base rounded-xl shadow-xs transition-colors cursor-pointer"
-          >
-            {isLoading ? (
-              <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-            ) : (
-              <Search className="w-4 h-4" />
-            )}
-            <span>Trace 360°</span>
-          </button>
-        </form>
-
-        {/* Autocomplete / Recent Suggestions Dropdown */}
-        {showDropdown && suggestions.length > 0 && (
-          <div className="absolute left-0 right-0 top-full mt-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xl z-50 max-h-80 overflow-y-auto">
-            <div className="px-4 py-2 border-b border-slate-100 dark:border-slate-800 text-[11px] font-semibold text-slate-500 uppercase tracking-wider flex justify-between">
-              <span>{searchQuery ? "Matching Records" : "Recent Consignments & Jobs"}</span>
-              {isSuggesting && <span className="animate-pulse">Loading...</span>}
-            </div>
-            <div className="divide-y divide-slate-100 dark:divide-slate-800/60">
-              {suggestions.map((item) => (
-                <button
-                  key={`${item.type}-${item.id}`}
-                  type="button"
-                  onClick={() => handleSelectSuggestion(item)}
-                  className="w-full px-4 py-2.5 flex items-center justify-between hover:bg-indigo-50/60 dark:hover:bg-slate-800/80 transition-colors text-left group"
-                >
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div
-                      className={`p-2 rounded-lg shrink-0 ${
-                        item.type === "LR"
-                          ? "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300"
-                          : item.type === "JOB"
-                          ? "bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300"
-                          : "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300"
-                      }`}
-                    >
-                      {item.type === "LR" ? (
-                        <FileText className="w-4 h-4" />
-                      ) : item.type === "JOB" ? (
-                        <Layers className="w-4 h-4" />
-                      ) : (
-                        <Truck className="w-4 h-4" />
-                      )}
-                    </div>
-                    <div className="min-w-0">
-                      <div className="text-sm font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
-                        <span>{item.title}</span>
-                        {item.vehicle_number && (
-                          <span className="text-[11px] font-mono px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
-                            {item.vehicle_number}
-                          </span>
-                        )}
-                      </div>
-                      <div className="text-xs text-slate-500 dark:text-slate-400 truncate">
-                        {item.subtitle}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2 shrink-0 ml-3">
-                    {item.status && (
-                      <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
-                        {item.status}
-                      </span>
-                    )}
-                    <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-indigo-600 transition-colors" />
-                  </div>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Quick Suggestion Pills */}
+        {/* Quick Suggestion Chips */}
         {!searchQuery && suggestions.length > 0 && (
-          <div className="mt-3.5 flex flex-wrap items-center gap-2 text-xs">
-            <span className="text-slate-500 dark:text-slate-400 font-medium">Quick Pick:</span>
-            {suggestions.slice(0, 5).map((s) => (
+          <div className="mt-2.5 pt-2 border-t border-slate-100 dark:border-[#26262c] flex flex-wrap items-center gap-1.5 text-[11px]">
+            <span className="text-slate-400 font-medium">Recent Quick Pick:</span>
+            {suggestions.slice(0, 6).map((s) => (
               <button
-                key={s.id}
+                key={`${s.type}-${s.id}`}
                 type="button"
                 onClick={() => handleSelectSuggestion(s)}
-                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-indigo-50 dark:bg-slate-800 dark:hover:bg-slate-700/80 text-slate-700 dark:text-slate-300 font-medium transition-colors border border-transparent hover:border-indigo-200 dark:hover:border-indigo-800"
+                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-100 hover:bg-indigo-50 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-medium transition-colors border border-transparent hover:border-indigo-200 dark:hover:border-indigo-800 cursor-pointer"
               >
                 <span className="font-semibold text-indigo-600 dark:text-indigo-400">
                   {s.type === "LR" ? "LR" : s.type === "JOB" ? "Job" : "HC"}:
@@ -343,224 +287,231 @@ function Consignment360Content() {
             ))}
           </div>
         )}
+
+        {/* Autocomplete Dropdown */}
+        {showDropdown && suggestions.length > 0 && (
+          <div className="absolute left-0 right-0 top-full mt-1.5 bg-white dark:bg-[#17171B] border border-slate-200 dark:border-[#303036] rounded-xl shadow-lg z-50 max-h-72 overflow-y-auto">
+            <div className="px-3.5 py-1.5 border-b border-slate-100 dark:border-[#26262c] text-[10px] font-semibold text-slate-400 uppercase tracking-wider flex justify-between">
+              <span>{searchQuery ? "Matching Records" : "Recent Records"}</span>
+              {isSuggesting && <span className="animate-pulse">Loading...</span>}
+            </div>
+            <div className="divide-y divide-slate-100 dark:divide-[#26262c]">
+              {suggestions.map((item) => (
+                <button
+                  key={`${item.type}-${item.id}`}
+                  type="button"
+                  onClick={() => handleSelectSuggestion(item)}
+                  className="w-full px-3.5 py-2 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-[#202026] transition-colors text-left group cursor-pointer"
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div
+                      className={cn(
+                        "p-1.5 rounded-md shrink-0 text-xs",
+                        item.type === "LR"
+                          ? "bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-blue-300"
+                          : item.type === "JOB"
+                          ? "bg-purple-50 text-purple-600 dark:bg-purple-950/40 dark:text-purple-300"
+                          : "bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-300"
+                      )}
+                    >
+                      {item.type === "LR" ? (
+                        <FileText className="w-3.5 h-3.5" />
+                      ) : item.type === "JOB" ? (
+                        <Layers className="w-3.5 h-3.5" />
+                      ) : (
+                        <Truck className="w-3.5 h-3.5" />
+                      )}
+                    </div>
+                    <div className="min-w-0">
+                      <div className="text-xs font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
+                        <span>{item.title}</span>
+                        {item.vehicle_number && (
+                          <span className="text-[10px] font-mono px-1 py-0.2 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+                            {item.vehicle_number}
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-[11px] text-slate-400 truncate">
+                        {item.subtitle}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 shrink-0 ml-2">
+                    {item.status && (
+                      <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+                        {item.status}
+                      </span>
+                    )}
+                    <ChevronRight className="w-3.5 h-3.5 text-slate-300 group-hover:text-indigo-600 transition-colors" />
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* Loading state */}
+      {/* 3. Loading State */}
       {isLoading && (
-        <div className="p-12 text-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm">
-          <div className="inline-block w-8 h-8 border-3 border-indigo-600 border-t-transparent rounded-full animate-spin mb-3" />
-          <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100">
-            Assembling 360° Traceability Graph...
-          </h3>
-          <p className="text-xs text-slate-500 mt-1">
-            Correlating Job Indents, Lorry Receipts, Hire Contracts, Delivery PODs, and Ledger Accounts.
-          </p>
-        </div>
-      )}
-
-      {/* Error / Not Found */}
-      {!isLoading && errorMsg && (
-        <div className="p-8 text-center bg-white dark:bg-slate-900 border border-red-200 dark:border-red-900/40 rounded-2xl shadow-sm">
-          <AlertCircle className="w-10 h-10 text-red-500 mx-auto mb-3" />
-          <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100">
-            Consignment Not Found
-          </h3>
-          <p className="text-sm text-slate-500 mt-1 max-w-md mx-auto">{errorMsg}</p>
-        </div>
-      )}
-
-      {/* Empty Initial Screen */}
-      {!isLoading && !data && !errorMsg && (
-        <div className="p-12 text-center bg-white dark:bg-slate-900 border border-dashed border-slate-300 dark:border-slate-800 rounded-2xl shadow-sm">
-          <div className="w-14 h-14 bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 rounded-2xl flex items-center justify-center mx-auto mb-4">
-            <ScanSearch className="w-7 h-7" />
+        <div className="bg-white dark:bg-[#17171B] border border-slate-200/90 dark:border-[#303036] rounded-xl p-10 text-center shadow-2xs">
+          <div className="w-8 h-8 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
+          <div className="text-xs font-semibold text-slate-800 dark:text-slate-200">
+            Loading Consignment 360°...
           </div>
-          <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">
+          <div className="text-[11px] text-slate-400 mt-0.5">
+            Connecting Job Indent, LR note, Hire contract, POD, and Ledger Accounts.
+          </div>
+        </div>
+      )}
+
+      {/* 4. Not Found State (Standard TMS Empty State) */}
+      {!isLoading && searchedNotFound && (
+        <div className="bg-white dark:bg-[#17171B] border border-slate-200/90 dark:border-[#303036] rounded-xl p-12 text-center shadow-2xs">
+          <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-400 flex items-center justify-center mx-auto mb-2.5">
+            <Search className="w-5 h-5" />
+          </div>
+          <div className="text-xs font-semibold text-slate-900 dark:text-white">
+            No record found for &ldquo;{searchQuery}&rdquo;
+          </div>
+          <div className="text-[11px] text-slate-400 mt-1 max-w-sm mx-auto">
+            Please check the LR number, Job number, or Challan number and try again.
+          </div>
+        </div>
+      )}
+
+      {/* 5. Clean Initial Screen (Before Search) */}
+      {!isLoading && !data && !searchedNotFound && (
+        <div className="bg-white dark:bg-[#17171B] border border-slate-200/90 dark:border-[#303036] rounded-xl p-12 text-center shadow-2xs">
+          <div className="w-11 h-11 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 flex items-center justify-center mx-auto mb-3">
+            <ScanSearch className="w-5 h-5" />
+          </div>
+          <div className="text-sm font-semibold text-slate-900 dark:text-white">
             Search Any LR or Job Number
-          </h3>
-          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1 max-w-lg mx-auto">
-            View where the consignment is used, its linked contract, vehicle, driver, unloading hub,
-            signed POD, customer freight invoice, and net profit margin.
-          </p>
+          </div>
+          <div className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-md mx-auto">
+            Type an LR number, Job number, or Challan number in the search bar above to trace where it is linked, view operational vouchers, and check P&amp;L profitability.
+          </div>
         </div>
       )}
 
-      {/* Active Consignment 360 View */}
+      {/* 6. Active Consignment 360 Overview Screen */}
       {!isLoading && data && (
-        <div className="space-y-6">
-          {/* Top Header Card with Quick Metadata & Actions */}
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-sm">
-            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-              <div>
-                <div className="flex flex-wrap items-center gap-2.5">
-                  <span className="px-2.5 py-1 text-xs font-bold rounded-lg bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300 uppercase">
-                    {data.matched_type} Matched
-                  </span>
-                  <h2 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white">
-                    {data.lr
-                      ? `Consignment LR #${data.lr.lr_number}`
-                      : data.job
-                      ? `Job Order #${data.job.job_number}`
-                      : `Hire Challan #${data.hire_challan.challan_number}`}
-                  </h2>
-                  {data.lr?.booking_status && (
-                    <span className="px-2.5 py-0.5 text-xs font-semibold rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
-                      {data.lr.booking_status}
-                    </span>
-                  )}
-                </div>
+        <div className="space-y-4">
+          {/* Top Info Banner with Quick Actions */}
+          <div className="bg-white dark:bg-[#17171B] border border-slate-200/90 dark:border-[#303036] rounded-xl px-4 py-3 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center gap-2.5">
+              <span className="px-2 py-0.5 text-[10px] font-bold rounded bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300 uppercase">
+                {data.matched_type}
+              </span>
+              <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+                {data.lr
+                  ? `LR #${data.lr.lr_number}`
+                  : data.job
+                  ? `Job #${data.job.job_number}`
+                  : `Challan #${data.hire_challan.challan_number}`}
+              </h3>
+              {data.lr?.booking_status && (
+                <span className="px-2 py-0.5 text-[10px] font-semibold rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+                  {data.lr.booking_status}
+                </span>
+              )}
+              {data.lr?.origin_city && data.lr?.destination_city && (
+                <span className="text-slate-400 text-xs">
+                  ({data.lr.origin_city} → {data.lr.destination_city})
+                </span>
+              )}
+            </div>
 
-                <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1.5 flex flex-wrap items-center gap-3">
-                  {data.lr?.lr_date && <span>📅 Booked: {data.lr.lr_date}</span>}
-                  {data.lr?.origin_city && data.lr?.destination_city && (
-                    <span>
-                      📍 Route: {data.lr.origin_city} → {data.lr.destination_city}
-                    </span>
-                  )}
-                  {data.lr?.vehicle_number && (
-                    <span className="font-mono bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded">
-                      🚛 {data.lr.vehicle_number}
-                    </span>
-                  )}
-                </p>
-              </div>
-
-              {/* Direct Workspace Jump Buttons */}
-              <div className="flex flex-wrap items-center gap-2">
-                {data.lr && (
-                  <button
-                    type="button"
-                    onClick={() => router.push(`/transport/lr-booking?search=${encodeURIComponent(data.lr.lr_number)}`)}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition-colors"
-                  >
-                    <FileText className="w-3.5 h-3.5" />
-                    <span>Open in LR Booking</span>
-                    <ExternalLink className="w-3 h-3 text-slate-400" />
-                  </button>
-                )}
-
-                {data.hire_challan && (
-                  <button
-                    type="button"
-                    onClick={() => router.push(`/transport/hire-challan?search=${encodeURIComponent(data.hire_challan.challan_number)}`)}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition-colors"
-                  >
-                    <Truck className="w-3.5 h-3.5" />
-                    <span>Open Challan</span>
-                    <ExternalLink className="w-3 h-3 text-slate-400" />
-                  </button>
-                )}
-
-                {data.invoices.length > 0 && (
-                  <button
-                    type="button"
-                    onClick={() => router.push(`/accounts/transport-invoice?search=${encodeURIComponent(data.invoices[0].voucher_number)}`)}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition-colors"
-                  >
-                    <Receipt className="w-3.5 h-3.5" />
-                    <span>View Invoice</span>
-                    <ExternalLink className="w-3 h-3 text-slate-400" />
-                  </button>
-                )}
-              </div>
+            {/* Quick action buttons */}
+            <div className="flex items-center gap-2">
+              {data.lr && (
+                <button
+                  type="button"
+                  onClick={() => router.push(`/transport/lr-booking?search=${encodeURIComponent(data.lr.lr_number)}`)}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-medium rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition-colors cursor-pointer"
+                >
+                  <FileText className="w-3 h-3 text-slate-500" />
+                  <span>Open LR</span>
+                  <ExternalLink className="w-2.5 h-2.5 text-slate-400" />
+                </button>
+              )}
+              {data.hire_challan && (
+                <button
+                  type="button"
+                  onClick={() => router.push(`/transport/hire-challan?search=${encodeURIComponent(data.hire_challan.challan_number)}`)}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-medium rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition-colors cursor-pointer"
+                >
+                  <Truck className="w-3 h-3 text-slate-500" />
+                  <span>Open Challan</span>
+                  <ExternalLink className="w-2.5 h-2.5 text-slate-400" />
+                </button>
+              )}
+              {data.invoices.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => router.push(`/accounts/transport-invoice?search=${encodeURIComponent(data.invoices[0].voucher_number)}`)}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-medium rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition-colors cursor-pointer"
+                >
+                  <Receipt className="w-3 h-3 text-slate-500" />
+                  <span>Open Invoice</span>
+                  <ExternalLink className="w-2.5 h-2.5 text-slate-400" />
+                </button>
+              )}
             </div>
           </div>
 
-          {/* Profitability & Financial Summary KPI Strip */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4.5 shadow-sm">
-              <div className="flex items-center justify-between text-xs text-slate-500 mb-1">
-                <span className="font-semibold uppercase tracking-wider">Customer Freight Revenue</span>
-                <IndianRupee className="w-4 h-4 text-blue-600" />
-              </div>
-              <div className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white">
-                {formatCurrency(data.financial_summary.customer_revenue)}
-              </div>
-              <div className="text-[11px] text-slate-500 mt-1 flex items-center justify-between">
-                <span>Invoiced: {formatCurrency(data.financial_summary.invoiced_amount)}</span>
+          {/* Standard KPI Cards Strip (4 columns matching TMS style) */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            <KpiCard
+              title="Customer Freight Revenue"
+              value={formatCurrency(data.financial_summary.customer_revenue)}
+              subtext={
+                data.financial_summary.is_billed
+                  ? `Invoiced: ${formatCurrency(data.financial_summary.invoiced_amount)}`
+                  : "Awaiting Freight Invoice"
+              }
+              icon={<IndianRupee className="w-4 h-4 text-blue-600" />}
+            />
+            <KpiCard
+              title="Lorry Hire & Expenses"
+              value={formatCurrency(data.financial_summary.total_cost)}
+              subtext={`Hire: ${formatCurrency(data.financial_summary.lorry_hire_cost)} • Direct: ${formatCurrency(data.financial_summary.direct_expenses)}`}
+              icon={<Truck className="w-4 h-4 text-purple-600" />}
+            />
+            <KpiCard
+              title="Gross Margin (P&L)"
+              value={formatCurrency(data.financial_summary.gross_profit)}
+              subtext={`Profit Margin: ${data.financial_summary.margin_percentage}%`}
+              icon={
                 <span
-                  className={`font-semibold ${
-                    data.financial_summary.is_billed ? "text-emerald-600" : "text-amber-600"
-                  }`}
-                >
-                  {data.financial_summary.is_billed ? "BILLED" : "UNBILLED"}
-                </span>
-              </div>
-            </div>
-
-            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4.5 shadow-sm">
-              <div className="flex items-center justify-between text-xs text-slate-500 mb-1">
-                <span className="font-semibold uppercase tracking-wider">Lorry Hire & Direct Cost</span>
-                <Truck className="w-4 h-4 text-purple-600" />
-              </div>
-              <div className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white">
-                {formatCurrency(data.financial_summary.total_cost)}
-              </div>
-              <div className="text-[11px] text-slate-500 mt-1 flex items-center justify-between">
-                <span>Challan Hire: {formatCurrency(data.financial_summary.lorry_hire_cost)}</span>
-                <span>Expenses: {formatCurrency(data.financial_summary.direct_expenses)}</span>
-              </div>
-            </div>
-
-            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4.5 shadow-sm">
-              <div className="flex items-center justify-between text-xs text-slate-500 mb-1">
-                <span className="font-semibold uppercase tracking-wider">Gross Margin P&L</span>
-                <TrendingUp
-                  className={`w-4 h-4 ${
-                    data.financial_summary.gross_profit >= 0 ? "text-emerald-600" : "text-red-500"
-                  }`}
-                />
-              </div>
-              <div
-                className={`text-xl sm:text-2xl font-bold ${
-                  data.financial_summary.gross_profit >= 0
-                    ? "text-emerald-600 dark:text-emerald-400"
-                    : "text-red-600 dark:text-red-400"
-                }`}
-              >
-                {formatCurrency(data.financial_summary.gross_profit)}
-              </div>
-              <div className="text-[11px] text-slate-500 mt-1 flex items-center justify-between">
-                <span>Profit Margin:</span>
-                <span
-                  className={`font-bold px-1.5 py-0.2 rounded ${
+                  className={cn(
+                    "text-[10px] font-bold px-1.5 py-0.5 rounded",
                     data.financial_summary.margin_percentage >= 15
-                      ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300"
-                      : data.financial_summary.margin_percentage >= 5
-                      ? "bg-blue-100 text-blue-800 dark:bg-blue-950/60 dark:text-blue-300"
-                      : "bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300"
-                  }`}
+                      ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
+                      : "bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300"
+                  )}
                 >
                   {data.financial_summary.margin_percentage}%
                 </span>
-              </div>
-            </div>
-
-            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4.5 shadow-sm">
-              <div className="flex items-center justify-between text-xs text-slate-500 mb-1">
-                <span className="font-semibold uppercase tracking-wider">Settlement & Balance</span>
-                <ShieldCheck className="w-4 h-4 text-emerald-600" />
-              </div>
-              <div className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white">
-                {formatCurrency(data.financial_summary.customer_pending_balance)}
-              </div>
-              <div className="text-[11px] text-slate-500 mt-1 flex items-center justify-between">
-                <span>Due from Client</span>
-                <span className="text-slate-600 dark:text-slate-400">
-                  Lorry Bal: {formatCurrency(data.financial_summary.lorry_balance_payable)}
-                </span>
-              </div>
-            </div>
+              }
+            />
+            <KpiCard
+              title="Pending Settlements"
+              value={formatCurrency(data.financial_summary.customer_pending_balance)}
+              subtext={`Lorry Balance: ${formatCurrency(data.financial_summary.lorry_balance_payable)}`}
+              icon={<ShieldCheck className="w-4 h-4 text-emerald-600" />}
+            />
           </div>
 
-          {/* Interactive 8-Stage Lifecycle Status Tracker */}
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-sm">
-            <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100 mb-4 flex items-center gap-2">
-              <RotateCcw className="w-4 h-4 text-indigo-600" />
-              <span>Consignment 8-Stage Complete Lifecycle Status</span>
-            </h3>
+          {/* 8-Stage Lifecycle Status Tracker */}
+          <div className="bg-white dark:bg-[#17171B] border border-slate-200/90 dark:border-[#303036] rounded-xl p-4 shadow-2xs">
+            <div className="text-xs font-semibold text-slate-800 dark:text-slate-200 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+              <RotateCcw className="w-3.5 h-3.5 text-indigo-600" />
+              <span>Consignment 8-Stage Lifecycle Progress</span>
+            </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3.5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
               {data.lifecycle_stages.map((stg) => {
                 const isDone = stg.status === "completed";
                 const isCurrent = stg.status === "in_progress";
@@ -569,20 +520,22 @@ function Consignment360Content() {
                 return (
                   <div
                     key={stg.stage_id}
-                    className={`p-3.5 rounded-xl border transition-all ${
+                    className={cn(
+                      "p-3 rounded-lg border transition-all text-xs",
                       isDone
-                        ? "bg-emerald-50/40 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-900/50"
+                        ? "bg-emerald-50/30 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-900/50"
                         : isCurrent
-                        ? "bg-indigo-50/60 dark:bg-indigo-950/30 border-indigo-300 dark:border-indigo-800 ring-2 ring-indigo-500/20"
+                        ? "bg-indigo-50/50 dark:bg-indigo-950/30 border-indigo-300 dark:border-indigo-800 ring-1 ring-indigo-500/20"
                         : isSkipped
                         ? "bg-slate-50 dark:bg-slate-800/40 border-slate-200 dark:border-slate-800 opacity-60"
-                        : "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800"
-                    }`}
+                        : "bg-white dark:bg-[#17171B] border-slate-200 dark:border-[#303036]"
+                    )}
                   >
-                    <div className="flex items-center justify-between gap-2 mb-1.5">
-                      <div className="flex items-center gap-2">
+                    <div className="flex items-center justify-between gap-1.5 mb-1">
+                      <div className="flex items-center gap-1.5 min-w-0">
                         <span
-                          className={`w-5 h-5 rounded-full text-[11px] font-bold flex items-center justify-center shrink-0 ${
+                          className={cn(
+                            "w-4 h-4 rounded-full text-[10px] font-bold flex items-center justify-center shrink-0",
                             isDone
                               ? "bg-emerald-600 text-white"
                               : isCurrent
@@ -590,17 +543,18 @@ function Consignment360Content() {
                               : isSkipped
                               ? "bg-slate-300 dark:bg-slate-700 text-slate-700 dark:text-slate-300"
                               : "bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400"
-                          }`}
+                          )}
                         >
-                          {isDone ? <Check className="w-3 h-3 stroke-[3]" /> : stg.stage_id}
+                          {isDone ? <Check className="w-2.5 h-2.5 stroke-[3]" /> : stg.stage_id}
                         </span>
-                        <span className="text-xs font-bold text-slate-900 dark:text-slate-100 truncate">
+                        <span className="font-semibold text-slate-800 dark:text-slate-200 truncate">
                           {stg.title}
                         </span>
                       </div>
 
                       <span
-                        className={`text-[10px] font-semibold px-1.5 py-0.5 rounded uppercase tracking-wider ${
+                        className={cn(
+                          "text-[9px] font-bold px-1.5 py-0.2 rounded uppercase shrink-0",
                           isDone
                             ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
                             : isCurrent
@@ -608,21 +562,19 @@ function Consignment360Content() {
                             : isSkipped
                             ? "bg-slate-200 text-slate-600 dark:bg-slate-800 dark:text-slate-400"
                             : "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400"
-                        }`}
+                        )}
                       >
                         {stg.status.replace("_", " ")}
                       </span>
                     </div>
 
-                    <div className="text-[11px] text-slate-600 dark:text-slate-300 mt-1 line-clamp-2">
+                    <div className="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-2 mt-1">
                       {stg.description}
                     </div>
 
                     {(stg.doc_number || stg.date) && (
-                      <div className="mt-2 pt-2 border-t border-slate-200/60 dark:border-slate-800/80 flex items-center justify-between text-[10px] text-slate-500">
-                        <span className="font-mono font-medium truncate max-w-[130px]">
-                          {stg.doc_number || "—"}
-                        </span>
+                      <div className="mt-2 pt-1.5 border-t border-slate-100 dark:border-[#26262c] flex items-center justify-between text-[10px] text-slate-400">
+                        <span className="font-mono truncate max-w-[120px]">{stg.doc_number || "—"}</span>
                         <span>{stg.date || ""}</span>
                       </div>
                     )}
@@ -632,20 +584,19 @@ function Consignment360Content() {
             </div>
           </div>
 
-          {/* Operational Documents & Entity Link Cards */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* 1. Job Order & Cargo Indent Card */}
-            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-sm space-y-4">
-              <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+          {/* Operational Cards Grid (2 columns) */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {/* 1. Job Order Card */}
+            <div className="bg-white dark:bg-[#17171B] border border-slate-200/90 dark:border-[#303036] rounded-xl p-4 shadow-2xs space-y-3">
+              <div className="flex items-center justify-between border-b border-slate-100 dark:border-[#26262c] pb-2.5">
                 <div className="flex items-center gap-2">
-                  <div className="p-2 rounded-lg bg-purple-50 text-purple-600 dark:bg-purple-950/40 dark:text-purple-400">
+                  <div className="p-1.5 rounded-md bg-purple-50 text-purple-600 dark:bg-purple-950/40 dark:text-purple-400">
                     <Layers className="w-4 h-4" />
                   </div>
                   <div>
-                    <h4 className="text-sm font-bold text-slate-900 dark:text-slate-100">
+                    <h4 className="font-semibold text-slate-800 dark:text-slate-200">
                       Job Order & Cargo Indent
                     </h4>
-                    <span className="text-[11px] text-slate-500">Commercial client booking indents</span>
                   </div>
                 </div>
 
@@ -653,7 +604,7 @@ function Consignment360Content() {
                   <button
                     type="button"
                     onClick={() => router.push(`/transport/jobs?search=${encodeURIComponent(data.job.job_number)}`)}
-                    className="text-xs text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 font-semibold flex items-center gap-1"
+                    className="text-[11px] text-indigo-600 hover:text-indigo-700 font-semibold flex items-center gap-0.5 cursor-pointer"
                   >
                     <span>View Job</span>
                     <ChevronRight className="w-3.5 h-3.5" />
@@ -662,56 +613,56 @@ function Consignment360Content() {
               </div>
 
               {data.job ? (
-                <div className="grid grid-cols-2 gap-3 text-xs">
+                <div className="grid grid-cols-2 gap-2.5 text-xs">
                   <div>
-                    <span className="text-slate-400 block text-[11px]">Job Number</span>
-                    <span className="font-semibold text-slate-800 dark:text-slate-200">
+                    <span className="text-slate-400 text-[11px] block">Job Number</span>
+                    <span className="font-medium text-slate-800 dark:text-slate-200">
                       {data.job.job_number}
                     </span>
                   </div>
                   <div>
-                    <span className="text-slate-400 block text-[11px]">Booking Date</span>
-                    <span className="font-semibold text-slate-800 dark:text-slate-200">
+                    <span className="text-slate-400 text-[11px] block">Booking Date</span>
+                    <span className="font-medium text-slate-800 dark:text-slate-200">
                       {data.job.job_date || "N/A"}
                     </span>
                   </div>
                   <div className="col-span-2">
-                    <span className="text-slate-400 block text-[11px]">Billing Client / Party</span>
-                    <span className="font-semibold text-slate-800 dark:text-slate-200">
+                    <span className="text-slate-400 text-[11px] block">Billing Client</span>
+                    <span className="font-medium text-slate-800 dark:text-slate-200">
                       {data.job.billing_client_name}
                     </span>
                   </div>
                   <div>
-                    <span className="text-slate-400 block text-[11px]">Consignor (Origin)</span>
-                    <span className="font-semibold text-slate-800 dark:text-slate-200">
+                    <span className="text-slate-400 text-[11px] block">Origin Shipper</span>
+                    <span className="font-medium text-slate-800 dark:text-slate-200">
                       {data.job.consigner_name} ({data.job.origin_city})
                     </span>
                   </div>
                   <div>
-                    <span className="text-slate-400 block text-[11px]">Consignee (Destination)</span>
-                    <span className="font-semibold text-slate-800 dark:text-slate-200">
+                    <span className="text-slate-400 text-[11px] block">Destination Consignee</span>
+                    <span className="font-medium text-slate-800 dark:text-slate-200">
                       {data.job.consignee_name} ({data.job.destination_city})
                     </span>
                   </div>
                   <div>
-                    <span className="text-slate-400 block text-[11px]">Cargo & Weight</span>
-                    <span className="font-semibold text-slate-800 dark:text-slate-200">
+                    <span className="text-slate-400 text-[11px] block">Cargo Details</span>
+                    <span className="text-slate-800 dark:text-slate-200">
                       {data.job.cargo_description} ({data.job.estimated_weight_mt} MT)
                     </span>
                   </div>
                   <div>
-                    <span className="text-slate-400 block text-[11px]">Status</span>
-                    <span className="font-semibold px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
+                    <span className="text-slate-400 text-[11px] block">Job Status</span>
+                    <span className="font-medium px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-[10px]">
                       {data.job.status}
                     </span>
                   </div>
 
                   {data.job.linked_lrs?.length > 1 && (
-                    <div className="col-span-2 mt-2 pt-2 border-t border-slate-100 dark:border-slate-800">
-                      <span className="text-slate-500 font-semibold block mb-1.5 text-[11px]">
-                        Other Linked LRs under this Job ({data.job.linked_lrs.length}):
+                    <div className="col-span-2 mt-1.5 pt-2 border-t border-slate-100 dark:border-[#26262c]">
+                      <span className="text-slate-400 text-[11px] block mb-1">
+                        Linked LRs under this Job ({data.job.linked_lrs.length}):
                       </span>
-                      <div className="flex flex-wrap gap-2">
+                      <div className="flex flex-wrap gap-1.5">
                         {data.job.linked_lrs.map((item: any) => (
                           <button
                             key={item.id}
@@ -720,11 +671,12 @@ function Consignment360Content() {
                               setSearchQuery(item.lr_number);
                               fetch360Data(item.lr_number);
                             }}
-                            className={`px-2.5 py-1 rounded text-[11px] font-medium border ${
+                            className={cn(
+                              "px-2 py-0.5 rounded text-[11px] font-medium border cursor-pointer",
                               data.lr?.lr_number === item.lr_number
                                 ? "bg-indigo-600 text-white border-indigo-600"
-                                : "bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:border-indigo-400"
-                            }`}
+                                : "bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300"
+                            )}
                           >
                             LR #{item.lr_number} ({item.vehicle_number || "Unassigned"})
                           </button>
@@ -734,24 +686,23 @@ function Consignment360Content() {
                   )}
                 </div>
               ) : (
-                <div className="text-xs text-slate-500 italic py-3 text-center">
-                  Direct LR Booking without an upfront Job indent order.
+                <div className="text-xs text-slate-400 italic py-2 text-center">
+                  Direct LR Booking without prior Job indent.
                 </div>
               )}
             </div>
 
-            {/* 2. Lorry Receipt (LR) Booking Card */}
-            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-sm space-y-4">
-              <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+            {/* 2. Lorry Receipt (LR) Card */}
+            <div className="bg-white dark:bg-[#17171B] border border-slate-200/90 dark:border-[#303036] rounded-xl p-4 shadow-2xs space-y-3">
+              <div className="flex items-center justify-between border-b border-slate-100 dark:border-[#26262c] pb-2.5">
                 <div className="flex items-center gap-2">
-                  <div className="p-2 rounded-lg bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-blue-400">
+                  <div className="p-1.5 rounded-md bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-blue-400">
                     <FileText className="w-4 h-4" />
                   </div>
                   <div>
-                    <h4 className="text-sm font-bold text-slate-900 dark:text-slate-100">
-                      Lorry Receipt (LR / GR) Details
+                    <h4 className="font-semibold text-slate-800 dark:text-slate-200">
+                      Lorry Receipt (LR / GR) Note
                     </h4>
-                    <span className="text-[11px] text-slate-500">Legal consignment note</span>
                   </div>
                 </div>
 
@@ -759,7 +710,7 @@ function Consignment360Content() {
                   <button
                     type="button"
                     onClick={() => router.push(`/transport/lr-booking?search=${encodeURIComponent(data.lr.lr_number)}`)}
-                    className="text-xs text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 font-semibold flex items-center gap-1"
+                    className="text-[11px] text-indigo-600 hover:text-indigo-700 font-semibold flex items-center gap-0.5 cursor-pointer"
                   >
                     <span>View LR</span>
                     <ChevronRight className="w-3.5 h-3.5" />
@@ -768,75 +719,68 @@ function Consignment360Content() {
               </div>
 
               {data.lr ? (
-                <div className="grid grid-cols-2 gap-3 text-xs">
+                <div className="grid grid-cols-2 gap-2.5 text-xs">
                   <div>
-                    <span className="text-slate-400 block text-[11px]">LR Number</span>
-                    <span className="font-semibold text-slate-800 dark:text-slate-200">
+                    <span className="text-slate-400 text-[11px] block">LR Number</span>
+                    <span className="font-medium text-slate-800 dark:text-slate-200">
                       {data.lr.lr_number}
                     </span>
                   </div>
                   <div>
-                    <span className="text-slate-400 block text-[11px]">LR Date</span>
-                    <span className="font-semibold text-slate-800 dark:text-slate-200">
+                    <span className="text-slate-400 text-[11px] block">Booking Date</span>
+                    <span className="font-medium text-slate-800 dark:text-slate-200">
                       {data.lr.lr_date || "N/A"}
                     </span>
                   </div>
                   <div>
-                    <span className="text-slate-400 block text-[11px]">Assigned Vehicle</span>
-                    <span className="font-mono font-semibold text-slate-800 dark:text-slate-200">
+                    <span className="text-slate-400 text-[11px] block">Vehicle</span>
+                    <span className="font-mono text-slate-800 dark:text-slate-200">
                       {data.lr.vehicle_number} ({data.lr.vehicle_source})
                     </span>
                   </div>
                   <div>
-                    <span className="text-slate-400 block text-[11px]">Driver</span>
-                    <span className="font-semibold text-slate-800 dark:text-slate-200">
+                    <span className="text-slate-400 text-[11px] block">Driver</span>
+                    <span className="text-slate-800 dark:text-slate-200">
                       {data.lr.driver_name} {data.lr.driver_phone !== "N/A" && `(${data.lr.driver_phone})`}
                     </span>
                   </div>
                   <div>
-                    <span className="text-slate-400 block text-[11px]">E-Way Bill #</span>
+                    <span className="text-slate-400 text-[11px] block">E-Way Bill #</span>
                     <span className="font-mono text-slate-800 dark:text-slate-200">
                       {data.lr.eway_bill_number}
                     </span>
                   </div>
                   <div>
-                    <span className="text-slate-400 block text-[11px]">Supplier Invoice / Value</span>
-                    <span className="text-slate-800 dark:text-slate-200">
-                      {data.lr.invoice_no} ({formatCurrency(data.lr.invoice_value)})
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-slate-400 block text-[11px]">Packages & Weight</span>
-                    <span className="text-slate-800 dark:text-slate-200 font-medium">
-                      {data.lr.package_count} pkgs • {data.lr.chargeable_weight_mt} MT chargeable
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-slate-400 block text-[11px]">Total Customer Freight</span>
+                    <span className="text-slate-400 text-[11px] block">Customer Freight</span>
                     <span className="font-bold text-slate-900 dark:text-white">
                       {formatCurrency(data.lr.total_freight_amount)} ({data.lr.payment_type})
                     </span>
                   </div>
+                  <div className="col-span-2">
+                    <span className="text-slate-400 text-[11px] block">Weight & Packages</span>
+                    <span className="text-slate-800 dark:text-slate-200">
+                      {data.lr.package_count} pkgs • {data.lr.chargeable_weight_mt} MT chargeable (Actual: {data.lr.actual_weight_mt} MT)
+                    </span>
+                  </div>
                 </div>
               ) : (
-                <div className="text-xs text-slate-500 italic py-3 text-center">
-                  Consignment LR not yet generated for this Job.
+                <div className="text-xs text-slate-400 italic py-2 text-center">
+                  Consignment LR not yet booked.
                 </div>
               )}
             </div>
 
-            {/* 3. Lorry Hire Contract (Hire Challan) Card */}
-            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-sm space-y-4">
-              <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+            {/* 3. Lorry Hire Contract (Challan) Card */}
+            <div className="bg-white dark:bg-[#17171B] border border-slate-200/90 dark:border-[#303036] rounded-xl p-4 shadow-2xs space-y-3">
+              <div className="flex items-center justify-between border-b border-slate-100 dark:border-[#26262c] pb-2.5">
                 <div className="flex items-center gap-2">
-                  <div className="p-2 rounded-lg bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400">
+                  <div className="p-1.5 rounded-md bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400">
                     <Truck className="w-4 h-4" />
                   </div>
                   <div>
-                    <h4 className="text-sm font-bold text-slate-900 dark:text-slate-100">
+                    <h4 className="font-semibold text-slate-800 dark:text-slate-200">
                       Lorry Hire Contract (Hire Challan)
                     </h4>
-                    <span className="text-[11px] text-slate-500">Market truck hiring agreement</span>
                   </div>
                 </div>
 
@@ -844,7 +788,7 @@ function Consignment360Content() {
                   <button
                     type="button"
                     onClick={() => router.push(`/transport/hire-challan?search=${encodeURIComponent(data.hire_challan.challan_number)}`)}
-                    className="text-xs text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 font-semibold flex items-center gap-1"
+                    className="text-[11px] text-indigo-600 hover:text-indigo-700 font-semibold flex items-center gap-0.5 cursor-pointer"
                   >
                     <span>View Challan</span>
                     <ChevronRight className="w-3.5 h-3.5" />
@@ -853,71 +797,70 @@ function Consignment360Content() {
               </div>
 
               {data.hire_challan ? (
-                <div className="grid grid-cols-2 gap-3 text-xs">
+                <div className="grid grid-cols-2 gap-2.5 text-xs">
                   <div>
-                    <span className="text-slate-400 block text-[11px]">Challan Number</span>
-                    <span className="font-semibold text-slate-800 dark:text-slate-200">
+                    <span className="text-slate-400 text-[11px] block">Challan Number</span>
+                    <span className="font-medium text-slate-800 dark:text-slate-200">
                       {data.hire_challan.challan_number}
                     </span>
                   </div>
                   <div>
-                    <span className="text-slate-400 block text-[11px]">Challan Date</span>
-                    <span className="font-semibold text-slate-800 dark:text-slate-200">
+                    <span className="text-slate-400 text-[11px] block">Challan Date</span>
+                    <span className="font-medium text-slate-800 dark:text-slate-200">
                       {data.hire_challan.challan_date}
                     </span>
                   </div>
                   <div className="col-span-2">
-                    <span className="text-slate-400 block text-[11px]">Supplier / Vendor / Owner</span>
-                    <span className="font-semibold text-slate-800 dark:text-slate-200">
+                    <span className="text-slate-400 text-[11px] block">Supplier Vendor / Owner</span>
+                    <span className="font-medium text-slate-800 dark:text-slate-200">
                       {data.hire_challan.vendor_name}
                     </span>
                   </div>
                   <div>
-                    <span className="text-slate-400 block text-[11px]">Contracted Lorry Hire</span>
-                    <span className="font-semibold text-slate-800 dark:text-slate-200">
+                    <span className="text-slate-400 text-[11px] block">Hire Rate Agreed</span>
+                    <span className="font-medium text-slate-800 dark:text-slate-200">
                       {formatCurrency(data.hire_challan.hire_rate)}
                     </span>
                   </div>
                   <div>
-                    <span className="text-slate-400 block text-[11px]">Advance Paid (ATH)</span>
-                    <span className="font-semibold text-emerald-600 dark:text-emerald-400">
+                    <span className="text-slate-400 text-[11px] block">Advance Paid (ATH)</span>
+                    <span className="font-medium text-emerald-600">
                       {formatCurrency(data.hire_challan.advance_amount)}
                     </span>
                   </div>
                   <div>
-                    <span className="text-slate-400 block text-[11px]">TDS Withholding</span>
-                    <span className="text-slate-800 dark:text-slate-200">
-                      {formatCurrency(data.hire_challan.tds_amount)} ({data.hire_challan.tds_rate}%)
+                    <span className="text-slate-400 text-[11px] block">Balance Due (BTH)</span>
+                    <span className="font-semibold text-amber-600">
+                      {formatCurrency(data.hire_challan.balance_amount)}
                     </span>
                   </div>
                   <div>
-                    <span className="text-slate-400 block text-[11px]">Balance Payable (BTH)</span>
-                    <span className="font-bold text-amber-600 dark:text-amber-400">
-                      {formatCurrency(data.hire_challan.balance_amount)}
+                    <span className="text-slate-400 text-[11px] block">Net Payable</span>
+                    <span className="font-bold text-slate-900 dark:text-white">
+                      {formatCurrency(data.hire_challan.net_payable_amount)}
                     </span>
                   </div>
                 </div>
               ) : (
-                <div className="text-xs text-slate-500 italic py-3 text-center">
+                <div className="text-xs text-slate-400 italic py-2 text-center">
                   {data.lr?.vehicle_source === "OWN"
-                    ? "In-house company fleet vehicle utilized (No market hire challan required)."
-                    : "No Hire Challan issued yet for this consignment."}
+                    ? "Company fleet vehicle assigned (no market challan)."
+                    : "No Hire Challan issued yet."}
                 </div>
               )}
             </div>
 
-            {/* 4. Destination Hub Arrival & POD Verification Card */}
-            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-sm space-y-4">
-              <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+            {/* 4. Destination Hub Arrival & Delivery POD Card */}
+            <div className="bg-white dark:bg-[#17171B] border border-slate-200/90 dark:border-[#303036] rounded-xl p-4 shadow-2xs space-y-3">
+              <div className="flex items-center justify-between border-b border-slate-100 dark:border-[#26262c] pb-2.5">
                 <div className="flex items-center gap-2">
-                  <div className="p-2 rounded-lg bg-amber-50 text-amber-600 dark:bg-amber-950/40 dark:text-amber-400">
+                  <div className="p-1.5 rounded-md bg-amber-50 text-amber-600 dark:bg-amber-950/40 dark:text-amber-400">
                     <CheckCircle2 className="w-4 h-4" />
                   </div>
                   <div>
-                    <h4 className="text-sm font-bold text-slate-900 dark:text-slate-100">
+                    <h4 className="font-semibold text-slate-800 dark:text-slate-200">
                       Hub Arrival & Delivery POD
                     </h4>
-                    <span className="text-[11px] text-slate-500">Unloading audit & proof of delivery</span>
                   </div>
                 </div>
 
@@ -925,7 +868,7 @@ function Consignment360Content() {
                   <button
                     type="button"
                     onClick={() => router.push(`/transport/pod-records?search=${encodeURIComponent(data.pod_record.pod_number)}`)}
-                    className="text-xs text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 font-semibold flex items-center gap-1"
+                    className="text-[11px] text-indigo-600 hover:text-indigo-700 font-semibold flex items-center gap-0.5 cursor-pointer"
                   >
                     <span>View POD</span>
                     <ChevronRight className="w-3.5 h-3.5" />
@@ -933,120 +876,119 @@ function Consignment360Content() {
                 )}
               </div>
 
-              <div className="grid grid-cols-2 gap-3 text-xs">
+              <div className="grid grid-cols-2 gap-2.5 text-xs">
                 {/* Arrival Section */}
                 {data.arrival_report ? (
                   <>
                     <div>
-                      <span className="text-slate-400 block text-[11px]">Arrival Report #</span>
-                      <span className="font-semibold text-slate-800 dark:text-slate-200">
+                      <span className="text-slate-400 text-[11px] block">Arrival Report #</span>
+                      <span className="font-medium text-slate-800 dark:text-slate-200">
                         {data.arrival_report.report_number}
                       </span>
                     </div>
                     <div>
-                      <span className="text-slate-400 block text-[11px]">Arrival Date</span>
-                      <span className="font-semibold text-slate-800 dark:text-slate-200">
+                      <span className="text-slate-400 text-[11px] block">Arrival Date</span>
+                      <span className="font-medium text-slate-800 dark:text-slate-200">
                         {data.arrival_report.arrival_date}
                       </span>
                     </div>
                     <div>
-                      <span className="text-slate-400 block text-[11px]">Unloaded Packages</span>
+                      <span className="text-slate-400 text-[11px] block">Unloaded Pkgs</span>
                       <span className="text-slate-800 dark:text-slate-200">
                         {data.arrival_report.packages_received} pkgs
                       </span>
                     </div>
                     <div>
-                      <span className="text-slate-400 block text-[11px]">Damage / Shortage</span>
+                      <span className="text-slate-400 text-[11px] block">Condition</span>
                       <span
-                        className={`font-semibold ${
+                        className={cn(
+                          "font-semibold",
                           data.arrival_report.packages_damaged > 0 || data.arrival_report.packages_short > 0
                             ? "text-red-600"
                             : "text-emerald-600"
-                        }`}
+                        )}
                       >
                         {data.arrival_report.packages_damaged} damaged • {data.arrival_report.packages_short} short
                       </span>
                     </div>
                   </>
                 ) : (
-                  <div className="col-span-2 text-slate-500 italic py-1">
+                  <div className="col-span-2 text-slate-400 italic py-1">
                     Hub arrival unloading not logged yet.
                   </div>
                 )}
 
-                <div className="col-span-2 my-1 border-t border-slate-100 dark:border-slate-800" />
+                <div className="col-span-2 my-1 border-t border-slate-100 dark:border-[#26262c]" />
 
                 {/* POD Section */}
                 {data.pod_record ? (
                   <>
                     <div>
-                      <span className="text-slate-400 block text-[11px]">POD Number</span>
-                      <span className="font-semibold text-slate-800 dark:text-slate-200">
+                      <span className="text-slate-400 text-[11px] block">POD Number</span>
+                      <span className="font-medium text-slate-800 dark:text-slate-200">
                         {data.pod_record.pod_number}
                       </span>
                     </div>
                     <div>
-                      <span className="text-slate-400 block text-[11px]">Delivery Date</span>
-                      <span className="font-semibold text-slate-800 dark:text-slate-200">
+                      <span className="text-slate-400 text-[11px] block">Delivery Date</span>
+                      <span className="font-medium text-slate-800 dark:text-slate-200">
                         {data.pod_record.delivery_date}
                       </span>
                     </div>
                     <div>
-                      <span className="text-slate-400 block text-[11px]">Delivered Receiver</span>
+                      <span className="text-slate-400 text-[11px] block">Receiver</span>
                       <span className="text-slate-800 dark:text-slate-200">
                         {data.pod_record.receiver_name}
                       </span>
                     </div>
                     <div>
-                      <span className="text-slate-400 block text-[11px]">Verification Status</span>
+                      <span className="text-slate-400 text-[11px] block">POD Audit Status</span>
                       <span
-                        className={`font-bold px-1.5 py-0.5 rounded text-[10px] uppercase ${
+                        className={cn(
+                          "font-bold px-1.5 py-0.2 rounded text-[10px] uppercase",
                           data.pod_record.verification_status === "VERIFIED"
                             ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
                             : "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300"
-                        }`}
+                        )}
                       >
                         {data.pod_record.verification_status}
                       </span>
                     </div>
                   </>
                 ) : (
-                  <div className="col-span-2 text-slate-500 italic py-1">
-                    Signed Proof of Delivery (POD) copy pending submission.
+                  <div className="col-span-2 text-slate-400 italic py-1">
+                    Signed Proof of Delivery (POD) copy pending.
                   </div>
                 )}
               </div>
             </div>
           </div>
 
-          {/* Linked Accounting Ledgers & Financial Vouchers */}
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-sm space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+          {/* Linked Accounting Vouchers & Ledgers */}
+          <div className="bg-white dark:bg-[#17171B] border border-slate-200/90 dark:border-[#303036] rounded-xl p-4 shadow-2xs space-y-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-100 dark:border-[#26262c] pb-2.5 gap-2">
               <div className="flex items-center gap-2">
-                <div className="p-2 rounded-lg bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400">
+                <div className="p-1.5 rounded-md bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400">
                   <Receipt className="w-4 h-4" />
                 </div>
                 <div>
-                  <h4 className="text-sm font-bold text-slate-900 dark:text-slate-100">
-                    Linked Accounts, Vouchers & Bills
+                  <h4 className="font-semibold text-slate-800 dark:text-slate-200">
+                    Linked Accounts, Vouchers &amp; Bills
                   </h4>
-                  <span className="text-[11px] text-slate-500">
-                    Every invoice, vendor purchase, driver payment, and client receipt linked to this LR/Challan
-                  </span>
                 </div>
               </div>
 
-              <div className="flex items-center gap-2 text-xs">
-                <span className="px-2 py-0.5 rounded bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 font-semibold">
+              <div className="flex items-center gap-2 text-[11px]">
+                <span className="px-2 py-0.5 rounded bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 font-semibold">
                   {data.invoices.length} Invoices
                 </span>
-                <span className="px-2 py-0.5 rounded bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 font-semibold">
+                <span className="px-2 py-0.5 rounded bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 font-semibold">
                   {data.payments.length} Payments
                 </span>
-                <span className="px-2 py-0.5 rounded bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 font-semibold">
+                <span className="px-2 py-0.5 rounded bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 font-semibold">
                   {data.purchases.length} Purchases
                 </span>
-                <span className="px-2 py-0.5 rounded bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 font-semibold">
+                <span className="px-2 py-0.5 rounded bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 font-semibold">
                   {data.receipts.length} Receipts
                 </span>
               </div>
@@ -1056,54 +998,55 @@ function Consignment360Content() {
             data.payments.length === 0 &&
             data.purchases.length === 0 &&
             data.receipts.length === 0 ? (
-              <div className="text-center py-6 text-xs text-slate-500 italic">
+              <div className="text-center py-6 text-xs text-slate-400 italic">
                 No accounting vouchers recorded yet for this consignment.
               </div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs">
-                  <thead className="bg-slate-50 dark:bg-slate-800/60 text-slate-500 font-semibold border-y border-slate-200 dark:border-slate-800">
+                  <thead className="bg-slate-50 dark:bg-[#202026] text-slate-500 font-semibold border-y border-slate-200/80 dark:border-[#303036]">
                     <tr>
-                      <th className="py-2.5 px-3">Type</th>
-                      <th className="py-2.5 px-3">Voucher #</th>
-                      <th className="py-2.5 px-3">Date</th>
-                      <th className="py-2.5 px-3">Party Name</th>
-                      <th className="py-2.5 px-3 text-right">Net Amount</th>
-                      <th className="py-2.5 px-3 text-right">Paid Amount</th>
-                      <th className="py-2.5 px-3 text-right">Balance Due</th>
-                      <th className="py-2.5 px-3 text-center">Status</th>
+                      <th className="py-2 px-3">Type</th>
+                      <th className="py-2 px-3">Voucher #</th>
+                      <th className="py-2 px-3">Date</th>
+                      <th className="py-2 px-3">Party Name</th>
+                      <th className="py-2 px-3 text-right">Net Amount</th>
+                      <th className="py-2 px-3 text-right">Paid Amount</th>
+                      <th className="py-2 px-3 text-right">Balance Due</th>
+                      <th className="py-2 px-3 text-center">Status</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                  <tbody className="divide-y divide-slate-100 dark:divide-[#26262c]">
                     {/* Invoices */}
                     {data.invoices.map((v) => (
-                      <tr key={`inv-${v.id}`} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40">
-                        <td className="py-2.5 px-3">
-                          <span className="font-semibold px-2 py-0.5 rounded bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300 text-[10px]">
+                      <tr key={`inv-${v.id}`} className="hover:bg-slate-50/60 dark:hover:bg-[#202026]/40">
+                        <td className="py-2 px-3">
+                          <span className="font-semibold px-1.5 py-0.2 rounded bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300 text-[9px]">
                             CUSTOMER INVOICE
                           </span>
                         </td>
-                        <td className="py-2.5 px-3 font-semibold text-slate-900 dark:text-slate-100">
+                        <td className="py-2 px-3 font-medium text-slate-900 dark:text-slate-100">
                           {v.voucher_number}
                         </td>
-                        <td className="py-2.5 px-3 text-slate-500">{v.voucher_date}</td>
-                        <td className="py-2.5 px-3 text-slate-700 dark:text-slate-300">{v.party_name}</td>
-                        <td className="py-2.5 px-3 text-right font-bold text-slate-900 dark:text-white">
+                        <td className="py-2 px-3 text-slate-400">{v.voucher_date}</td>
+                        <td className="py-2 px-3 text-slate-700 dark:text-slate-300">{v.party_name}</td>
+                        <td className="py-2 px-3 text-right font-bold text-slate-900 dark:text-white">
                           {formatCurrency(v.net_amount)}
                         </td>
-                        <td className="py-2.5 px-3 text-right text-emerald-600">
+                        <td className="py-2 px-3 text-right text-emerald-600 font-medium">
                           {formatCurrency(v.paid_amount)}
                         </td>
-                        <td className="py-2.5 px-3 text-right font-semibold text-amber-600">
+                        <td className="py-2 px-3 text-right font-semibold text-amber-600">
                           {formatCurrency(v.balance_amount)}
                         </td>
-                        <td className="py-2.5 px-3 text-center">
+                        <td className="py-2 px-3 text-center">
                           <span
-                            className={`px-1.5 py-0.5 rounded text-[10px] font-semibold ${
+                            className={cn(
+                              "px-1.5 py-0.2 rounded text-[9px] font-bold uppercase",
                               v.balance_amount <= 0
                                 ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
                                 : "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300"
-                            }`}
+                            )}
                           >
                             {v.balance_amount <= 0 ? "PAID" : "UNPAID"}
                           </span>
@@ -1113,24 +1056,24 @@ function Consignment360Content() {
 
                     {/* Receipts */}
                     {data.receipts.map((v) => (
-                      <tr key={`rcpt-${v.id}`} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40">
-                        <td className="py-2.5 px-3">
-                          <span className="font-semibold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 text-[10px]">
+                      <tr key={`rcpt-${v.id}`} className="hover:bg-slate-50/60 dark:hover:bg-[#202026]/40">
+                        <td className="py-2 px-3">
+                          <span className="font-semibold px-1.5 py-0.2 rounded bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 text-[9px]">
                             CLIENT RECEIPT
                           </span>
                         </td>
-                        <td className="py-2.5 px-3 font-semibold text-slate-900 dark:text-slate-100">
+                        <td className="py-2 px-3 font-medium text-slate-900 dark:text-slate-100">
                           {v.voucher_number}
                         </td>
-                        <td className="py-2.5 px-3 text-slate-500">{v.voucher_date}</td>
-                        <td className="py-2.5 px-3 text-slate-700 dark:text-slate-300">{v.party_name}</td>
-                        <td className="py-2.5 px-3 text-right font-bold text-emerald-600">
+                        <td className="py-2 px-3 text-slate-400">{v.voucher_date}</td>
+                        <td className="py-2 px-3 text-slate-700 dark:text-slate-300">{v.party_name}</td>
+                        <td className="py-2 px-3 text-right font-bold text-emerald-600">
                           {formatCurrency(v.net_amount)}
                         </td>
-                        <td className="py-2.5 px-3 text-right text-slate-400">—</td>
-                        <td className="py-2.5 px-3 text-right text-slate-400">—</td>
-                        <td className="py-2.5 px-3 text-center">
-                          <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+                        <td className="py-2 px-3 text-right text-slate-400">—</td>
+                        <td className="py-2 px-3 text-right text-slate-400">—</td>
+                        <td className="py-2 px-3 text-center">
+                          <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
                             RECEIVED
                           </span>
                         </td>
@@ -1139,28 +1082,28 @@ function Consignment360Content() {
 
                     {/* Purchases */}
                     {data.purchases.map((v) => (
-                      <tr key={`pur-${v.id}`} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40">
-                        <td className="py-2.5 px-3">
-                          <span className="font-semibold px-2 py-0.5 rounded bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 text-[10px]">
+                      <tr key={`pur-${v.id}`} className="hover:bg-slate-50/60 dark:hover:bg-[#202026]/40">
+                        <td className="py-2 px-3">
+                          <span className="font-semibold px-1.5 py-0.2 rounded bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 text-[9px]">
                             EXPENSE / PURCHASE
                           </span>
                         </td>
-                        <td className="py-2.5 px-3 font-semibold text-slate-900 dark:text-slate-100">
+                        <td className="py-2 px-3 font-medium text-slate-900 dark:text-slate-100">
                           {v.voucher_number}
                         </td>
-                        <td className="py-2.5 px-3 text-slate-500">{v.voucher_date}</td>
-                        <td className="py-2.5 px-3 text-slate-700 dark:text-slate-300">{v.party_name}</td>
-                        <td className="py-2.5 px-3 text-right font-bold text-slate-900 dark:text-white">
+                        <td className="py-2 px-3 text-slate-400">{v.voucher_date}</td>
+                        <td className="py-2 px-3 text-slate-700 dark:text-slate-300">{v.party_name}</td>
+                        <td className="py-2 px-3 text-right font-bold text-slate-900 dark:text-white">
                           {formatCurrency(v.net_amount)}
                         </td>
-                        <td className="py-2.5 px-3 text-right text-slate-500">
+                        <td className="py-2 px-3 text-right text-slate-500">
                           {formatCurrency(v.paid_amount)}
                         </td>
-                        <td className="py-2.5 px-3 text-right text-slate-500">
+                        <td className="py-2 px-3 text-right text-slate-500">
                           {formatCurrency(v.balance_amount)}
                         </td>
-                        <td className="py-2.5 px-3 text-center">
-                          <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600">
+                        <td className="py-2 px-3 text-center">
+                          <span className="px-1.5 py-0.2 rounded text-[9px] font-medium bg-slate-100 dark:bg-slate-800 text-slate-600">
                             {v.payment_status}
                           </span>
                         </td>
@@ -1169,24 +1112,24 @@ function Consignment360Content() {
 
                     {/* Payments */}
                     {data.payments.map((v) => (
-                      <tr key={`pay-${v.id}`} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40">
-                        <td className="py-2.5 px-3">
-                          <span className="font-semibold px-2 py-0.5 rounded bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300 text-[10px]">
+                      <tr key={`pay-${v.id}`} className="hover:bg-slate-50/60 dark:hover:bg-[#202026]/40">
+                        <td className="py-2 px-3">
+                          <span className="font-semibold px-1.5 py-0.2 rounded bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300 text-[9px]">
                             DRIVER / VENDOR PAY
                           </span>
                         </td>
-                        <td className="py-2.5 px-3 font-semibold text-slate-900 dark:text-slate-100">
+                        <td className="py-2 px-3 font-medium text-slate-900 dark:text-slate-100">
                           {v.voucher_number}
                         </td>
-                        <td className="py-2.5 px-3 text-slate-500">{v.voucher_date}</td>
-                        <td className="py-2.5 px-3 text-slate-700 dark:text-slate-300">{v.party_name}</td>
-                        <td className="py-2.5 px-3 text-right font-bold text-purple-600">
+                        <td className="py-2 px-3 text-slate-400">{v.voucher_date}</td>
+                        <td className="py-2 px-3 text-slate-700 dark:text-slate-300">{v.party_name}</td>
+                        <td className="py-2 px-3 text-right font-bold text-purple-600">
                           {formatCurrency(v.net_amount)}
                         </td>
-                        <td className="py-2.5 px-3 text-right text-slate-400">—</td>
-                        <td className="py-2.5 px-3 text-right text-slate-400">—</td>
-                        <td className="py-2.5 px-3 text-center">
-                          <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300">
+                        <td className="py-2 px-3 text-right text-slate-400">—</td>
+                        <td className="py-2 px-3 text-right text-slate-400">—</td>
+                        <td className="py-2 px-3 text-center">
+                          <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300">
                             DISBURSED
                           </span>
                         </td>
@@ -1207,8 +1150,8 @@ export default function Consignment360Page() {
   return (
     <Suspense
       fallback={
-        <div className="p-12 text-center">
-          <div className="w-8 h-8 border-3 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
+        <div className="p-12 text-center font-sans">
+          <div className="w-6 h-6 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
           <span className="text-xs text-slate-500">Loading Consignment 360°...</span>
         </div>
       }

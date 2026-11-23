@@ -5,7 +5,7 @@ import httpx
 from datetime import date, datetime, timezone, timedelta
 from decimal import Decimal
 from typing import Any, Dict, List, Optional, Tuple, Union
-from sqlalchemy import select, func, desc, or_
+from sqlalchemy import select, func, desc, or_, case, and_
 from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import status
@@ -37,6 +37,7 @@ from app.tenant_db.models import (
     FastagCooldown,
     FastagTripRecord,
     TollLog,
+    Voucher,
 )
 
 logger = logging.getLogger(__name__)
@@ -3477,9 +3478,18 @@ async def get_consignment_360(
     is_job_query = q.upper().startswith("JOB")
     is_hc_query = q.upper().startswith("HC")
 
+    # Extract digits for flexible matching (e.g. "JOB-0212" matches "0212" or "212" or "JOB/26-27/0212")
+    clean_digits = "".join(c for c in q if c.isdigit())
+    stripped_digits = clean_digits.lstrip("0") if clean_digits else ""
+
     # 1. Search order depending on pattern prefix
     if is_job_query:
-        # Check Job exact, then partial
+        j_conds = [Job.job_number.ilike(q), Job.job_number.ilike(f"%{q}%")]
+        if clean_digits:
+            j_conds.append(Job.job_number.ilike(f"%{clean_digits}%"))
+        if stripped_digits:
+            j_conds.append(Job.job_number.ilike(f"%{stripped_digits}%"))
+
         j_stmt = (
             select(Job)
             .options(
@@ -3491,7 +3501,7 @@ async def get_consignment_360(
                 selectinload(Job.issuing_office),
                 selectinload(Job.lrs),
             )
-            .where(or_(Job.job_number.ilike(q), Job.job_number.ilike(f"%{q}%")))
+            .where(or_(*j_conds))
             .order_by(case((Job.job_number.ilike(q), 0), else_=1), desc(Job.created_at))
             .limit(1)
         )
@@ -3500,7 +3510,12 @@ async def get_consignment_360(
             matched_type = "JOB"
 
     elif is_hc_query:
-        # Check HireChallan exact, then partial
+        hc_conds = [HireChallan.challan_number.ilike(q), HireChallan.challan_number.ilike(f"%{q}%")]
+        if clean_digits:
+            hc_conds.append(HireChallan.challan_number.ilike(f"%{clean_digits}%"))
+        if stripped_digits:
+            hc_conds.append(HireChallan.challan_number.ilike(f"%{stripped_digits}%"))
+
         hc_stmt = (
             select(HireChallan)
             .options(
@@ -3510,7 +3525,7 @@ async def get_consignment_360(
                 selectinload(HireChallan.issuing_office),
                 selectinload(HireChallan.lr),
             )
-            .where(or_(HireChallan.challan_number.ilike(q), HireChallan.challan_number.ilike(f"%{q}%")))
+            .where(or_(*hc_conds))
             .order_by(case((HireChallan.challan_number.ilike(q), 0), else_=1), desc(HireChallan.created_at))
             .limit(1)
         )
@@ -3520,6 +3535,17 @@ async def get_consignment_360(
 
     # If not found yet, check LR
     if not matched_job and not matched_hc:
+        lr_conds = [
+            LR.lr_number.ilike(q),
+            LR.lr_number.ilike(f"%{q}%"),
+            LR.vehicle_number.ilike(q),
+            LR.invoice_no.ilike(q),
+        ]
+        if clean_digits:
+            lr_conds.append(LR.lr_number.ilike(f"%{clean_digits}%"))
+        if stripped_digits:
+            lr_conds.append(LR.lr_number.ilike(f"%{stripped_digits}%"))
+
         lr_stmt = (
             select(LR)
             .options(
@@ -3538,14 +3564,7 @@ async def get_consignment_360(
                 selectinload(LR.hire_challan).selectinload(HireChallan.issuing_office),
                 selectinload(LR.pod_record),
             )
-            .where(
-                or_(
-                    LR.lr_number.ilike(q),
-                    LR.lr_number.ilike(f"%{q}%"),
-                    LR.vehicle_number.ilike(q),
-                    LR.invoice_no.ilike(q),
-                )
-            )
+            .where(or_(*lr_conds))
             .order_by(
                 case((LR.lr_number.ilike(q), 0), else_=1),
                 case((LR.lr_number.ilike(f"%{q}%"), 0), else_=1),
