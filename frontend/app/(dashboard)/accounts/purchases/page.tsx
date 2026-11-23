@@ -540,6 +540,16 @@ export default function PurchasesPage() {
     };
   }, []);
 
+  useEffect(() => {
+    if (isPrintModalOpen) {
+      apiClient<CompanySettingData>("/api/v1/profile/company")
+        .then((comp) => {
+          if (comp) setCompany(comp);
+        })
+        .catch(() => {});
+    }
+  }, [isPrintModalOpen]);
+
   const handleSyncSchema = async () => {
     setIsHealingSchema(true);
     try {
@@ -2531,6 +2541,9 @@ export default function PurchasesPage() {
           // 1. Resolve Company Details
           const companyName = company?.company_name?.trim() || auth?.tenantName || "PANTHER LOGISTICS";
           const companyLogoUrl = company?.logo_url || null;
+          const companySignatureUrl = company?.signature_url || null;
+          const signingAuthorityName = company?.signing_authority_name || "Authorized Signatory";
+          const signingAuthorityDesignation = company?.signing_authority_designation || "";
 
           // 2. Resolve Issuing Office / Branch
           const targetOfficeId = printBill.issuing_office_id || activeOffice?.id;
@@ -2866,18 +2879,41 @@ export default function PurchasesPage() {
                     </div>
 
                     {/* 5. Signatures */}
-                    <div className="grid grid-cols-3 gap-6 pt-8 text-center text-xs text-slate-600">
-                      <div className="border-t border-slate-300 pt-1.5">
-                        <p className="font-semibold text-slate-800">Prepared By</p>
-                        <p className="text-[10px] text-slate-400 mt-0.5">Accounts Clerk / Operator</p>
+                    <div className="grid grid-cols-3 gap-6 pt-6 text-center text-xs text-slate-600">
+                      <div className="flex flex-col justify-end">
+                        <div className="h-12" />
+                        <div className="border-t border-slate-300 pt-1.5">
+                          <p className="font-semibold text-slate-800">Prepared By</p>
+                          <p className="text-[10px] text-slate-400 mt-0.5">Accounts Clerk / Operator</p>
+                        </div>
                       </div>
-                      <div className="border-t border-slate-300 pt-1.5">
-                        <p className="font-semibold text-slate-800">Verified By</p>
-                        <p className="text-[10px] text-slate-400 mt-0.5">Finance & Audit Dept</p>
+                      <div className="flex flex-col justify-end">
+                        <div className="h-12" />
+                        <div className="border-t border-slate-300 pt-1.5">
+                          <p className="font-semibold text-slate-800">Verified By</p>
+                          <p className="text-[10px] text-slate-400 mt-0.5">Finance & Audit Dept</p>
+                        </div>
                       </div>
-                      <div className="border-t border-slate-300 pt-1.5">
-                        <p className="font-semibold text-slate-800">Authorized Signatory</p>
-                        <p className="text-[10px] text-slate-400 mt-0.5">For {companyName}</p>
+                      <div className="flex flex-col justify-end">
+                        {companySignatureUrl ? (
+                          <div className="flex justify-center mb-1 h-12 items-end">
+                            <img
+                              src={companySignatureUrl}
+                              alt="Authorized Signature"
+                              crossOrigin="anonymous"
+                              className="max-h-12 max-w-[140px] object-contain"
+                            />
+                          </div>
+                        ) : (
+                          <div className="h-12" />
+                        )}
+                        <div className="border-t border-slate-300 pt-1.5">
+                          <p className="font-semibold text-slate-800">
+                            {signingAuthorityName}
+                            {signingAuthorityDesignation ? ` (${signingAuthorityDesignation})` : ""}
+                          </p>
+                          <p className="text-[10px] text-slate-500 mt-0.5 uppercase font-medium">For {companyName}</p>
+                        </div>
                       </div>
                     </div>
                   </div>
