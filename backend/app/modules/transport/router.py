@@ -40,7 +40,8 @@ router = APIRouter(prefix="/transport", tags=["Transport"])
 
 def _ensure_lr_view_access(current_user: User) -> None:
     """Keep LR list and global LR search on the same existing permission boundary."""
-    if current_user.role == "COMPANY_ADMIN":
+    user_role = (getattr(current_user, "role", None) or "").upper().strip()
+    if user_role in ("COMPANY_ADMIN", "ADMIN", "SUPER_ADMIN", "OWNER"):
         return
     if not current_user.custom_role or not current_user.custom_role.permissions:
         raise ForbiddenException(
@@ -49,7 +50,7 @@ def _ensure_lr_view_access(current_user: User) -> None:
         )
     has_perm = any(
         (
-            (p.module == "transport" and p.feature == "lr_booking" and p.permission in ("view", "all"))
+            (p.module == "transport" and p.feature in ("lr_booking", "jobs", "hire_challan", "consignment_360") and p.permission in ("view", "all"))
             or (p.module == "accounts" and p.feature == "transport_invoice" and p.permission in ("view", "create", "all"))
             or (
                 p.module.replace("-", "_") == "transport_reports"

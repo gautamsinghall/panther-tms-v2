@@ -367,16 +367,34 @@ function Consignment360Content() {
 
       {/* 4. Not Found State (Standard TMS Empty State) */}
       {!isLoading && searchedNotFound && (
-        <div className="bg-white dark:bg-[#17171B] border border-slate-200/90 dark:border-[#303036] rounded-xl p-12 text-center shadow-2xs">
+        <div className="bg-white dark:bg-[#17171B] border border-slate-200/90 dark:border-[#303036] rounded-xl p-10 text-center shadow-2xs">
           <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-400 flex items-center justify-center mx-auto mb-2.5">
             <Search className="w-5 h-5" />
           </div>
           <div className="text-xs font-semibold text-slate-900 dark:text-white">
-            No record found for &ldquo;{searchQuery}&rdquo;
+            No record found for &ldquo;{activeQuery || searchQuery}&rdquo;
           </div>
           <div className="text-[11px] text-slate-400 mt-1 max-w-sm mx-auto">
             Please check the LR number, Job number, or Challan number and try again.
           </div>
+          {suggestions.length > 0 && (
+            <div className="mt-4 pt-3 border-t border-slate-100 dark:border-[#26262c] flex flex-wrap items-center justify-center gap-1.5 text-[11px]">
+              <span className="text-slate-400 font-medium">Or pick an existing record:</span>
+              {suggestions.slice(0, 5).map((s) => (
+                <button
+                  key={`nf-${s.type}-${s.id}`}
+                  type="button"
+                  onClick={() => handleSelectSuggestion(s)}
+                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-100 hover:bg-indigo-50 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-medium transition-colors border border-transparent hover:border-indigo-200 dark:hover:border-indigo-800 cursor-pointer"
+                >
+                  <span className="font-semibold text-indigo-600 dark:text-indigo-400">
+                    {s.type === "LR" ? "LR" : s.type === "JOB" ? "Job" : "HC"}:
+                  </span>
+                  <span>{s.number}</span>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
