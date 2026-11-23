@@ -2302,16 +2302,21 @@ async def create_purchase_bill(
         "TOLL": "ACC_TOLL_EXP",
         "TRUCK_HIRE": "ACC_TRUCK_HIRE_EXP",
         "OFFICE_ADMIN": "ACC_OFFICE_EXP",
+        "RENT": "ACC_OFFICE_EXP",
+        "LEGAL_PROFESSIONAL": "ACC_OFFICE_EXP",
+        "SOFTWARE_IT": "ACC_OFFICE_EXP",
+        "PRINTING_STATIONERY": "ACC_OFFICE_EXP",
+        "UTILITIES": "ACC_OFFICE_EXP",
         "EQUIPMENT": "ACC_EQUIPMENT_ASSET",
-        "OTHER": "ACC_SPARES_EXP",
+        "OTHER": "ACC_OFFICE_EXP" if data.purchase_type == "GENERAL_PURCHASE" else "ACC_SPARES_EXP",
     }
     cat = (data.purchase_category or "SPARES").upper()
-    pref_acc_code = category_acc_map.get(cat, "ACC_SPARES_EXP")
+    pref_acc_code = category_acc_map.get(cat, "ACC_SPARES_EXP" if (data.purchase_type != "GENERAL_PURCHASE") else "ACC_OFFICE_EXP")
     fallback_grp = "ASSET" if cat == "EQUIPMENT" else "EXPENSE"
     exp_account_id = data.expense_account_id or (await get_fallback_account_id(session, pref_acc_code, fallback_grp))
 
     # 5. Voucher numbering
-    v_type = data.purchase_type or ("GENERAL_PURCHASE" if cat in ["OFFICE_ADMIN", "EQUIPMENT"] else "NORMAL_PURCHASE")
+    v_type = data.purchase_type or ("GENERAL_PURCHASE" if cat in ["OFFICE_ADMIN", "EQUIPMENT", "RENT", "LEGAL_PROFESSIONAL", "SOFTWARE_IT", "PRINTING_STATIONERY", "UTILITIES"] else "NORMAL_PURCHASE")
     if data.voucher_number:
         v_num = data.voucher_number
     else:

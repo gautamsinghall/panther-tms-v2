@@ -136,8 +136,9 @@ function getVoucherSourceRoute(voucherType: string): { label: string; href: stri
     case "DEBIT_NOTE":
       return { label: "Credit / Debit Notes", href: "/accounts/credit-debit-notes" };
     case "NORMAL_PURCHASE":
+      return { label: "Normal Purchase", href: "/accounts/normal-purchase" };
     case "GENERAL_PURCHASE":
-      return { label: "Purchases", href: "/accounts/purchases" };
+      return { label: "General Purchase", href: "/accounts/general-purchase" };
     case "GENERAL_INVOICE":
       return { label: "General Invoices", href: "/accounts/general-invoice" };
     case "PROFORMA_INVOICE":

@@ -82,7 +82,7 @@ TMS_CORE_KNOWLEDGE = """
 
 9. ACCOUNTS & MASTER LEDGER:
 - Transport Invoices: /accounts/transport-invoice (Generates GST compliant freight invoices from booked LRs).
-- General Invoice: /accounts/general-invoice, Proforma Invoice: /accounts/proforma-invoice, Purchases: /accounts/purchases.
+- General Invoice: /accounts/general-invoice, Proforma Invoice: /accounts/proforma-invoice, Normal Purchase: /accounts/normal-purchase, General Purchase: /accounts/general-purchase.
 - Vouchers: Receipt, Payment, Contra, Credit/Debit Notes conforming to Tally Prime Chart of Accounts.
 - Master Ledger: /accounts/master-ledger (Real-time running debit/credit balances).
 
@@ -555,9 +555,9 @@ PAGE_REGISTRY: Dict[str, Dict[str, Any]] = {
             "Zero double-entry ledger impact until converted to a finalized invoice",
         ],
     },
-    "/accounts/purchases": {
-        "title": "Purchase Register",
-        "purpose": "Record vendor bills for diesel purchases, spare parts, tyre suppliers, office expenses, and third-party truck hiring.",
+    "/accounts/normal-purchase": {
+        "title": "Normal Purchase",
+        "purpose": "Record operational fleet purchase bills: diesel, tyres, spare parts, vehicle repairs, and market truck hiring.",
         "key_fields": [("Vendor / Supplier", True), ("Bill No.", True), ("Expense Category", True), ("Amount", True)],
         "common_errors": ["Ensure supplier GSTIN matches the invoice copy for GSTR-2B ITC claim eligibility."],
         "next_steps": ["Post payment voucher when settling the vendor bill"],
@@ -565,8 +565,22 @@ PAGE_REGISTRY: Dict[str, Dict[str, Any]] = {
         "verified": True,
         "bullets": [
             "Log supplier invoices with GST breakdown (IGST / CGST / SGST)",
-            "Classify expenses: Diesel, Tyres, Maintenance, Truck Hire, Office Supplies",
-            "Post vendor credit liabilities to the Master Ledger for payment scheduling",
+            "Classify fleet expenses: Diesel, Tyres, Maintenance, Truck Hire",
+            "Assign to specific vehicle or market hire challan for cost centre tracking",
+        ],
+    },
+    "/accounts/general-purchase": {
+        "title": "General Purchase",
+        "purpose": "Record administrative overhead and general operating bills: office rent, stationery, legal fees, software subscriptions, and utilities.",
+        "key_fields": [("Vendor / Supplier", True), ("Bill No.", True), ("Expense Category", True), ("Amount", True)],
+        "common_errors": ["Ensure correct expense category and branch allocation are selected."],
+        "next_steps": ["Post payment voucher when settling the administrative bill"],
+        "save": "Click \"Add Purchase Bill\".",
+        "verified": True,
+        "bullets": [
+            "Log overhead invoices with GST breakdown",
+            "Classify admin expenses: Rent, Legal, Software, Printing, Utilities",
+            "Allocate to branch cost center without vehicle clutter",
         ],
     },
     "/accounts/receipt-voucher": {

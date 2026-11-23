@@ -1433,7 +1433,7 @@ TMS_KNOWLEDGE_CHUNKS = [
         "content": (
             "The Accounts module (/accounts) is the financial hub of Panther TMS. It handles Transport Invoices "
             "(/accounts/transport-invoice), General Invoices (/accounts/general-invoice), Proforma Invoices (/accounts/proforma-invoice), "
-            "Purchase Register (/accounts/purchases), Vouchers (Receipt, Payment, Contra, Journal), Credit/Debit Notes, "
+            "Normal Purchase (/accounts/normal-purchase), General Purchase (/accounts/general-purchase), Vouchers (Receipt, Payment, Contra, Journal), Credit/Debit Notes, "
             "Company Bank Accounts (/accounts/bank-accounts), and the Master Ledger (/accounts/master-ledger). "
             "All financial transactions post directly into double-entry accounts with real-time debit and credit tracking, "
             "reconciling freight receivables from billing clients and vehicle hiring liabilities to market vendors."
@@ -1474,20 +1474,35 @@ TMS_KNOWLEDGE_CHUNKS = [
         "keywords": ["proforma invoice", "proforma", "quotation", "commercial estimate", "proforma page"],
     },
     {
-        "doc_id": "tms-page-purchases",
-        "title": "Purchase Register page what it is for",
+        "doc_id": "tms-page-normal-purchase",
+        "title": "Normal Purchase page what it is for",
         "category": "general",
         "min_plan_tier": 1,
         "source_file": "backend/app/modules/ai/tms_knowledge.py",
         "version": "2026.1",
         "content": (
-            "The Purchase Register page (/accounts/purchases) records supplier and vendor invoices for fleet operating expenses, "
-            "such as fuel & diesel bills, tyre purchases, vehicle spare parts, workshop repair charges, and toll/FASTag recharges. "
+            "The Normal Purchase page (/accounts/normal-purchase) records supplier and vendor invoices for fleet operating expenses, "
+            "such as fuel & diesel bills, tyre purchases, vehicle spare parts, workshop repair charges, and truck hire freight. "
             "It captures supplier GSTIN, invoice number, credit terms, and allocates expenses to specific vehicles or Hire Challans "
             "to track vehicle cost centres and claim Input Tax Credit (ITC)."
         ),
-        "route": "/accounts/purchases",
-        "keywords": ["purchase register", "purchase bill", "vendor invoice", "diesel bill", "spare parts bill", "purchases page"],
+        "route": "/accounts/normal-purchase",
+        "keywords": ["normal purchase", "purchase bill", "vendor invoice", "diesel bill", "spare parts bill", "truck hire purchase"],
+    },
+    {
+        "doc_id": "tms-page-general-purchase",
+        "title": "General Purchase page what it is for",
+        "category": "general",
+        "min_plan_tier": 1,
+        "source_file": "backend/app/modules/ai/tms_knowledge.py",
+        "version": "2026.1",
+        "content": (
+            "The General Purchase page (/accounts/general-purchase) records corporate administrative overheads and operating expenses, "
+            "such as office rent, legal and professional fees, software and cloud subscriptions, utilities, and office supplies. "
+            "It allocates expenses directly to branch office cost centres without requiring vehicle associations."
+        ),
+        "route": "/accounts/general-purchase",
+        "keywords": ["general purchase", "office rent", "stationery", "legal fees", "software subscription", "admin expense"],
     },
     {
         "doc_id": "tms-page-vouchers-overview",

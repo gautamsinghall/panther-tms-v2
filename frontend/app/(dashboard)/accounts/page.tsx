@@ -92,11 +92,18 @@ export default function AccountsOverviewPage() {
       badge: "Quotes",
     },
     {
-      title: "Purchase Register",
-      desc: "Operational truck expenses (tyres, fuel, spares) and general overheads with ITC.",
-      href: "/accounts/purchases",
+      title: "Normal Purchase",
+      desc: "Fleet operational expenses: truck hire freight, diesel, tyres, spare parts, repairs, and toll.",
+      href: "/accounts/normal-purchase",
       icon: <ShoppingCart className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />,
-      badge: "Input Tax Credit",
+      badge: "Fleet Operations",
+    },
+    {
+      title: "General Purchase",
+      desc: "Administrative overheads: office rent, legal & professional fees, software, utilities, and supplies.",
+      href: "/accounts/general-purchase",
+      icon: <Receipt className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />,
+      badge: "Admin Overheads",
     },
     {
       title: "Receipt Voucher",
