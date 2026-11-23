@@ -461,6 +461,22 @@ export default function NormalPurchasePage() {
     }
   };
 
+  const handleVendorCreated = (newVendor: any) => {
+    const formatted: VendorOption = {
+      id: Number(newVendor.id),
+      name: newVendor.name || newVendor.label || `Vendor #${newVendor.id}`,
+      gstin: newVendor.gstin || "",
+      state: newVendor.state || newVendor.billing_state || "",
+      billing_state: newVendor.state || newVendor.billing_state || "",
+    };
+    setVendors((prev) => [formatted, ...prev.filter((v) => v.id !== formatted.id)]);
+    setSelectedVendorId(String(formatted.id));
+    setVendorGstin(formatted.gstin || "");
+    setVendorState(formatted.billing_state || formatted.state || "");
+    setManualVendorName(formatted.name);
+    toast.success(`Vendor "${formatted.name}" created and selected.`);
+  };
+
   // Filter hire challans by selected vendor
   const availableHireChallans = useMemo(() => {
     if (!hireChallans || hireChallans.length === 0) return [];
@@ -665,8 +681,8 @@ export default function NormalPurchasePage() {
 
   const handleSavePurchase = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedVendorId && !manualVendorName.trim()) {
-      toast.warning("Please select a vendor or enter vendor/supplier name.");
+    if (!selectedVendorId) {
+      toast.warning("Please select a supplier / vendor from the list.");
       return;
     }
     if (!billNumber.trim()) {
@@ -681,11 +697,12 @@ export default function NormalPurchasePage() {
 
     setIsSubmitting(true);
     try {
+      const selVendor = vendors.find((v) => String(v.id) === selectedVendorId);
       const payload: any = {
         purchase_type: "NORMAL_PURCHASE",
         purchase_category: purchaseCategory,
-        vendor_id: selectedVendorId ? parseInt(selectedVendorId) : null,
-        party_name: manualVendorName.trim() || undefined,
+        vendor_id: parseInt(selectedVendorId),
+        party_name: (selVendor?.name || manualVendorName).trim() || undefined,
         party_gstin: vendorGstin.trim() || undefined,
         vendor_state: vendorState.trim() || undefined,
         bill_number: billNumber.trim(),
@@ -1275,39 +1292,43 @@ export default function NormalPurchasePage() {
               Who is the Supplier / Vendor?
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
                   Select Supplier / Vendor <span className="text-rose-400">*</span>
                 </label>
-                <select
-                  value={selectedVendorId}
-                  onChange={(e) => handleVendorSelect(e.target.value)}
-                  className="w-full h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#303036] bg-white dark:bg-[#101013] text-slate-900 dark:text-[#F5F5F7] placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all shadow-2xs"
-                >
-                  <option value="">-- Choose Supplier / Vendor --</option>
-                  {vendors.map((v) => (
-                    <option key={v.id} value={v.id}>
-                      {v.name} {v.gstin ? `(${v.gstin})` : ""}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {!selectedVendorId && (
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    Or Enter Vendor Name
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="Enter supplier / workshop name"
-                    value={manualVendorName}
-                    onChange={(e) => setManualVendorName(e.target.value)}
-                    className="w-full h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#303036] bg-white dark:bg-[#101013] text-slate-900 dark:text-[#F5F5F7] placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all shadow-2xs"
-                  />
+                <div className="flex items-center gap-1.5">
+                  <div className="flex-1 min-w-0">
+                    <select
+                      value={selectedVendorId}
+                      onChange={(e) => handleVendorSelect(e.target.value)}
+                      className="w-full h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#303036] bg-white dark:bg-[#101013] text-slate-900 dark:text-[#F5F5F7] placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all shadow-2xs"
+                    >
+                      <option value="">-- Choose Supplier / Vendor --</option>
+                      {vendors.map((v) => (
+                        <option key={v.id} value={v.id}>
+                          {v.name} {v.gstin ? `(${v.gstin})` : ""}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      openMasterTab({
+                        type: "vendor",
+                        title: "Add Vendor",
+                        onSuccess: handleVendorCreated,
+                      })
+                    }
+                    title="Add Vendor in new TMS tab"
+                    aria-label="Add Vendor"
+                    className="w-10 h-10 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/40 dark:hover:bg-indigo-900/60 text-indigo-700 dark:text-indigo-400 border border-indigo-200/80 dark:border-indigo-800/60 rounded-xl flex items-center justify-center shrink-0 shadow-2xs transition-colors cursor-pointer"
+                  >
+                    <Plus className="w-4 h-4" />
+                  </button>
                 </div>
-              )}
+              </div>
 
               <div>
                 <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
