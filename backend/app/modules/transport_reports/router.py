@@ -86,13 +86,34 @@ async def get_pending_hc(
 
 @router.get("/unbilled", response_model=List[UnbilledLRRow], summary="Unbilled LRs Report")
 async def get_unbilled(
+    lifecycle_status: Optional[str] = Query(None, description="ALL, DELIVERED_ONLY, or IN_TRANSIT"),
+    office_id: Optional[str] = Query(None, description="Office ID or 'all'"),
     current_user: User = Depends(require_permission("transport_reports", "unbilled", "view")),
     current_office: Optional[Branch] = Depends(get_current_office),
     db: AsyncSession = Depends(get_tenant_db),
 ):
-    office_id = current_office.id if current_office else None
-    include_unassigned = current_office.is_head_office if current_office else True
-    return await service.get_unbilled_lrs(db, office_id=office_id, include_unassigned=include_unassigned)
+    target_office_id = None
+    include_unassigned = True
+    if office_id and office_id.lower() in ("all", "consolidated", "0"):
+        target_office_id = None
+        include_unassigned = True
+    elif office_id:
+        try:
+            target_office_id = int(office_id)
+            include_unassigned = False
+        except ValueError:
+            target_office_id = current_office.id if current_office else None
+            include_unassigned = current_office.is_head_office if current_office else True
+    else:
+        target_office_id = current_office.id if current_office else None
+        include_unassigned = current_office.is_head_office if current_office else True
+
+    return await service.get_unbilled_lrs(
+        db,
+        office_id=target_office_id,
+        include_unassigned=include_unassigned,
+        lifecycle_status=lifecycle_status,
+    )
 
 @router.get("/arrival-register", response_model=List[ArrivalRegisterRow], summary="Arrival Report Register")
 async def get_arrival_register(

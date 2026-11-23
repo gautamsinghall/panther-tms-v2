@@ -619,83 +619,68 @@ async def get_pending_hire_challans(
 # 5. Unbilled Reports (Delivered or Verified LRs ready for Phase 3 Transport Invoicing)
 
 async def get_unbilled_lrs(
-
     db: AsyncSession,
-
     office_id: Optional[int] = None,
-
     include_unassigned: bool = False,
-
+    lifecycle_status: Optional[str] = None,
 ) -> List[UnbilledLRRow]:
-
     stmt = (
-
         select(LR)
-
-        .where(
-
-            LR.status.in_([
-
-                LRStatus.DELIVERED.value,
-
-                LRStatus.POD_RECEIVED.value,
-
-                LRStatus.POD_VERIFIED.value,
-
-            ]),
-
-            or_(LR.is_billed == False, LR.is_billed.is_(None))
-
+        .options(
+            selectinload(LR.consigner),
+            selectinload(LR.consignee),
+            selectinload(LR.destination_location),
+            selectinload(LR.pod_record),
+            selectinload(LR.billing_customer),
         )
-
+        .where(
+            or_(LR.is_billed == False, LR.is_billed.is_(None)),
+            LR.status != LRStatus.CANCELLED.value,
+        )
     )
 
+    if lifecycle_status and lifecycle_status.upper() in ("DELIVERED_ONLY", "DELIVERED", "POD_VERIFIED"):
+        stmt = stmt.where(
+            LR.status.in_([
+                LRStatus.DELIVERED.value,
+                LRStatus.POD_RECEIVED.value,
+                LRStatus.POD_VERIFIED.value,
+            ])
+        )
+    elif lifecycle_status and lifecycle_status.upper() == "IN_TRANSIT":
+        stmt = stmt.where(
+            LR.status.in_([
+                LRStatus.BOOKED.value,
+                LRStatus.LOADED.value,
+                LRStatus.IN_TRANSIT.value,
+                LRStatus.ARRIVED.value,
+            ])
+        )
+
     if office_id:
-
         if include_unassigned:
-
             stmt = stmt.where(or_(LR.issuing_office_id == office_id, LR.issuing_office_id.is_(None)))
-
         else:
-
             stmt = stmt.where(LR.issuing_office_id == office_id)
 
     stmt = stmt.order_by(desc(LR.created_at))
-
     result = await db.execute(stmt)
-
     lrs = result.scalars().all()
 
-
-
     return [
-
         UnbilledLRRow(
-
             id=lr.id,
-
             lr_number=lr.lr_number,
-
             lr_date=lr.lr_date,
-
-            consigner_name=lr.consigner.name if lr.consigner else None,
-
+            consigner_name=lr.billing_customer.name if lr.billing_customer else (lr.consigner.name if lr.consigner else None),
             consignee_name=lr.consignee.name if lr.consignee else None,
-
             destination_city=lr.destination_location.city_name if lr.destination_location else None,
-
             total_freight_amount=lr.total_freight_amount,
-
             delivery_date=lr.pod_record.delivery_date if lr.pod_record else None,
-
             pod_verification_status=lr.pod_record.verification_status if lr.pod_record else "NOT_RECEIVED",
-
             status=lr.status,
-
         )
-
         for lr in lrs
-
     ]
 
 
