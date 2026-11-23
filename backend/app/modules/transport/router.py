@@ -1067,13 +1067,14 @@ def _build_hire_challan_response(c: Any) -> HireChallanResponse:
         remarks=c.remarks,
         lr_number=c.lr.lr_number if c.lr else None,
         owner_name=c.owner.name if c.owner else (c.vendor.name if c.vendor else None),
-        vendor_name=c.vendor.name if c.vendor else None,
+        vendor_name=c.vendor.name if c.vendor else (c.owner.name if c.owner else None),
         created_at=c.created_at,
         updated_at=c.updated_at,
     )
 
 @router.get("/hire-challans", response_model=List[HireChallanResponse])
 async def list_hire_challans(
+    vendor_id: Optional[int] = Query(None),
     current_user: User = Depends(get_current_user),
     current_office: Optional[Branch] = Depends(get_current_office),
     db: AsyncSession = Depends(get_tenant_db),
@@ -1101,7 +1102,7 @@ async def list_hire_challans(
 
     target_office_id = current_office.id if current_office else None
     include_unassigned = current_office.is_head_office if current_office else True
-    challans = await service.get_all_hire_challans(db, office_id=target_office_id, include_unassigned=include_unassigned)
+    challans = await service.get_all_hire_challans(db, office_id=target_office_id, include_unassigned=include_unassigned, vendor_id=vendor_id)
     return [_build_hire_challan_response(c) for c in challans]
 
 @router.get("/hire-challans/{id}", response_model=HireChallanResponse)

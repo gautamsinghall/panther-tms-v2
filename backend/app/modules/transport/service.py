@@ -977,13 +977,15 @@ async def transition_lr_status(db: AsyncSession, lr_id: int, target_status: LRSt
 # Hire Challan Services
 # ===========================================================================
 
-async def get_all_hire_challans(db: AsyncSession, office_id: Optional[int] = None, include_unassigned: bool = False) -> List[HireChallan]:
+async def get_all_hire_challans(db: AsyncSession, office_id: Optional[int] = None, include_unassigned: bool = False, vendor_id: Optional[int] = None) -> List[HireChallan]:
     stmt = select(HireChallan).order_by(desc(HireChallan.created_at))
     if office_id:
         if include_unassigned:
             stmt = stmt.where(or_(HireChallan.issuing_office_id == office_id, HireChallan.issuing_office_id.is_(None)))
         else:
             stmt = stmt.where(HireChallan.issuing_office_id == office_id)
+    if vendor_id:
+        stmt = stmt.where(HireChallan.vendor_id == vendor_id)
     result = await db.execute(stmt)
     return list(result.scalars().all())
 
@@ -1081,6 +1083,9 @@ async def create_hire_challan(db: AsyncSession, data: HireChallanCreate, office_
             v_acc = await get_or_create_party_account(db, "VENDOR", v_cand.id, v_cand.name, v_cand.pan)
             if not v_acc.vehicle_owner_id:
                 v_acc.vehicle_owner_id = owner.id
+                await db.flush()
+            if not hc.vendor_id and v_cand:
+                hc.vendor_id = v_cand.id
                 await db.flush()
 
     if auto_commit:

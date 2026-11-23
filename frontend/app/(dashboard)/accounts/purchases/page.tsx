@@ -2,6 +2,7 @@
 import { toast, confirmModal } from "@/lib/toast";
 
 import React, { useState, useEffect, useMemo, useRef } from "react";
+import { createPortal } from "react-dom";
 import {
   Plus,
   ShoppingCart,
@@ -45,11 +46,21 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { FormActionBar } from "@/components/ui/form-action-bar";
 import { ColumnDef, RowAction } from "@/types/table";
 import { apiClient } from "@/lib/api-client";
-import { getActiveOffice } from "@/lib/auth";
+import { getActiveOffice, getStoredAuth } from "@/lib/auth";
 import { formatCurrency, formatDate, cn } from "@/lib/utils";
 import { canAccessRoute } from "@/lib/permissions";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { useWorkspaceTabs } from "@/lib/workspace-tabs-context";
+
+function formatInr(val: number | string | undefined | null): string {
+  if (val === undefined || val === null || val === "") return "0.00";
+  const num = typeof val === "number" ? val : parseFloat(String(val).replace(/,/g, ""));
+  if (isNaN(num)) return "0.00";
+  return new Intl.NumberFormat("en-IN", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(num);
+}
 
 // Indian Rupees Number to Words
 function numberToWords(num: number): string {
@@ -149,12 +160,15 @@ interface VoucherRecord {
   place_of_supply?: string;
   cost_center?: string;
   attachment_url?: string;
+  issuing_office_id?: number;
+  issuing_office_name?: string;
   hire_challan_id?: number;
   hire_challan_number?: string;
   vendor_id?: number;
   vendor_name?: string;
   due_date?: string;
   credit_period_days?: number;
+  tds_amount?: string | number;
   narration?: string;
   is_void: boolean;
   void_reason?: string;
@@ -184,6 +198,10 @@ interface HireChallanOption {
   to_location?: string;
   hire_rate?: number;
   net_payable_amount?: number;
+  vendor_id?: number;
+  vendor_name?: string;
+  owner_id?: number;
+  owner_name?: string;
 }
 
 interface TaxCategoryOption {
@@ -193,6 +211,40 @@ interface TaxCategoryOption {
   igst_rate: number;
   cgst_rate: number;
   sgst_rate: number;
+}
+
+interface CompanySettingData {
+  id?: number;
+  company_name: string;
+  gstin?: string | null;
+  pan?: string | null;
+  address?: string | null;
+  city?: string | null;
+  state?: string | null;
+  pincode?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  website?: string | null;
+  logo_url?: string | null;
+  signature_url?: string | null;
+  signing_authority_name?: string | null;
+  signing_authority_designation?: string | null;
+  issuing_office?: string | null;
+}
+
+interface BranchData {
+  id: number;
+  code: string;
+  name: string;
+  city?: string | null;
+  state?: string | null;
+  address?: string | null;
+  pincode?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  gstin?: string | null;
+  pan?: string | null;
+  is_head_office?: boolean;
 }
 
 interface LineItemForm {
@@ -211,6 +263,9 @@ export default function PurchasesPage() {
   const [vendors, setVendors] = useState<VendorOption[]>([]);
   const [taxCategories, setTaxCategories] = useState<TaxCategoryOption[]>([]);
   const [hireChallans, setHireChallans] = useState<HireChallanOption[]>([]);
+  const [company, setCompany] = useState<CompanySettingData | null>(null);
+  const [branches, setBranches] = useState<BranchData[]>([]);
+  const [mounted, setMounted] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -404,7 +459,7 @@ export default function PurchasesPage() {
       const activeOffice = getActiveOffice();
       const officeParam = activeOffice?.id ? `?office_id=${activeOffice.id}` : "";
 
-      const [normalRes, generalRes, sNorm, sGen, vendorsRes, tcRes, hcRes] = await Promise.all([
+      const [normalRes, generalRes, sNorm, sGen, vendorsRes, tcRes, hcRes, compRes, branchesRes] = await Promise.all([
         apiClient<VoucherRecord[]>("/api/v1/accounts/vouchers?voucher_type=NORMAL_PURCHASE"),
         apiClient<VoucherRecord[]>("/api/v1/accounts/vouchers?voucher_type=GENERAL_PURCHASE"),
         apiClient<any>(`/api/v1/settings/series/check/NORMAL_PURCHASE${officeParam}`).catch(() => null),
@@ -412,6 +467,8 @@ export default function PurchasesPage() {
         apiClient<VendorOption[]>("/api/v1/general/vendors").catch(() => []),
         apiClient<TaxCategoryOption[]>("/api/v1/misc/tax-categories").catch(() => []),
         apiClient<HireChallanOption[]>("/api/v1/transport/hire-challans").catch(() => []),
+        apiClient<CompanySettingData>("/api/v1/profile/company").catch(() => null),
+        apiClient<BranchData[]>("/api/v1/profile/branches").catch(() => []),
       ]);
 
       const combined = [...(normalRes || []), ...(generalRes || [])].sort(
@@ -424,6 +481,8 @@ export default function PurchasesPage() {
       setVendors(vendorsRes || []);
       setTaxCategories(tcRes || []);
       setHireChallans(hcRes || []);
+      setCompany(compRes);
+      setBranches(branchesRes || []);
 
       if (tcRes && tcRes.length > 0 && !lineItems[0].tax_category_id) {
         const default18 = tcRes.find((t) => Number(t.igst_rate) === 18) || tcRes[0];
@@ -461,6 +520,7 @@ export default function PurchasesPage() {
   };
 
   useEffect(() => {
+    setMounted(true);
     loadData();
     const handleVendorCreatedEvent = () => {
       apiClient<VendorOption[]>("/api/v1/general/vendors")
@@ -469,9 +529,14 @@ export default function PurchasesPage() {
         })
         .catch(() => {});
     };
+    const handleOfficeChanged = () => {
+      loadData();
+    };
     window.addEventListener("panther_vendor_created", handleVendorCreatedEvent);
+    window.addEventListener("panther_office_changed", handleOfficeChanged);
     return () => {
       window.removeEventListener("panther_vendor_created", handleVendorCreatedEvent);
+      window.removeEventListener("panther_office_changed", handleOfficeChanged);
     };
   }, []);
 
@@ -520,6 +585,7 @@ export default function PurchasesPage() {
       setVendorGstin("");
       setVendorState("");
       setManualVendorName("");
+      setLinkedHireChallanId("");
       return;
     }
     const found = vendors.find((v) => String(v.id) === vendId);
@@ -531,8 +597,57 @@ export default function PurchasesPage() {
       if (!placeOfSupply) {
         setPlaceOfSupply(st);
       }
+      if (linkedHireChallanId) {
+        const curHc = hireChallans.find((h) => String(h.id) === String(linkedHireChallanId));
+        const vName = found.name.trim().toLowerCase();
+        const matches = curHc && (
+          (curHc.vendor_id && String(curHc.vendor_id) === String(vendId)) ||
+          (curHc.vendor_name && curHc.vendor_name.trim().toLowerCase() === vName) ||
+          (curHc.owner_name && curHc.owner_name.trim().toLowerCase() === vName)
+        );
+        if (!matches) {
+          setLinkedHireChallanId("");
+        }
+      }
     }
   };
+
+  // Vendor-specific Hire Challans (strictly filter HCs for the selected vendor)
+  const filteredHireChallans = useMemo(() => {
+    if (!selectedVendorId && !manualVendorName.trim()) {
+      if (linkedHireChallanId) {
+        return hireChallans.filter((hc) => String(hc.id) === String(linkedHireChallanId));
+      }
+      return [];
+    }
+
+    const selVendor = selectedVendorId ? vendors.find((v) => String(v.id) === String(selectedVendorId)) : null;
+    const selVendorName = (selVendor?.name || manualVendorName || "").trim().toLowerCase();
+
+    return hireChallans.filter((hc) => {
+      // Retain currently linked HC in edit mode
+      if (linkedHireChallanId && String(hc.id) === String(linkedHireChallanId)) {
+        return true;
+      }
+
+      // 1. Direct vendor_id match
+      if (selectedVendorId && hc.vendor_id && String(hc.vendor_id) === String(selectedVendorId)) {
+        return true;
+      }
+
+      // 2. Vendor name match
+      if (selVendorName && hc.vendor_name && hc.vendor_name.trim().toLowerCase() === selVendorName) {
+        return true;
+      }
+
+      // 3. Owner name match (for vehicle owners registered as vendors)
+      if (selVendorName && hc.owner_name && hc.owner_name.trim().toLowerCase() === selVendorName) {
+        return true;
+      }
+
+      return false;
+    });
+  }, [hireChallans, selectedVendorId, manualVendorName, vendors, linkedHireChallanId]);
 
   // Category change handling
   const handleCategoryChange = (cat: string) => {
@@ -1292,12 +1407,17 @@ export default function PurchasesPage() {
             icon: FileSpreadsheet,
             onClick: handleExportCSV,
           },
+          {
+            label: "Print Register",
+            icon: Printer,
+            onClick: () => window.print(),
+          },
         ]}
       />
 
       {/* Series Warning Banner */}
       {!activeSeries?.configured && (
-        <div className="p-3 bg-amber-50 border border-amber-300 rounded-xl text-amber-900 text-xs flex items-center justify-between">
+        <div className="p-3 bg-amber-50 border border-amber-300 rounded-xl text-amber-900 text-xs flex items-center justify-between print:hidden">
           <div className="flex items-center gap-2">
             <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
             <span>
@@ -1317,7 +1437,7 @@ export default function PurchasesPage() {
 
       {/* Database Schema Sync Banner if required */}
       {schemaError && (
-        <div className="p-3 bg-rose-50 border border-rose-300 rounded-xl text-rose-900 text-xs flex items-center justify-between">
+        <div className="p-3 bg-rose-50 border border-rose-300 rounded-xl text-rose-900 text-xs flex items-center justify-between print:hidden">
           <div className="flex items-center gap-2">
             <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
             <span>
@@ -1332,7 +1452,7 @@ export default function PurchasesPage() {
       )}
 
       {/* Key Metric Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 print:hidden">
         <KpiCard
           title="Total Purchases"
           value={`₹${summaryMetrics.totGross.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`}
@@ -1361,7 +1481,7 @@ export default function PurchasesPage() {
       </div>
       {/* Messages */}
       {errorMessage && (
-        <div className="p-3 bg-[#FEF3F2] border border-[#FECDCA] text-[#B42318] text-xs rounded-lg font-medium flex items-center justify-between">
+        <div className="p-3 bg-[#FEF3F2] border border-[#FECDCA] text-[#B42318] text-xs rounded-lg font-medium flex items-center justify-between print:hidden">
           <span>{errorMessage}</span>
           <button onClick={() => setErrorMessage(null)} className="text-[#B42318] hover:opacity-80">
             <X className="w-4 h-4" />
@@ -1369,7 +1489,7 @@ export default function PurchasesPage() {
         </div>
       )}
       {successMessage && (
-        <div className="p-3 bg-[#ECFDF3] border border-[#A6F4C5] text-[#027A48] text-xs rounded-lg font-medium flex items-center justify-between">
+        <div className="p-3 bg-[#ECFDF3] border border-[#A6F4C5] text-[#027A48] text-xs rounded-lg font-medium flex items-center justify-between print:hidden">
           <span>{successMessage}</span>
           <button onClick={() => setSuccessMessage(null)} className="text-[#027A48] hover:opacity-80">
             <X className="w-4 h-4" />
@@ -1378,7 +1498,7 @@ export default function PurchasesPage() {
       )}
 
       {/* Filters Bar */}
-      <div className="bg-white dark:bg-[#17171B] rounded-2xl border border-slate-200/90 dark:border-[#303036] p-4 sm:p-5 shadow-2xs space-y-3.5">
+      <div className="bg-white dark:bg-[#17171B] rounded-2xl border border-slate-200/90 dark:border-[#303036] p-4 sm:p-5 shadow-2xs space-y-3.5 print:hidden">
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-xs font-semibold text-slate-700 dark:text-slate-300 mr-1">Purchase Category:</span>
           {[
@@ -1444,6 +1564,28 @@ export default function PurchasesPage() {
               <option value="RCM">Reverse Charge (RCM)</option>
               <option value="EXEMPT">Exempt / Non-GST</option>
             </select>
+          </div>
+        </div>
+      </div>
+
+      {/* Printable Register Header (Print only) */}
+      <div className="hidden print:block mb-4 pb-3 border-b-2 border-slate-900 text-slate-900">
+        <div className="flex justify-between items-start gap-4">
+          <div>
+            <h1 className="text-xl font-bold uppercase tracking-wide">
+              {company?.company_name || "PANTHER LOGISTICS"} — PURCHASE REGISTER
+            </h1>
+            <p className="text-xs text-slate-600 mt-0.5">
+              Issuing Office: {getActiveOffice()?.name || "All Branches"} {getActiveOffice()?.code ? `(${getActiveOffice()?.code})` : ""} | GSTIN: {company?.gstin || "—"}
+            </p>
+            <p className="text-xs text-slate-600">
+              Generated On: {new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })} | Category: {selectedCategory} | Total Bills: {filteredData.length}
+            </p>
+          </div>
+          <div className="text-right text-xs font-mono space-y-0.5">
+            <p className="text-slate-600">Total Billed: <span className="font-bold text-slate-900">₹{summaryMetrics.totGross.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span></p>
+            <p className="text-slate-600">Total Paid: <span className="font-bold text-emerald-700">₹{summaryMetrics.totPaid.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span></p>
+            <p className="text-slate-600">Balance Due: <span className="font-bold text-rose-700">₹{summaryMetrics.totBal.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span></p>
           </div>
         </div>
       </div>
@@ -1641,17 +1783,46 @@ export default function PurchasesPage() {
                 <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 font-semibold mb-1">Link to Hire Challan (Optional)</label>
                 <select
                   value={linkedHireChallanId}
-                  onChange={(e) => setLinkedHireChallanId(e.target.value)}
-                  className="w-full h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#303036] bg-white dark:bg-[#101013] text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all shadow-2xs"
+                  onChange={(e) => {
+                    const hcId = e.target.value;
+                    setLinkedHireChallanId(hcId);
+                    if (hcId) {
+                      const matched = hireChallans.find((hc) => String(hc.id) === hcId);
+                      if (matched?.vehicle_number && !vehicleNumber) {
+                        setVehicleNumber(matched.vehicle_number);
+                      }
+                    }
+                  }}
+                  disabled={!selectedVendorId && !manualVendorName.trim() && !linkedHireChallanId}
+                  className={cn(
+                    "w-full h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#303036] bg-white dark:bg-[#101013] text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all shadow-2xs",
+                    !selectedVendorId && !manualVendorName.trim() && !linkedHireChallanId ? "opacity-60 cursor-not-allowed bg-slate-50 dark:bg-[#18181b]" : ""
+                  )}
                 >
-                  <option value="">-- None (Direct Purchase) --</option>
-                  {hireChallans.map((hc) => (
+                  {!selectedVendorId && !manualVendorName.trim() && !linkedHireChallanId ? (
+                    <option value="">-- Select a vendor first --</option>
+                  ) : filteredHireChallans.length === 0 ? (
+                    <option value="">-- None (No Hire Challans for this vendor) --</option>
+                  ) : (
+                    <option value="">-- None (Direct Purchase) --</option>
+                  )}
+                  {filteredHireChallans.map((hc) => (
                     <option key={hc.id} value={hc.id}>
                       {hc.challan_number} | {hc.vehicle_number} | ₹{hc.net_payable_amount || hc.hire_rate}
                     </option>
                   ))}
                 </select>
-                <span className="text-[10px] text-emerald-700 mt-0.5 block">Prevents duplicate liability in Master Ledger</span>
+                <span className="text-[10px] mt-0.5 block">
+                  {!selectedVendorId && !manualVendorName.trim() && !linkedHireChallanId ? (
+                    <span className="text-slate-500 dark:text-slate-400">Select a vendor above to show only vendor-specific hire challans</span>
+                  ) : filteredHireChallans.length > 0 ? (
+                    <span className="text-emerald-700 dark:text-emerald-400">
+                      Showing {filteredHireChallans.length} hire challan{filteredHireChallans.length > 1 ? "s" : ""} for this vendor • Prevents duplicate liability in Master Ledger
+                    </span>
+                  ) : (
+                    <span className="text-slate-500 dark:text-slate-400">No hire challans found for this vendor • Direct purchase will be recorded</span>
+                  )}
+                </span>
               </div>
             </div>
           </div>
@@ -2350,141 +2521,372 @@ export default function PurchasesPage() {
       </EntityDrawer>
 
       {/* -------------------------------------------------------------------------- */}
-      {/* MODAL 4: Printable Purchase Voucher                                        */}
+      {/* MODAL 4: Printable Purchase Voucher (Indian Transport Standard)           */}
       {/* -------------------------------------------------------------------------- */}
-      {isPrintModalOpen && printBill && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 overflow-y-auto print:p-0 print:bg-white print:overflow-visible print:static">
-          <div className="printable-paper-sheet printable-document-sheet bg-white rounded-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto p-8 shadow-2xl space-y-6 print:p-0 print:w-full print:shadow-none print:border-none print:m-0">
-            <div className="flex justify-between items-start border-b border-gray-200 pb-4">
-              <div>
-                <span className="text-xs uppercase tracking-widest text-indigo-700 font-bold block">PantherTMS ERP</span>
-                <h2 className="text-xl font-black text-gray-900 mt-1">PURCHASE VOUCHER</h2>
-                <span className="text-xs text-gray-500 font-mono">Voucher #: {printBill.voucher_number}</span>
-              </div>
-              <div className="text-right text-xs text-gray-600">
-                <span className="font-bold text-gray-900 block">Date: {printBill.voucher_date}</span>
-                <span>Due Date: {printBill.due_date || printBill.voucher_date}</span>
-                <span className="block mt-1 font-mono text-indigo-700">Ref: {printBill.reference_number || "Direct"}</span>
-              </div>
-            </div>
+      {isPrintModalOpen && printBill && mounted && typeof document !== "undefined" && createPortal(
+        (() => {
+          const auth = getStoredAuth();
+          const activeOffice = getActiveOffice();
 
-            {/* Supplier / Branch Details */}
-            <div className="grid grid-cols-2 gap-6 p-4 bg-gray-50 rounded-xl text-xs">
-              <div>
-                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Supplier / Vendor:</span>
-                <h4 className="font-bold text-sm text-gray-900 mt-0.5">{printBill.party_name}</h4>
-                <p className="text-gray-600 font-mono mt-0.5">GSTIN: {printBill.party_gstin || "Unregistered"}</p>
-                <p className="text-gray-600">State: {printBill.place_of_supply || "Maharashtra"}</p>
-              </div>
-              <div className="text-right">
-                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Expense Details:</span>
-                <p className="font-semibold text-gray-900 mt-0.5">Category: {printBill.tax_breakup?.purchase_category || "Operational"}</p>
-                {printBill.cost_center && <p className="font-mono text-gray-700">Truck: {printBill.cost_center}</p>}
-                <p className="text-gray-600">ITC: {printBill.itc_eligibility || "ELIGIBLE"}</p>
-              </div>
-            </div>
+          // 1. Resolve Company Details
+          const companyName = company?.company_name?.trim() || auth?.tenantName || "PANTHER LOGISTICS";
+          const companyLogoUrl = company?.logo_url || null;
 
-            {/* Line Items Table */}
-            <div className="border border-gray-200 rounded-xl overflow-hidden">
-              <table className="w-full text-xs">
-                <thead className="bg-gray-100 border-b border-gray-200 font-semibold text-gray-700">
-                  <tr>
-                    <th className="px-3 py-2 text-left">#</th>
-                    <th className="px-3 py-2 text-left">Particulars / Description</th>
-                    <th className="px-3 py-2 text-center">HSN/SAC</th>
-                    <th className="px-3 py-2 text-right">Qty</th>
-                    <th className="px-3 py-2 text-right">Rate</th>
-                    <th className="px-3 py-2 text-right">Taxable</th>
-                    <th className="px-3 py-2 text-right">GST</th>
-                    <th className="px-3 py-2 text-right">Total</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200">
-                  {printBill.items && printBill.items.length > 0 ? (
-                    printBill.items.map((itm, i) => (
-                      <tr key={i}>
-                        <td className="px-3 py-2 text-gray-500">{i + 1}</td>
-                        <td className="px-3 py-2 font-medium text-gray-900">{itm.description}</td>
-                        <td className="px-3 py-2 text-center font-mono text-gray-600">{itm.hsn_sac || "-"}</td>
-                        <td className="px-3 py-2 text-right font-mono">{itm.quantity}</td>
-                        <td className="px-3 py-2 text-right font-mono">₹{Number(itm.rate).toFixed(2)}</td>
-                        <td className="px-3 py-2 text-right font-mono">₹{((Number(itm.quantity) * Number(itm.rate)) - Number(itm.discount_amount || 0)).toFixed(2)}</td>
-                        <td className="px-3 py-2 text-right font-mono text-purple-700">₹{Number(itm.tax_amount).toFixed(2)}</td>
-                        <td className="px-3 py-2 text-right font-mono font-bold">₹{Number(itm.total_amount).toFixed(2)}</td>
-                      </tr>
-                    ))
-                  ) : (
-                    <tr>
-                      <td className="px-3 py-2 text-gray-500">1</td>
-                      <td className="px-3 py-2 font-medium text-gray-900">{printBill.narration || "Purchase Expense"}</td>
-                      <td className="px-3 py-2 text-center font-mono">9967</td>
-                      <td className="px-3 py-2 text-right font-mono">1.00</td>
-                      <td className="px-3 py-2 text-right font-mono">₹{Number(printBill.total_amount).toFixed(2)}</td>
-                      <td className="px-3 py-2 text-right font-mono">₹{Number(printBill.total_amount).toFixed(2)}</td>
-                      <td className="px-3 py-2 text-right font-mono text-purple-700">₹{Number(printBill.tax_amount).toFixed(2)}</td>
-                      <td className="px-3 py-2 text-right font-mono font-bold">₹{Number(printBill.net_amount).toFixed(2)}</td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
+          // 2. Resolve Issuing Office / Branch
+          const targetOfficeId = printBill.issuing_office_id || activeOffice?.id;
+          const issuingBranch =
+            branches.find((b) => b.id === targetOfficeId) ||
+            branches.find((b) => b.name === printBill.issuing_office_name) ||
+            branches.find((b) => b.code?.toUpperCase() === activeOffice?.code?.toUpperCase()) ||
+            branches.find((b) => b.name?.toLowerCase() === activeOffice?.name?.toLowerCase()) ||
+            branches.find((b) => b.is_head_office) ||
+            branches[0] ||
+            null;
 
-            {/* Totals & Number in Words */}
-            <div className="grid grid-cols-2 gap-6 items-end">
-              <div className="text-xs text-gray-600 bg-gray-50 p-3 rounded-xl">
-                <span className="font-semibold block text-gray-800">Amount in Words:</span>
-                <span className="italic font-medium">{numberToWords(Number(printBill.net_amount))}</span>
-              </div>
-              <div className="space-y-1 text-xs text-right font-mono">
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Taxable Subtotal:</span>
-                  <span className="font-bold">₹{Number(printBill.total_amount).toFixed(2)}</span>
+          const officeName = printBill.issuing_office_name || issuingBranch?.name || activeOffice?.name || "Head Office";
+          const officeCode = issuingBranch?.code || activeOffice?.code || "";
+          const officeAddress = issuingBranch?.address || company?.address || "";
+          const officeCity = issuingBranch?.city || company?.city || "";
+          const officeState = issuingBranch?.state || company?.state || "";
+          const officePincode = issuingBranch?.pincode || company?.pincode || "";
+          const officePhone = issuingBranch?.phone || company?.phone || "";
+          const officeEmail = issuingBranch?.email || company?.email || "";
+          const officeGstin = issuingBranch?.gstin || company?.gstin || "";
+          const officePan = issuingBranch?.pan || company?.pan || (officeGstin.length === 15 ? officeGstin.slice(2, 12).toUpperCase() : "");
+
+          const formattedAddress = [officeAddress, officeCity, officeState, officePincode ? `- ${officePincode}` : ""].filter(Boolean).join(", ");
+
+          return (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/70 backdrop-blur-xs overflow-y-auto print:p-0 print:m-0 print:bg-white print:overflow-visible print:static print:block">
+              {/* Print Stylesheet */}
+              <style jsx global>{`
+                @media print {
+                  @page {
+                    size: A4 portrait;
+                    margin: 8mm;
+                  }
+                  body, html {
+                    background: #ffffff !important;
+                    color: #0f172a !important;
+                    overflow: visible !important;
+                    height: auto !important;
+                  }
+                  .no-print, nav, aside, header {
+                    display: none !important;
+                  }
+                  #purchase-voucher-printable-document {
+                    width: 100% !important;
+                    max-width: 100% !important;
+                    margin: 0 !important;
+                    padding: 0 !important;
+                    border: none !important;
+                    box-shadow: none !important;
+                    background: #ffffff !important;
+                  }
+                }
+                /* Complete Dark Mode Immunity */
+                html.dark #purchase-voucher-printable-document,
+                html.dark #purchase-voucher-printable-document * {
+                  color-scheme: light !important;
+                }
+                html.dark #purchase-voucher-printable-document {
+                  background-color: #ffffff !important;
+                  color: #0f172a !important;
+                }
+              `}</style>
+
+              <div className="bg-white dark:bg-[#111217] text-slate-900 rounded-2xl border border-slate-200 dark:border-[#22232E] shadow-2xl max-w-4xl w-full max-h-[94vh] flex flex-col overflow-hidden z-10 print:h-auto print:max-h-none print:shadow-none print:border-none print:w-full print:m-0 print:p-0 print:overflow-visible print:rounded-none">
+                {/* Modal Controls Bar */}
+                <div className="no-print flex items-center justify-between px-5 py-3 border-b border-slate-200 dark:border-[#22232E] bg-slate-50 dark:bg-[#161722] sticky top-0 z-10 print:hidden shrink-0">
+                  <span className="font-semibold text-sm text-slate-800 dark:text-slate-100 flex items-center gap-2">
+                    <Printer className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
+                    Print Preview: Purchase Voucher ({printBill.voucher_number})
+                  </span>
+                  <div className="flex items-center gap-2">
+                    {printBill.attachment_url && (
+                      <button
+                        type="button"
+                        onClick={() => openAttachedDocument(printBill.attachment_url, `Bill-${printBill.reference_number || printBill.voucher_number}`)}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-indigo-50 text-indigo-700 hover:bg-indigo-100 dark:bg-indigo-950/40 dark:text-indigo-300 transition-colors cursor-pointer"
+                      >
+                        <Paperclip className="w-3.5 h-3.5" />
+                        View Original Bill
+                      </button>
+                    )}
+                    <Button
+                      size="sm"
+                      onClick={() => window.print()}
+                      className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium text-xs px-3 h-8 gap-1.5 shadow-xs"
+                    >
+                      <Printer className="h-3.5 w-3.5" />
+                      Print Now
+                    </Button>
+                    <button
+                      type="button"
+                      onClick={() => setIsPrintModalOpen(false)}
+                      className="p-1 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-[#202025] transition-colors"
+                      title="Close"
+                    >
+                      <X className="h-5 w-5" />
+                    </button>
+                  </div>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-500">GST Tax:</span>
-                  <span className="text-purple-700">₹{Number(printBill.tax_amount).toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between font-bold text-base text-gray-900 border-t border-gray-300 pt-1">
-                  <span>Grand Total:</span>
-                  <span className="text-indigo-900 dark:text-indigo-300">₹{Number(printBill.net_amount).toFixed(2)}</span>
-                </div>
-              </div>
-            </div>
 
-            {/* Signatures */}
-            <div className="grid grid-cols-3 gap-6 pt-10 text-center text-xs text-gray-500">
-              <div className="border-t border-gray-300 pt-2">Prepared By</div>
-              <div className="border-t border-gray-300 pt-2">Verified By Accounts</div>
-              <div className="border-t border-gray-300 pt-2">Authorized Signatory</div>
-            </div>
-
-            {/* Actions */}
-            <div className="flex justify-between items-center pt-4 border-t border-gray-200">
-              <div>
-                {printBill.attachment_url && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => openAttachedDocument(printBill.attachment_url, `Bill-${printBill.reference_number || printBill.voucher_number}`)}
-                    className="text-indigo-600 hover:text-indigo-700 print:hidden cursor-pointer"
+                {/* Scrollable Printable Document Sheet */}
+                <div className="max-h-[82vh] overflow-y-auto p-4 sm:p-6 bg-slate-100 dark:bg-[#0B0B0E] flex justify-center items-start print:p-0 print:bg-white print:overflow-visible print:max-h-none">
+                  <div
+                    id="purchase-voucher-printable-document"
+                    className="printable-paper-sheet printable-document-sheet w-full max-w-[210mm] bg-white p-6 sm:p-8 border border-slate-300 shadow-md print:shadow-none print:border-none print:p-0 text-slate-900 font-sans space-y-4 print:space-y-4 h-fit flex flex-col justify-between"
+                    style={{ backgroundColor: "#ffffff", color: "#0f172a" }}
                   >
-                    <Paperclip className="w-3.5 h-3.5 mr-1 text-indigo-600" />
-                    View Original Bill Attachment
-                  </Button>
-                )}
-              </div>
-              <div className="flex gap-3">
-                <Button variant="outline" size="sm" onClick={() => setIsPrintModalOpen(false)}>
-                  Close
-                </Button>
-                <Button variant="primary" size="sm" onClick={() => window.print()}>
-                  <Printer className="w-3.5 h-3.5 mr-1" />
-                  Print Voucher
-                </Button>
+                    {/* 1. Header: Logo, Company Name, Address, Issuing Office */}
+                    <div className="border-b-2 border-slate-900 pb-3 flex justify-between items-start gap-4">
+                      {/* Left: Branding & Company Info */}
+                      <div className="flex items-start gap-3.5 flex-1 min-w-0">
+                        {companyLogoUrl ? (
+                          <img
+                            src={companyLogoUrl}
+                            alt={companyName}
+                            crossOrigin="anonymous"
+                            className="w-14 h-14 object-contain rounded-lg border border-slate-200 bg-white p-0.5 shrink-0"
+                          />
+                        ) : (
+                          <div className="w-14 h-14 rounded-xl bg-indigo-700 text-white flex flex-col items-center justify-center font-black text-xl shadow-xs shrink-0">
+                            <span>{companyName.charAt(0)}</span>
+                            <span className="text-[8px] font-normal tracking-widest uppercase">TMS</span>
+                          </div>
+                        )}
+                        <div className="min-w-0 flex-1">
+                          <h2 className="text-xl font-bold tracking-tight uppercase text-slate-900 leading-tight">
+                            {companyName}
+                          </h2>
+                          {formattedAddress ? (
+                            <p className="text-xs text-slate-600 mt-0.5 leading-normal">
+                              {formattedAddress}
+                            </p>
+                          ) : (
+                            <p className="text-xs text-slate-500 mt-0.5">Enterprise Logistics & Fleet Operations</p>
+                          )}
+                          {(officePhone || officeEmail) && (
+                            <p className="text-xs text-slate-600 leading-normal mt-0.5">
+                              {officePhone && <span>Phone: {officePhone}</span>}
+                              {officePhone && officeEmail && <span> &nbsp;|&nbsp; </span>}
+                              {officeEmail && <span>Email: {officeEmail}</span>}
+                            </p>
+                          )}
+                          <div className="flex flex-wrap items-center gap-x-4 text-xs text-slate-700 mt-1">
+                            {officeGstin && (
+                              <span className="font-mono text-[11px]">
+                                <strong className="font-sans font-semibold text-slate-500">GSTIN: </strong>
+                                {officeGstin}
+                              </span>
+                            )}
+                            {officePan && (
+                              <span className="font-mono text-[11px]">
+                                <strong className="font-sans font-semibold text-slate-500">PAN: </strong>
+                                {officePan}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Right: Voucher Badge + Metadata */}
+                      <div className="text-right shrink-0">
+                        <span className="inline-block px-3 py-1 bg-indigo-600 text-white text-xs font-bold uppercase rounded-md shadow-xs">
+                          PURCHASE VOUCHER
+                        </span>
+                        <p className="text-sm font-mono font-bold mt-1 text-slate-900">{printBill.voucher_number}</p>
+                        <p className="text-xs text-slate-600">Voucher Date: {formatDate(printBill.voucher_date)}</p>
+                        <p className="text-[11px] font-semibold text-indigo-700 mt-0.5">
+                          {printBill.is_void ? "STATUS: VOIDED" : `STATUS: ${printBill.payment_status || "UNPAID"}`}
+                        </p>
+                        <p className="text-[11px] text-slate-600 mt-0.5">
+                          <span className="text-slate-500">Issuing Office: </span>
+                          <span className="font-bold text-slate-800 uppercase">{officeName}</span>
+                          {officeCode ? ` (${officeCode})` : ""}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* 2. Supplier / Vendor & Bill Details */}
+                    <div className="grid grid-cols-2 gap-4 text-xs bg-slate-50/80 p-3.5 rounded-xl border border-slate-200">
+                      <div className="space-y-1">
+                        <p className="text-slate-500 uppercase text-[10px] font-semibold tracking-wider">Supplier / Vendor Details:</p>
+                        <h4 className="font-bold text-sm text-slate-900">{printBill.party_name}</h4>
+                        <p className="text-slate-600 font-mono text-[11px]">
+                          <strong className="font-sans font-medium text-slate-500">GSTIN: </strong>
+                          {printBill.party_gstin || "Unregistered"}
+                        </p>
+                        <p className="text-slate-600">
+                          <strong className="font-sans font-medium text-slate-500">State / Origin: </strong>
+                          {printBill.place_of_supply || officeState || "—"}
+                        </p>
+                        <p className="text-slate-600">
+                          <strong className="font-sans font-medium text-slate-500">GST Treatment: </strong>
+                          <span className="font-semibold text-slate-800">{printBill.gst_treatment || "Regular (FCM)"}</span>
+                        </p>
+                      </div>
+
+                      <div className="space-y-1 text-right">
+                        <p className="text-slate-500 uppercase text-[10px] font-semibold tracking-wider">Purchase & Allocation Details:</p>
+                        <p className="text-slate-700">
+                          <span className="text-slate-500 font-medium">Supplier Bill / Invoice #:</span>{" "}
+                          <span className="font-mono font-bold text-slate-900">{printBill.reference_number || "Direct"}</span>
+                        </p>
+                        {printBill.reference_date && (
+                          <p className="text-slate-700">
+                            <span className="text-slate-500 font-medium">Bill Date:</span>{" "}
+                            <span className="font-medium text-slate-800">{formatDate(printBill.reference_date)}</span>
+                          </p>
+                        )}
+                        <p className="text-slate-700">
+                          <span className="text-slate-500 font-medium">Due Date:</span>{" "}
+                          <span className="font-medium text-slate-800">{formatDate(printBill.due_date || printBill.voucher_date)}</span>
+                        </p>
+                        <p className="text-slate-700">
+                          <span className="text-slate-500 font-medium">Expense Category:</span>{" "}
+                          <span className="font-bold text-indigo-700">{printBill.tax_breakup?.purchase_category || "General Spares / Maintenance"}</span>
+                        </p>
+                        {printBill.cost_center && (
+                          <p className="text-slate-700">
+                            <span className="text-slate-500 font-medium">Vehicle / Cost Center:</span>{" "}
+                            <span className="font-mono font-bold text-slate-900">{printBill.cost_center}</span>
+                          </p>
+                        )}
+                        {printBill.hire_challan_id && (
+                          <p className="text-slate-700">
+                            <span className="text-slate-500 font-medium">Linked Hire Challan:</span>{" "}
+                            <span className="font-mono font-semibold text-emerald-700">HC #{printBill.hire_challan_id}</span>
+                          </p>
+                        )}
+                        <p className="text-slate-700">
+                          <span className="text-slate-500 font-medium">ITC Eligibility:</span>{" "}
+                          <span className="font-semibold text-slate-800">{printBill.itc_eligibility || "ELIGIBLE"}</span>
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* 3. Line Items Table */}
+                    <div className="border border-slate-200 rounded-xl overflow-hidden shadow-2xs">
+                      <table className="w-full text-xs">
+                        <thead className="bg-slate-100 text-slate-700 font-semibold border-b border-slate-200">
+                          <tr>
+                            <th className="px-3 py-2 text-center w-8">#</th>
+                            <th className="px-3 py-2 text-left">Description / Particulars</th>
+                            <th className="px-3 py-2 text-center font-mono w-20">HSN/SAC</th>
+                            <th className="px-3 py-2 text-right font-mono w-14">Qty</th>
+                            <th className="px-3 py-2 text-right font-mono w-20">Rate (₹)</th>
+                            <th className="px-3 py-2 text-right font-mono w-24">Taxable (₹)</th>
+                            <th className="px-3 py-2 text-right font-mono w-20">GST (₹)</th>
+                            <th className="px-3 py-2 text-right font-mono w-24">Total (₹)</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {printBill.items && printBill.items.length > 0 ? (
+                            printBill.items.map((itm, i) => (
+                              <tr key={i} className="hover:bg-slate-50/50">
+                                <td className="px-3 py-2 text-center text-slate-400">{i + 1}</td>
+                                <td className="px-3 py-2 font-medium text-slate-900">{itm.description || printBill.narration || "Purchase Expense"}</td>
+                                <td className="px-3 py-2 text-center font-mono text-slate-600">{itm.hsn_sac || "—"}</td>
+                                <td className="px-3 py-2 text-right font-mono text-slate-800">{itm.quantity}</td>
+                                <td className="px-3 py-2 text-right font-mono text-slate-800">{formatInr(itm.rate)}</td>
+                                <td className="px-3 py-2 text-right font-mono text-slate-900 font-medium">
+                                  {formatInr((Number(itm.quantity) * Number(itm.rate)) - Number(itm.discount_amount || 0))}
+                                </td>
+                                <td className="px-3 py-2 text-right font-mono text-purple-700">{formatInr(itm.tax_amount)}</td>
+                                <td className="px-3 py-2 text-right font-mono font-bold text-slate-900">{formatInr(itm.total_amount)}</td>
+                              </tr>
+                            ))
+                          ) : (
+                            <tr>
+                              <td className="px-3 py-2 text-center text-slate-400">1</td>
+                              <td className="px-3 py-2 font-medium text-slate-900">{printBill.narration || "Purchase Expense"}</td>
+                              <td className="px-3 py-2 text-center font-mono text-slate-600">9967</td>
+                              <td className="px-3 py-2 text-right font-mono text-slate-800">1.00</td>
+                              <td className="px-3 py-2 text-right font-mono text-slate-800">{formatInr(printBill.total_amount)}</td>
+                              <td className="px-3 py-2 text-right font-mono text-slate-900 font-medium">{formatInr(printBill.total_amount)}</td>
+                              <td className="px-3 py-2 text-right font-mono text-purple-700">{formatInr(printBill.tax_amount)}</td>
+                              <td className="px-3 py-2 text-right font-mono font-bold text-slate-900">{formatInr(printBill.net_amount)}</td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    {/* 4. Totals & Words */}
+                    <div className="grid grid-cols-2 gap-4 items-start">
+                      <div className="space-y-2">
+                        <div className="text-xs border-l-4 border-indigo-600 pl-3 py-2 bg-indigo-50/60 rounded-r-lg italic text-slate-800">
+                          <span className="font-semibold text-slate-700 not-italic">Amount in Words: </span>
+                          {numberToWords(Number(printBill.net_amount))}
+                        </div>
+                        {printBill.narration && (
+                          <div className="text-xs text-slate-600 bg-slate-50 p-2.5 rounded-lg border border-slate-200">
+                            <strong className="text-slate-700">Remarks / Narration: </strong>
+                            {printBill.narration}
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="space-y-1.5 text-xs font-mono bg-slate-50/80 p-3.5 rounded-xl border border-slate-200">
+                        <div className="flex justify-between text-slate-600">
+                          <span>Taxable Subtotal:</span>
+                          <span className="font-bold text-slate-900">{formatInr(printBill.total_amount)}</span>
+                        </div>
+                        {Number(printBill.tax_amount) > 0 && (
+                          <div className="flex justify-between text-purple-700">
+                            <span>Total GST Tax:</span>
+                            <span className="font-bold">{formatInr(printBill.tax_amount)}</span>
+                          </div>
+                        )}
+                        {Number(printBill.tds_amount || 0) > 0 && (
+                          <div className="flex justify-between text-amber-700">
+                            <span>TDS Deducted:</span>
+                            <span className="font-bold">- {formatInr(printBill.tds_amount)}</span>
+                          </div>
+                        )}
+                        <div className="flex justify-between font-bold text-sm text-slate-900 border-t border-slate-300 pt-1.5">
+                          <span className="uppercase font-sans">Net Payable Amount:</span>
+                          <span className="text-indigo-900 font-mono text-base">{formatInr(printBill.net_amount)}</span>
+                        </div>
+                        {Number(printBill.paid_amount || 0) > 0 && (
+                          <div className="flex justify-between text-emerald-700 pt-1 border-t border-dashed border-slate-200 text-[11px]">
+                            <span>Amount Settled / Paid:</span>
+                            <span>{formatInr(printBill.paid_amount)}</span>
+                          </div>
+                        )}
+                        {Number(printBill.balance_amount || 0) > 0 && (
+                          <div className="flex justify-between text-rose-700 text-[11px]">
+                            <span>Remaining Balance Due:</span>
+                            <span className="font-bold">{formatInr(printBill.balance_amount)}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* 5. Signatures */}
+                    <div className="grid grid-cols-3 gap-6 pt-8 text-center text-xs text-slate-600">
+                      <div className="border-t border-slate-300 pt-1.5">
+                        <p className="font-semibold text-slate-800">Prepared By</p>
+                        <p className="text-[10px] text-slate-400 mt-0.5">Accounts Clerk / Operator</p>
+                      </div>
+                      <div className="border-t border-slate-300 pt-1.5">
+                        <p className="font-semibold text-slate-800">Verified By</p>
+                        <p className="text-[10px] text-slate-400 mt-0.5">Finance & Audit Dept</p>
+                      </div>
+                      <div className="border-t border-slate-300 pt-1.5">
+                        <p className="font-semibold text-slate-800">Authorized Signatory</p>
+                        <p className="text-[10px] text-slate-400 mt-0.5">For {companyName}</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
-        </div>
+          );
+        })(),
+        document.body
       )}
 
       {/* -------------------------------------------------------------------------- */}

@@ -42,6 +42,7 @@ interface PurchaseRegisterResponse {
 
 export default function PurchaseRegisterPage() {
   const [data, setData] = useState<PurchaseRegisterResponse | null>(null);
+  const [company, setCompany] = useState<any>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isExporting, setIsExporting] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
@@ -50,8 +51,12 @@ export default function PurchaseRegisterPage() {
     setIsLoading(true);
     setError(null);
     try {
-      const res = await apiClient<PurchaseRegisterResponse>("/api/v1/reports/purchase-register");
+      const [res, compRes] = await Promise.all([
+        apiClient<PurchaseRegisterResponse>("/api/v1/reports/purchase-register"),
+        apiClient<any>("/api/v1/profile/company").catch(() => null),
+      ]);
       setData(res);
+      if (compRes) setCompany(compRes);
     } catch (err: any) {
       setError(err.message || "Failed to load Purchase Register");
     } finally {
@@ -168,37 +173,82 @@ export default function PurchaseRegisterPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="Purchase Register"
-        description="Record of supplier purchases, tyre bills, fuel logs, and market truck payments."
-        breadcrumbs={[
-          { label: "Reports", href: "/reports/daybook" },
-          { label: "Purchase Register" },
-        ]}
-        primaryAction={{
-          label: isExporting ? "Exporting..." : "Export CSV",
-          icon: <Download className="w-4 h-4" />,
-          onClick: handleExport,
-          disabled: isExporting,
-        }}
-        secondaryActions={[
-          {
-            label: "Refresh",
-            icon: <RefreshCw className="w-4 h-4" />,
-            variant: "outline",
-            onClick: loadPurchaseRegister,
-          },
-          {
-            label: "Print",
-            icon: <Printer className="w-4 h-4" />,
-            variant: "outline",
-            onClick: () => window.print(),
-          },
-        ]}
-      />
+      <style jsx global>{`
+        @media print {
+          @page {
+            size: A4 landscape;
+            margin: 8mm;
+          }
+          nav, aside, header, .no-print {
+            display: none !important;
+          }
+          body, html {
+            background: #ffffff !important;
+            color: #0f172a !important;
+          }
+        }
+      `}</style>
+
+      <div className="print:hidden">
+        <PageHeader
+          title="Purchase Register"
+          description="Record of supplier purchases, tyre bills, fuel logs, and market truck payments."
+          breadcrumbs={[
+            { label: "Reports", href: "/reports/daybook" },
+            { label: "Purchase Register" },
+          ]}
+          primaryAction={{
+            label: isExporting ? "Exporting..." : "Export CSV",
+            icon: <Download className="w-4 h-4" />,
+            onClick: handleExport,
+            disabled: isExporting,
+          }}
+          secondaryActions={[
+            {
+              label: "Refresh",
+              icon: <RefreshCw className="w-4 h-4" />,
+              variant: "outline",
+              onClick: loadPurchaseRegister,
+            },
+            {
+              label: "Print",
+              icon: <Printer className="w-4 h-4" />,
+              variant: "outline",
+              onClick: () => window.print(),
+            },
+          ]}
+        />
+      </div>
+
+      {/* Printable Title (Print only) */}
+      <div className="hidden print:block mb-4 pb-3 border-b-2 border-slate-900 text-slate-900">
+        <div className="flex justify-between items-start gap-4">
+          <div>
+            <h1 className="text-xl font-bold uppercase tracking-wide">
+              {company?.company_name || "PANTHER LOGISTICS"} — PURCHASE REGISTER
+            </h1>
+            <p className="text-xs text-slate-600 mt-0.5">
+              {[company?.address, company?.city, company?.state, company?.pincode ? `- ${company.pincode}` : ""].filter(Boolean).join(", ")}
+            </p>
+            <p className="text-xs text-slate-600">
+              GSTIN: {company?.gstin || "—"} | PAN: {company?.pan || "—"} | Phone: {company?.phone || "—"}
+            </p>
+            <p className="text-xs text-slate-600 mt-1">
+              Generated On: {new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })} | Total Records: {data?.purchase_count || 0}
+            </p>
+          </div>
+          {data && (
+            <div className="text-right text-xs font-mono space-y-0.5">
+              <p className="text-slate-600">Taxable: <span className="font-bold text-slate-900">₹{Number(data.total_taxable).toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span></p>
+              <p className="text-slate-600">Total Tax: <span className="font-bold text-amber-700">₹{Number(data.total_tax).toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span></p>
+              <p className="text-slate-700 font-bold text-sm">Net Total: ₹{Number(data.total_net_amount).toLocaleString("en-IN", { minimumFractionDigits: 2 })}</p>
+            </div>
+          )}
+        </div>
+      </div>
 
       {error && (
-        <div className="p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm">
+        <div className="p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm print:hidden">
           {error}
         </div>
       )}
