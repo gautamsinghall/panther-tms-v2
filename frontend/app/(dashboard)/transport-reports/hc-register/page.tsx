@@ -43,6 +43,8 @@ export interface HireChallanRegisterRow {
   vehicle_number: string;
   owner_id?: number | null;
   owner_name?: string | null;
+  vendor_id?: number | null;
+  vendor_name?: string | null;
   driver_id?: number | null;
   driver_name?: string | null;
   driver_phone?: string | null;
@@ -354,7 +356,7 @@ export default function HCRegisterPage() {
       return (
         String(row.challan_number || "").toLowerCase().includes(term) ||
         String(row.vehicle_number || "").toLowerCase().includes(term) ||
-        String(row.owner_name || "").toLowerCase().includes(term) ||
+        String(row.vendor_name || row.owner_name || "").toLowerCase().includes(term) ||
         String(row.driver_name || "").toLowerCase().includes(term) ||
         String(row.driver_phone || "").toLowerCase().includes(term) ||
         String(row.from_location || "").toLowerCase().includes(term) ||
@@ -1186,8 +1188,8 @@ export default function HCRegisterPage() {
 
                     {/* 6. Owner / Vendor */}
                     {visibleColumns["owner_name"] && (
-                      <td className="py-3 px-3.5 text-slate-800 dark:text-slate-200 font-medium max-w-[200px] truncate" title={row.owner_name || ""}>
-                        {row.owner_name || "Direct Driver"}
+                      <td className="py-3 px-3.5 text-slate-800 dark:text-slate-200 font-medium max-w-[200px] truncate" title={row.vendor_name || row.owner_name || ""}>
+                        {row.vendor_name || row.owner_name || "Direct Driver"}
                       </td>
                     )}
 

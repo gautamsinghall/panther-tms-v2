@@ -15,6 +15,7 @@ interface PendingHCRow {
   challan_date: string;
   vehicle_number: string;
   owner_name?: string;
+  vendor_name?: string;
   driver_name?: string;
   hire_rate: string | number;
   advance_amount: string | number;
@@ -75,7 +76,7 @@ export default function PendingHCPage() {
       header: "Owner / Transporter",
       cell: (row) => (
         <span className="text-[#344054]">
-          {row.owner_name || "Direct Driver"}
+          {row.vendor_name || row.owner_name || "Direct Driver"}
         </span>
       ),
     },

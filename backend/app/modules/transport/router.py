@@ -1066,7 +1066,7 @@ def _build_hire_challan_response(c: Any) -> HireChallanResponse:
         status=c.status,
         remarks=c.remarks,
         lr_number=c.lr.lr_number if c.lr else None,
-        owner_name=c.owner.name if c.owner else (c.vendor.name if c.vendor else None),
+        owner_name=c.vendor.name if c.vendor else (c.owner.name if c.owner else None),
         vendor_name=c.vendor.name if c.vendor else (c.owner.name if c.owner else None),
         created_at=c.created_at,
         updated_at=c.updated_at,

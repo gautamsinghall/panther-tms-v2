@@ -1359,8 +1359,8 @@ export default function HireChallansPage() {
         challan_date: challanDate,
         lr_id: primaryLrId ? parseInt(String(primaryLrId), 10) : undefined,
         vehicle_number: vehicleNumber.trim().toUpperCase(),
-        owner_id: ownerId ? parseInt(ownerId, 10) : undefined,
-        vendor_id: vendorId ? parseInt(vendorId, 10) : undefined,
+        owner_id: ownerId ? parseInt(ownerId, 10) : (editingId ? null : undefined),
+        vendor_id: vendorId ? parseInt(vendorId, 10) : (editingId ? null : undefined),
         driver_id: parsedDriverId,
         driver_name: driverName.trim() || undefined,
         driver_phone: driverPhone.trim() || undefined,
@@ -1447,7 +1447,7 @@ export default function HireChallansPage() {
         const matchesNo = item.challan_number.toLowerCase().includes(term);
         const matchesVeh = (item.vehicle_number || "").toLowerCase().includes(term);
         const matchesDriver = (item.driver_name || "").toLowerCase().includes(term);
-        const matchesOwner = (item.owner_name || "").toLowerCase().includes(term);
+        const matchesOwner = (item.vendor_name || item.owner_name || "").toLowerCase().includes(term);
         const matchesOffice = (item.issuing_office_name || "").toLowerCase().includes(term);
         if (!matchesNo && !matchesVeh && !matchesDriver && !matchesOwner && !matchesOffice) {
           return false;
@@ -1523,16 +1523,19 @@ export default function HireChallansPage() {
       ),
     },
     {
-      key: "owner_name",
+      key: "vendor_name",
       header: "Vendor / Owner",
       sortable: true,
       minWidth: "160px",
       defaultVisible: true,
-      cell: (row) => (
-        <span className="text-xs text-slate-800 dark:text-slate-200 font-medium block truncate max-w-[180px]" title={row.owner_name}>
-          {row.owner_name || "Direct Driver"}
-        </span>
-      ),
+      cell: (row) => {
+        const displayName = row.vendor_name || row.owner_name || "Direct Driver";
+        return (
+          <span className="text-xs text-slate-800 dark:text-slate-200 font-medium block truncate max-w-[180px]" title={displayName}>
+            {displayName}
+          </span>
+        );
+      },
     },
     {
       key: "driver_name",

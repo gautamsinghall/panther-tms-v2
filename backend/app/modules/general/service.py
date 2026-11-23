@@ -574,15 +574,28 @@ async def update_vendor(db: AsyncSession, vid: int, data) -> Vendor:
 
         entity.updated_at = datetime.now(timezone.utc)
 
-        # If name or is_active changed, sync the associated creditor Account
+        # If name or is_active changed, sync the associated creditor Account & VehicleOwner
         acc_stmt = select(Account).where(Account.vendor_id == entity.id)
         acc_res = await db.execute(acc_stmt)
         acc = acc_res.scalar_one_or_none()
         if acc:
             if "name" in data_dict and data_dict["name"]:
                 acc.name = entity.name
+                if acc.vehicle_owner_id:
+                    from app.tenant_db.models import VehicleOwner
+                    vo = await db.get(VehicleOwner, acc.vehicle_owner_id)
+                    if vo:
+                        vo.name = entity.name
             if "is_active" in data_dict:
                 acc.is_active = entity.is_active
+
+        if "name" in data_dict and data_dict["name"]:
+            from app.tenant_db.models import VehicleOwner
+            if entity.pan:
+                vo_stmt = select(VehicleOwner).where(VehicleOwner.pan == entity.pan)
+                vo_res = await db.execute(vo_stmt)
+                for vo_match in vo_res.scalars().all():
+                    vo_match.name = entity.name
 
         await db.commit()
         await db.refresh(entity)

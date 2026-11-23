@@ -38,6 +38,8 @@ export interface HireChallanRecord {
   vehicle_number: string;
   owner_id?: number;
   owner_name?: string;
+  vendor_id?: number;
+  vendor_name?: string;
   driver_id?: number;
   driver_name?: string;
   driver_phone?: string;
@@ -694,7 +696,7 @@ export function HireChallanViewModal({
                 </div>
                 <div className="p-3">
                   <div className="font-bold text-sm text-slate-900">
-                    {challan.owner_name || "Direct Driver / Market Owner"}
+                    {challan.vendor_name || challan.owner_name || "Direct Driver / Market Owner"}
                   </div>
                   <div className="text-[11px] text-slate-600 mt-2 font-mono">
                     Vendor Ref / Slip: {challan.vendor_ref_no || "—"}

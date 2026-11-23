@@ -978,7 +978,16 @@ async def transition_lr_status(db: AsyncSession, lr_id: int, target_status: LRSt
 # ===========================================================================
 
 async def get_all_hire_challans(db: AsyncSession, office_id: Optional[int] = None, include_unassigned: bool = False, vendor_id: Optional[int] = None) -> List[HireChallan]:
-    stmt = select(HireChallan).order_by(desc(HireChallan.created_at))
+    stmt = (
+        select(HireChallan)
+        .options(
+            selectinload(HireChallan.vendor),
+            selectinload(HireChallan.owner),
+            selectinload(HireChallan.lr),
+            selectinload(HireChallan.issuing_office),
+        )
+        .order_by(desc(HireChallan.created_at))
+    )
     if office_id:
         if include_unassigned:
             stmt = stmt.where(or_(HireChallan.issuing_office_id == office_id, HireChallan.issuing_office_id.is_(None)))
@@ -1102,7 +1111,8 @@ async def update_hire_challan(db: AsyncSession, hc_id: int, data: HireChallanUpd
     if hc.status in (HireChallanStatus.SETTLED.value, HireChallanStatus.CANCELLED.value):
         raise AppException(status_code=400, error_code="HC_LOCKED", message=f"Challan is {hc.status} and cannot be modified.")
 
-    for field, val in data.model_dump(exclude_unset=True).items():
+    update_dict = data.model_dump(exclude_unset=True)
+    for field, val in update_dict.items():
         setattr(hc, field, val)
 
     # Recalculate
@@ -1117,8 +1127,29 @@ async def update_hire_challan(db: AsyncSession, hc_id: int, data: HireChallanUpd
     hc.net_payable_amount = net_payable
     hc.balance_amount = net_payable - advance
 
+    # If owner_id was updated and vendor_id was not explicitly passed, auto-link candidate vendor
+    if hc.owner_id and "vendor_id" not in update_dict:
+        owner = await db.get(VehicleOwner, hc.owner_id)
+        if owner:
+            from app.tenant_db.models import Vendor
+            v_cand = (await db.execute(select(Vendor).where(Vendor.name.ilike(owner.name)))).scalars().first()
+            if not v_cand and owner.pan:
+                v_cand = (await db.execute(select(Vendor).where(Vendor.pan == owner.pan))).scalars().first()
+            if v_cand:
+                hc.vendor_id = v_cand.id
+
     await db.commit()
-    await db.refresh(hc)
+    stmt = (
+        select(HireChallan)
+        .options(
+            selectinload(HireChallan.vendor),
+            selectinload(HireChallan.owner),
+            selectinload(HireChallan.lr),
+            selectinload(HireChallan.issuing_office),
+        )
+        .where(HireChallan.id == hc_id)
+    )
+    hc = (await db.execute(stmt)).scalar_one()
     return hc
 
 async def settle_hire_challan(db: AsyncSession, hc_id: int, settlement_notes: Optional[str] = None) -> HireChallan:
