@@ -7,8 +7,6 @@ from decimal import Decimal, InvalidOperation
 from difflib import SequenceMatcher
 from typing import List, Dict, Any, Optional, Tuple
 
-import openpyxl
-import xlrd
 from fastapi import HTTPException, status
 from sqlalchemy import select, and_, or_, func
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -172,6 +170,13 @@ def parse_statement_file(file_bytes: bytes, filename: str) -> Tuple[Optional[str
 
     if fn_lower.endswith(".xls"):
         try:
+            try:
+                import xlrd
+            except ImportError:
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail="The 'xlrd' library is required to parse legacy .xls Excel files. Please install xlrd or upload .xlsx / .csv format.",
+                )
             wb = xlrd.open_workbook(file_contents=file_bytes)
             # Find OpTransactionHistoryUX3 or use sheet 0
             sheet = wb.sheet_by_name("OpTransactionHistoryUX3") if "OpTransactionHistoryUX3" in wb.sheet_names() else wb.sheet_by_index(0)
@@ -193,6 +198,13 @@ def parse_statement_file(file_bytes: bytes, filename: str) -> Tuple[Optional[str
 
     elif fn_lower.endswith(".xlsx"):
         try:
+            try:
+                import openpyxl
+            except ImportError:
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail="The 'openpyxl' library is required to parse .xlsx files. Please install openpyxl or upload .csv format.",
+                )
             wb = openpyxl.load_workbook(io.BytesIO(file_bytes), data_only=True)
             sheet = wb["OpTransactionHistoryUX3"] if "OpTransactionHistoryUX3" in wb.sheetnames else wb.active
             for row in sheet.iter_rows(values_only=True):
