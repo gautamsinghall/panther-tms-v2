@@ -2,6 +2,7 @@ from datetime import date
 from decimal import Decimal
 from typing import List, Optional
 from fastapi import APIRouter, Depends, Query, status, UploadFile, File, Form
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.tenant_db.session import get_tenant_db, get_current_tenant
 from app.auth.dependencies import (

@@ -89,12 +89,14 @@ interface BankStatementReviewQueueProps {
   importData: ImportData;
   onRefresh: () => void;
   onViewSkippedReport?: () => void;
+  directionFilter?: "DR" | "CR" | "ALL";
 }
 
 export function BankStatementReviewQueue({
   importData,
   onRefresh,
   onViewSkippedReport,
+  directionFilter = "ALL",
 }: BankStatementReviewQueueProps) {
   const [activeTab, setActiveTab] = useState<"READY" | "NEEDS_DECISION" | "MATCHED" | "SKIPPED">("READY");
   const [isBulkPosting, setIsBulkPosting] = useState(false);
@@ -106,7 +108,10 @@ export function BankStatementReviewQueue({
   const [ignoringLine, setIgnoringLine] = useState<LineData | null>(null);
   const [ignoreReasonText, setIgnoreReasonText] = useState("");
 
-  const lines = importData.lines || [];
+  const rawLines = importData.lines || [];
+  const lines = directionFilter && directionFilter !== "ALL"
+    ? rawLines.filter((l) => l.cr_dr === directionFilter)
+    : rawLines;
 
   const readyLines = lines.filter((l) => l.status === "READY");
   const needsDecisionLines = lines.filter((l) => l.status === "NEEDS_DECISION");

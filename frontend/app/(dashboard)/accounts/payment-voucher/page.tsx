@@ -2,7 +2,6 @@
 import { toast } from "@/lib/toast";
 
 import React, { useState, useEffect, useMemo } from "react";
-import { useRouter } from "next/navigation";
 import { createPortal } from "react-dom";
 import {
   Plus,
@@ -262,7 +261,6 @@ export default function PaymentVoucherPage() {
   const [vendorsWithDueBills, setVendorsWithDueBills] = useState<VendorOption[]>([]);
   const [drivers, setDrivers] = useState<DriverOption[]>([]);
   const [hireChallans, setHireChallans] = useState<HireChallanOption[]>([]);
-  const router = useRouter();
   const [bankAccounts, setBankAccounts] = useState<AccountOption[]>([]);
   const [expenseAccounts, setExpenseAccounts] = useState<AccountOption[]>([]);
   const [seriesInfo, setSeriesInfo] = useState<any>(null);
@@ -1121,18 +1119,6 @@ export default function PaymentVoucherPage() {
             label: "Import Statement",
             icon: <UploadCloud className="w-4 h-4 text-indigo-600" />,
             onClick: () => setIsImportModalOpen(true),
-            variant: "outline",
-          },
-          {
-            label: "Review Queue",
-            icon: <CheckCircle className="w-4 h-4 text-emerald-600" />,
-            onClick: () => router.push("/accounts/bank-reconciliation/review"),
-            variant: "outline",
-          },
-          {
-            label: "Skipped Entries",
-            icon: <FileText className="w-4 h-4 text-amber-600" />,
-            onClick: () => router.push("/accounts/bank-reconciliation/skipped-entries"),
             variant: "outline",
           },
           {
@@ -2919,10 +2905,11 @@ export default function PaymentVoucherPage() {
       {/* Bank Statement Auto BRS Import Modal */}
       <BankStatementImportModal
         isOpen={isImportModalOpen}
-        onClose={() => setIsImportModalOpen(false)}
-        onSuccess={(imp) => {
-          router.push(`/accounts/bank-reconciliation/review?id=${imp.id}`);
+        onClose={() => {
+          setIsImportModalOpen(false);
+          loadData();
         }}
+        targetVoucherType="PAYMENT"
       />
     </div>
   );
