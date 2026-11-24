@@ -36,6 +36,7 @@ import {
   Sliders,
   History,
   Coins,
+  Wallet,
   ShoppingBag,
   ShoppingCart,
   Zap,
@@ -120,6 +121,10 @@ const ROUTE_INFO_MAP: Record<string, RouteInfo> = {
   "/misc/employee-master": { title: "Employee Master", icon: Users },
   "/misc/charge-head": { title: "Charge Head", icon: Layers },
   "/misc/tax-category": { title: "Tax Category", icon: Layers },
+
+  // Employee Management
+  "/employee-management/employee-master": { title: "Employee Master", icon: Users },
+  "/employee-management/employee-imprest": { title: "Employee Imprest", icon: Wallet },
 
   // Reports
   "/reports/daybook": { title: "Daybook", icon: BarChart3 },

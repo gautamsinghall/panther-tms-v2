@@ -565,6 +565,25 @@ async def lifespan(app: FastAPI):
                         await t_conn.execute(text("CREATE INDEX IF NOT EXISTS ix_accounts_vouchers_due_date ON accounts_vouchers (due_date);"))
                         await t_conn.execute(text("ALTER TABLE transport_lrs ADD COLUMN IF NOT EXISTS is_billed BOOLEAN DEFAULT FALSE;"))
                         await t_conn.execute(text("CREATE INDEX IF NOT EXISTS ix_transport_lrs_is_billed ON transport_lrs (is_billed);"))
+
+                        # Employee Master & Imprest Evolution
+                        for emp_col in [
+                            "aadhaar_number VARCHAR(20)",
+                            "address TEXT",
+                            "city VARCHAR(100)",
+                            "state VARCHAR(100)",
+                            "pincode VARCHAR(20)",
+                            "emergency_contact_name VARCHAR(100)",
+                            "emergency_contact_phone VARCHAR(50)",
+                            "blood_group VARCHAR(10)",
+                            "is_imprest_active BOOLEAN DEFAULT FALSE",
+                            "imprest_limit NUMERIC(12, 2) DEFAULT 0.00",
+                            "imprest_account_id INTEGER REFERENCES misc_accounts(id)",
+                        ]:
+                            await t_conn.execute(text(f"ALTER TABLE misc_employees ADD COLUMN IF NOT EXISTS {emp_col};"))
+                        await t_conn.execute(text("ALTER TABLE misc_accounts ADD COLUMN IF NOT EXISTS employee_id INTEGER REFERENCES misc_employees(id);"))
+                        await t_conn.execute(text("CREATE INDEX IF NOT EXISTS ix_misc_employees_is_imprest_active ON misc_employees (is_imprest_active);"))
+                        await t_conn.execute(text("CREATE INDEX IF NOT EXISTS ix_misc_accounts_employee_id ON misc_accounts (employee_id);"))
                         await t_conn.execute(text("""
                             CREATE TABLE IF NOT EXISTS accounts_bill_allocations (
                                 id SERIAL PRIMARY KEY,

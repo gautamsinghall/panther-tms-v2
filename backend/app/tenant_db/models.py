@@ -1367,6 +1367,7 @@ class Account(TenantBase):
     vendor_id = Column(Integer, ForeignKey("general_vendors.id"), nullable=True, index=True)
     driver_id = Column(Integer, ForeignKey("transport_drivers.id"), nullable=True, index=True)
     company_vehicle_id = Column(Integer, ForeignKey("transport_company_vehicles.id"), nullable=True, index=True)
+    employee_id = Column(Integer, ForeignKey("misc_employees.id"), nullable=True, index=True)
     is_active = Column(Boolean, default=True, nullable=False)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
     updated_at = Column(
@@ -1384,6 +1385,7 @@ class Account(TenantBase):
     driver = relationship("Driver", foreign_keys=[driver_id], lazy="selectin")
     company_vehicle = relationship("CompanyVehicle", foreign_keys=[company_vehicle_id], lazy="selectin")
     company_bank_account = relationship("CompanyBankAccount", back_populates="account", uselist=False, lazy="selectin")
+    employee = relationship("EmployeeMaster", foreign_keys=[employee_id], lazy="selectin")
 
 
 class EmployeeMaster(TenantBase):
@@ -1400,11 +1402,22 @@ class EmployeeMaster(TenantBase):
     phone = Column(String(50), nullable=True)
     email = Column(String(255), nullable=True)
     pan = Column(String(10), nullable=True)
+    aadhaar_number = Column(String(20), nullable=True)
+    address = Column(Text, nullable=True)
+    city = Column(String(100), nullable=True)
+    state = Column(String(100), nullable=True)
+    pincode = Column(String(20), nullable=True)
+    emergency_contact_name = Column(String(100), nullable=True)
+    emergency_contact_phone = Column(String(50), nullable=True)
+    blood_group = Column(String(10), nullable=True)
     bank_account_number = Column(String(50), nullable=True)
     bank_name = Column(String(100), nullable=True)
     ifsc_code = Column(String(20), nullable=True)
     date_of_joining = Column(Date, nullable=True)
     salary = Column(Numeric(12, 2), default=0.00, nullable=False)
+    is_imprest_active = Column(Boolean, default=False, nullable=False)
+    imprest_limit = Column(Numeric(12, 2), default=0.00, nullable=False)
+    imprest_account_id = Column(Integer, ForeignKey("misc_accounts.id"), nullable=True)
     is_active = Column(Boolean, default=True, nullable=False)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
     updated_at = Column(
@@ -1415,6 +1428,7 @@ class EmployeeMaster(TenantBase):
     )
 
     designation = relationship("Designation", lazy="selectin")
+    imprest_account = relationship("Account", foreign_keys=[imprest_account_id], lazy="selectin")
 
 
 class ChargeHead(TenantBase):

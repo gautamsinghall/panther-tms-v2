@@ -16,6 +16,7 @@ MODULE_MIN_TIERS = {
     "home": 1,
     "general": 1,
     "transport": 1,
+    "employee_management": 1,
     "accounts": 1,
     "misc": 1,
     "profile": 1,
@@ -132,13 +133,20 @@ ALL_NAVIGATION_MODULES = [
         ],
     },
     {
+        "id": "employee_management",
+        "title": "Employee Management",
+        "items": [
+            {"feature": "employee_master", "title": "Employee Master", "href": "/employee-management/employee-master"},
+            {"feature": "employee_imprest", "title": "Employee Imprest", "href": "/employee-management/employee-imprest"},
+        ],
+    },
+    {
         "id": "misc",
         "title": "Misc (Masters)",
         "items": [
             {"feature": "primary_group", "title": "Primary Group", "href": "/misc/primary-group"},
             {"feature": "group_in_primary", "title": "Group in Primary", "href": "/misc/group-in-primary"},
             {"feature": "subgroup", "title": "Subgroup in Group", "href": "/misc/subgroup"},
-            {"feature": "employee_master", "title": "Employee Master", "href": "/misc/employee-master"},
             {"feature": "charge_head", "title": "Charge Head", "href": "/misc/charge-head"},
             {"feature": "tax_category", "title": "Tax Category", "href": "/misc/tax-category"},
         ],

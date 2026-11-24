@@ -382,7 +382,17 @@ export default function PaymentVoucherPage() {
 
       const exp = accountsRes.filter((a) => {
         const code = (a.code || "").toUpperCase();
-        return code.includes("EXP") || code.includes("ADVANCES") || code.includes("PAYABLE");
+        const name = (a.name || "").toLowerCase();
+        return (
+          code.includes("EXP") ||
+          code.includes("ADVANCES") ||
+          code.includes("PAYABLE") ||
+          code.includes("IMP") ||
+          code.includes("EMP") ||
+          name.includes("imprest") ||
+          name.includes("expense") ||
+          name.includes("advance")
+        );
       });
       setExpenseAccounts(exp.length > 0 ? exp : accountsRes);
     } catch (err: any) {
@@ -1530,15 +1540,42 @@ export default function PaymentVoucherPage() {
                     </label>
                     <select
                       value={selectedExpenseAccountId}
-                      onChange={(e) => setSelectedExpenseAccountId(e.target.value)}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setSelectedExpenseAccountId(val);
+                        const match = expenseAccounts.find((a) => String(a.id) === val);
+                        if (match) {
+                          if (match.name.toLowerCase().includes("imprest - ")) {
+                            const empName = match.name.replace(/imprest\s*-\s*/i, "").trim();
+                            if (!customPartyName || customPartyName === "Direct Expense") {
+                              setCustomPartyName(empName);
+                            }
+                          }
+                        }
+                      }}
                       className="w-full h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#303036] bg-white dark:bg-[#101013] text-slate-900 dark:text-[#F5F5F7] placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all shadow-2xs"
                     >
                       <option value="">-- Select Expense Ledger --</option>
-                      {expenseAccounts.map((a) => (
-                        <option key={a.id} value={a.id}>
-                          {a.name} ({a.code})
-                        </option>
-                      ))}
+                      {expenseAccounts.some((a) => (a.code || "").includes("IMP") || (a.name || "").toLowerCase().includes("imprest")) && (
+                        <optgroup label="Staff Imprest & Operating Float">
+                          {expenseAccounts
+                            .filter((a) => (a.code || "").includes("IMP") || (a.name || "").toLowerCase().includes("imprest"))
+                            .map((a) => (
+                              <option key={a.id} value={a.id}>
+                                💼 {a.name} ({a.code})
+                              </option>
+                            ))}
+                        </optgroup>
+                      )}
+                      <optgroup label="Direct Business Expense Heads">
+                        {expenseAccounts
+                          .filter((a) => !(a.code || "").includes("IMP") && !(a.name || "").toLowerCase().includes("imprest"))
+                          .map((a) => (
+                            <option key={a.id} value={a.id}>
+                              {a.name} ({a.code})
+                            </option>
+                          ))}
+                      </optgroup>
                     </select>
                   </div>
                   <div>

@@ -26,6 +26,7 @@ from app.tenant_db.models import (
     CompanyBankAccount,
     CompanyVehicle,
     VehicleOwner,
+    EmployeeMaster,
 )
 from app.modules.accounts import schemas
 
@@ -295,6 +296,90 @@ async def get_or_create_party_account(
             veh.account_id = account.id
             await session.flush()
 
+    elif party_type in ("STAFF_IMPREST", "EMPLOYEE_IMPREST", "EMPLOYEE"):
+        clean_name = party_name if party_name.startswith("Imprest - ") else f"Imprest - {party_name}"
+        raw_name = party_name.replace("Imprest - ", "").strip()
+        code_val = party_code or f"EMP_IMP_{party_id:04d}"
+
+        stmt = select(Account).where(
+            or_(
+                Account.employee_id == party_id,
+                Account.code == code_val,
+                Account.code == f"EMP_IMP_{party_id}",
+                Account.name == clean_name,
+                Account.name == raw_name,
+            )
+        )
+        res = await session.execute(stmt)
+        account = res.scalar_one_or_none()
+
+        # Find Group in Primary: Current Assets (CA) or Loans & Advances (LOANS_ADV_ASSET)
+        grp_stmt = select(GroupInPrimary).where(
+            or_(
+                GroupInPrimary.code == "CA",
+                GroupInPrimary.code == "LOANS_ADV_ASSET",
+                GroupInPrimary.name.ilike("%Current Asset%"),
+                GroupInPrimary.name.ilike("%Loans & Advances%"),
+            )
+        )
+        grp = (await session.execute(grp_stmt)).scalars().first()
+        group_id = grp.id if grp else 1
+
+        # Find or create Subgroup in Group: Staff Imprest & Operating Float (CA_STAFF_IMPREST)
+        subgrp_stmt = select(SubgroupInGroup).where(
+            or_(
+                SubgroupInGroup.code == "CA_STAFF_IMPREST",
+                SubgroupInGroup.name.ilike("%Staff Imprest%"),
+                SubgroupInGroup.name.ilike("%Operating Float%"),
+            )
+        )
+        subgrp = (await session.execute(subgrp_stmt)).scalars().first()
+        if not subgrp:
+            subgrp = SubgroupInGroup(
+                name="Staff Imprest & Operating Float",
+                code="CA_STAFF_IMPREST",
+                group_id=group_id,
+            )
+            session.add(subgrp)
+            await session.flush()
+        subgroup_id = subgrp.id if subgrp else None
+
+        if not account:
+            account = Account(
+                name=clean_name,
+                code=code_val,
+                group_id=group_id,
+                subgroup_id=subgroup_id,
+                opening_balance=Decimal("0.00"),
+                opening_balance_type="DR",
+                employee_id=party_id,
+                is_active=True,
+            )
+            session.add(account)
+            await session.flush()
+        else:
+            updated = False
+            if not account.employee_id:
+                account.employee_id = party_id
+                updated = True
+            if account.group_id != group_id:
+                account.group_id = group_id
+                updated = True
+            if subgroup_id and account.subgroup_id != subgroup_id:
+                account.subgroup_id = subgroup_id
+                updated = True
+            if account.opening_balance_type != "DR":
+                account.opening_balance_type = "DR"
+                updated = True
+            if updated:
+                await session.flush()
+
+        # Ensure EmployeeMaster has imprest_account_id bound
+        emp = await session.get(EmployeeMaster, party_id)
+        if emp and hasattr(emp, "imprest_account_id") and emp.imprest_account_id != account.id:
+            emp.imprest_account_id = account.id
+            await session.flush()
+
     return account
 
 
@@ -358,7 +443,7 @@ async def get_master_ledger_summary(
     bank_active = sum(1 for item in bank_list if item.is_active)
     bank_inactive = bank_total_accounts - bank_active
 
-    # 5. Duties & Taxes (Statutory GST / TDS) Summary
+    # 6. Duties & Taxes (Statutory GST / TDS) Summary
     tax_list = await list_duties_and_taxes_ledgers(session, office_id=office_id)
     tax_total_accounts = len(tax_list)
     tax_total_debit = sum(item.total_debit for item in tax_list)
@@ -367,7 +452,16 @@ async def get_master_ledger_summary(
     tax_settled = sum(1 for item in tax_list if item.balance_type == "NIL" or item.current_balance == Decimal("0.00"))
     tax_pending = tax_total_accounts - tax_settled
 
-    # 6. Live Hierarchy Counts (Ind AS / Tally 3-tier)
+    # 7. Staff Imprest Summary
+    staff_imp_list = await list_staff_imprest_ledgers(session, office_id=office_id, include_unassigned=include_unassigned)
+    si_total_accounts = len(staff_imp_list)
+    si_total_advances = sum(item.total_advances for item in staff_imp_list)
+    si_total_expenses = sum(item.total_expenses for item in staff_imp_list)
+    si_net_balance = sum(item.current_balance for item in staff_imp_list if item.balance_type == "DR") - sum(item.current_balance for item in staff_imp_list if item.balance_type == "CR")
+    si_settled = sum(1 for item in staff_imp_list if item.balance_type == "NIL" or item.current_balance == Decimal("0.00"))
+    si_pending = si_total_accounts - si_settled
+
+    # 8. Live Hierarchy Counts (Ind AS / Tally 3-tier)
     pg_count = (await session.execute(select(func.count(PrimaryGroup.id)))).scalar() or 0
     g_count = (await session.execute(select(func.count(GroupInPrimary.id)))).scalar() or 0
     sg_count = (await session.execute(select(func.count(SubgroupInGroup.id)))).scalar() or 0
@@ -427,6 +521,14 @@ async def get_master_ledger_summary(
             total_credit=tax_total_credit,
             settled_count=tax_settled,
             pending_count=tax_pending,
+        ),
+        staff_imprest=schemas.CategoryOverviewStat(
+            total_accounts=si_total_accounts,
+            total_outstanding=si_net_balance if si_net_balance > Decimal("0.00") else Decimal("0.00"),
+            total_debit=si_total_advances,
+            total_credit=si_total_expenses,
+            settled_count=si_settled,
+            pending_count=si_pending,
         ),
         hierarchy=schemas.HierarchyOverviewStat(
             primary_groups_count=pg_count,
@@ -2182,6 +2284,202 @@ async def get_driver_ledger_detail(
         total_transactions=len(transactions),
         transactions=transactions,
     )
+
+
+# ------------------------------------------------------------------------------
+# 4b. Staff Imprest Master Ledger Listing & Detailed Statement
+# ------------------------------------------------------------------------------
+
+async def list_staff_imprest_ledgers(
+    session: AsyncSession,
+    office_id: Optional[int] = None,
+    include_unassigned: bool = True,
+    search: Optional[str] = None,
+) -> List[schemas.StaffImprestLedgerListItem]:
+    """
+    Fetch Employees and their Imprest accounts, computing opening balance,
+    total advances given (Debits), total settled expenses/returns (Credits),
+    and current net balance.
+    """
+    emp_stmt = (
+        select(EmployeeMaster)
+        .options(selectinload(EmployeeMaster.designation))
+        .where(EmployeeMaster.is_active == True)
+        .order_by(EmployeeMaster.name.asc())
+    )
+    if search:
+        s_term = f"%{search.strip()}%"
+        emp_stmt = emp_stmt.where(
+            or_(
+                EmployeeMaster.name.ilike(s_term),
+                EmployeeMaster.employee_code.ilike(s_term),
+                EmployeeMaster.department.ilike(s_term),
+                EmployeeMaster.phone.ilike(s_term),
+            )
+        )
+    emp_res = await session.execute(emp_stmt)
+    all_employees = list(emp_res.scalars().all())
+
+    # Map accounts for employees
+    acc_stmt = (
+        select(Account)
+        .options(
+            selectinload(Account.group),
+            selectinload(Account.subgroup),
+        )
+        .where(
+            or_(
+                Account.employee_id.is_not(None),
+                Account.code.like("EMP_IMP_%"),
+                Account.name.ilike("Imprest - %"),
+            )
+        )
+    )
+    acc_res = await session.execute(acc_stmt)
+    accounts = list(acc_res.scalars().all())
+    acc_by_emp_id: Dict[int, Account] = {}
+    for a in accounts:
+        if a.employee_id:
+            acc_by_emp_id[a.employee_id] = a
+        elif a.code and a.code.startswith("EMP_IMP_"):
+            try:
+                emp_id_parsed = int(a.code.replace("EMP_IMP_", ""))
+                acc_by_emp_id[emp_id_parsed] = a
+            except ValueError:
+                pass
+
+    acc_ids = [a.id for a in accounts if a.id]
+
+    ledger_totals: Dict[int, Dict[str, Any]] = {}
+    if acc_ids:
+        le_stmt = (
+            select(
+                LedgerEntry.account_id,
+                func.sum(LedgerEntry.debit_amount).label("total_debit"),
+                func.sum(LedgerEntry.credit_amount).label("total_credit"),
+                func.count(LedgerEntry.id).label("tx_count"),
+                func.max(LedgerEntry.entry_date).label("last_date"),
+            )
+            .where(LedgerEntry.account_id.in_(acc_ids))
+            .group_by(LedgerEntry.account_id)
+        )
+        le_res = await session.execute(le_stmt)
+        for row in le_res.all():
+            ledger_totals[row[0]] = {
+                "total_debit": Decimal(str(row[1] or "0.00")),
+                "total_credit": Decimal(str(row[2] or "0.00")),
+                "tx_count": int(row[3] or 0),
+                "last_date": row[4],
+            }
+
+    items: List[schemas.StaffImprestLedgerListItem] = []
+    for emp in all_employees:
+        a = acc_by_emp_id.get(emp.id)
+        if not a and emp.imprest_account_id:
+            for acc_item in accounts:
+                if acc_item.id == emp.imprest_account_id:
+                    a = acc_item
+                    break
+
+        if not emp.is_imprest_active and not a and not search:
+            continue
+
+        open_bal = Decimal(str(a.opening_balance if a else "0.00"))
+        open_type = a.opening_balance_type if a else "DR"
+
+        stats = ledger_totals.get(a.id, {}) if a else {}
+        total_advances = stats.get("total_debit", Decimal("0.00"))
+        total_expenses = stats.get("total_credit", Decimal("0.00"))
+        tx_count = stats.get("tx_count", 0)
+        last_date = stats.get("last_date", None)
+
+        init_net = open_bal if open_type == "DR" else -open_bal
+        net = init_net + total_advances - total_expenses
+
+        if net > Decimal("0.00"):
+            bal_type = "DR"
+            cur_bal = net
+        elif net < Decimal("0.00"):
+            bal_type = "CR"
+            cur_bal = abs(net)
+        else:
+            bal_type = "NIL"
+            cur_bal = Decimal("0.00")
+
+        items.append(
+            schemas.StaffImprestLedgerListItem(
+                id=emp.id,
+                account_id=a.id if a else None,
+                account_name=a.name if a else f"Imprest - {emp.name}",
+                account_code=a.code if a else f"EMP_IMP_{emp.id:04d}",
+                name=emp.name,
+                employee_code=emp.employee_code,
+                department=emp.department,
+                designation_title=emp.designation.title if emp.designation else None,
+                phone=emp.phone,
+                email=emp.email,
+                imprest_limit=Decimal(str(emp.imprest_limit or "0.00")),
+                is_imprest_active=bool(emp.is_imprest_active),
+                primary_group_name="Assets",
+                group_name=a.group.name if (a and a.group) else "Current Assets",
+                subgroup_name=a.subgroup.name if (a and a.subgroup) else "Staff Imprest & Operating Float",
+                opening_balance=open_bal,
+                opening_balance_type=open_type,
+                total_advances=total_advances,
+                total_expenses=total_expenses,
+                current_balance=cur_bal,
+                balance_type=bal_type,
+                last_transaction_date=last_date,
+                transaction_count=tx_count,
+            )
+        )
+
+    return items
+
+
+async def get_staff_imprest_ledger_detail(
+    session: AsyncSession,
+    employee_id: int,
+    from_date: Optional[date] = None,
+    to_date: Optional[date] = None,
+    search: Optional[str] = None,
+    tx_type: Optional[str] = None,
+    office_id: Optional[int] = None,
+    include_unassigned: bool = True,
+) -> schemas.DetailedLedgerResponse:
+    """
+    Get complete chronological financial statement for a specific employee imprest account.
+    """
+    emp = await session.get(EmployeeMaster, employee_id)
+    if not emp:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Employee #{employee_id} not found")
+
+    account = await get_or_create_party_account(
+        session, "STAFF_IMPREST", emp.id, emp.name, f"EMP_IMP_{emp.id:04d}"
+    )
+
+    resp = await get_generic_account_ledger_detail(
+        session,
+        account_id=account.id,
+        from_date=from_date,
+        to_date=to_date,
+        search=search,
+        tx_type=tx_type,
+        office_id=office_id,
+    )
+    resp.category = "STAFF_IMPREST"
+    resp.party = schemas.PartyDetails(
+        id=emp.id,
+        name=emp.name,
+        code=f"EMP-{emp.employee_code}",
+        phone=emp.phone,
+        pan=emp.pan,
+        address=emp.address,
+        city=emp.city,
+        state=emp.state,
+        pincode=emp.pincode,
+    )
+    return resp
 
 
 # ------------------------------------------------------------------------------

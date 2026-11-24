@@ -244,18 +244,23 @@ async def delete_account(
 # ------------------------------------------------------------------------------
 # Employee Master Endpoints
 # ------------------------------------------------------------------------------
+def _format_employee_response(item: Any) -> schemas.EmployeeMasterResponse:
+    resp = schemas.EmployeeMasterResponse.model_validate(item)
+    resp.designation_title = item.designation.title if getattr(item, "designation", None) else None
+    if getattr(item, "imprest_account", None):
+        resp.imprest_account_name = item.imprest_account.name
+        resp.imprest_account_code = item.imprest_account.code
+    resp.current_imprest_balance = getattr(item, "current_imprest_balance", Decimal("0.00"))
+    resp.imprest_balance_type = getattr(item, "imprest_balance_type", "NIL")
+    return resp
+
 @router.get("/employees", response_model=List[schemas.EmployeeMasterResponse])
 async def list_employees(
     session: AsyncSession = Depends(get_tenant_db),
     _perm: bool = Depends(require_permission("misc", "employee_master", "view")),
 ):
     items = await service.get_employees(session)
-    result = []
-    for i in items:
-        resp = schemas.EmployeeMasterResponse.model_validate(i)
-        resp.designation_title = i.designation.title if i.designation else None
-        result.append(resp)
-    return result
+    return [_format_employee_response(i) for i in items]
 
 @router.get("/employees/{item_id}", response_model=schemas.EmployeeMasterResponse)
 async def get_employee(
@@ -264,9 +269,7 @@ async def get_employee(
     _perm: bool = Depends(require_permission("misc", "employee_master", "view")),
 ):
     item = await service.get_employee_by_id(session, item_id)
-    resp = schemas.EmployeeMasterResponse.model_validate(item)
-    resp.designation_title = item.designation.title if item.designation else None
-    return resp
+    return _format_employee_response(item)
 
 @router.post("/employees", response_model=schemas.EmployeeMasterResponse, status_code=status.HTTP_201_CREATED)
 async def create_employee(
@@ -275,9 +278,7 @@ async def create_employee(
     _perm: bool = Depends(require_permission("misc", "employee_master", "create")),
 ):
     item = await service.create_employee(session, data)
-    resp = schemas.EmployeeMasterResponse.model_validate(item)
-    resp.designation_title = item.designation.title if item.designation else None
-    return resp
+    return _format_employee_response(item)
 
 @router.put("/employees/{item_id}", response_model=schemas.EmployeeMasterResponse)
 async def update_employee(
@@ -287,9 +288,28 @@ async def update_employee(
     _perm: bool = Depends(require_permission("misc", "employee_master", "edit")),
 ):
     item = await service.update_employee(session, item_id, data)
-    resp = schemas.EmployeeMasterResponse.model_validate(item)
-    resp.designation_title = item.designation.title if item.designation else None
-    return resp
+    return _format_employee_response(item)
+
+@router.post("/employees/{item_id}/activate-imprest", response_model=schemas.EmployeeMasterResponse)
+async def activate_employee_imprest_endpoint(
+    item_id: int,
+    data: schemas.EmployeeImprestActivationRequest,
+    session: AsyncSession = Depends(get_tenant_db),
+    _perm: bool = Depends(require_permission("misc", "employee_master", "edit")),
+):
+    item = await service.activate_employee_imprest(
+        session, item_id, imprest_limit=data.imprest_limit, opening_balance=data.opening_balance
+    )
+    return _format_employee_response(item)
+
+@router.post("/employees/{item_id}/deactivate-imprest", response_model=schemas.EmployeeMasterResponse)
+async def deactivate_employee_imprest_endpoint(
+    item_id: int,
+    session: AsyncSession = Depends(get_tenant_db),
+    _perm: bool = Depends(require_permission("misc", "employee_master", "edit")),
+):
+    item = await service.deactivate_employee_imprest(session, item_id)
+    return _format_employee_response(item)
 
 @router.delete("/employees/{item_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_employee(

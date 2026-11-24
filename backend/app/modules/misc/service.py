@@ -1,7 +1,7 @@
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from decimal import Decimal
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, or_, func
 from sqlalchemy.orm import selectinload
 from fastapi import HTTPException, status
 from app.tenant_db.models import (
@@ -10,6 +10,7 @@ from app.tenant_db.models import (
     SubgroupInGroup,
     Account,
     EmployeeMaster,
+    LedgerEntry,
     ChargeHead,
     TaxCategory,
 )
@@ -204,16 +205,103 @@ async def delete_account(session: AsyncSession, item_id: int) -> bool:
 # Employee Master Service
 # ------------------------------------------------------------------------------
 async def get_employees(session: AsyncSession) -> List[EmployeeMaster]:
-    stmt = select(EmployeeMaster).options(selectinload(EmployeeMaster.designation)).order_by(EmployeeMaster.id)
+    stmt = (
+        select(EmployeeMaster)
+        .options(
+            selectinload(EmployeeMaster.designation),
+            selectinload(EmployeeMaster.imprest_account),
+        )
+        .order_by(EmployeeMaster.id)
+    )
     res = await session.execute(stmt)
-    return list(res.scalars().all())
+    items = list(res.scalars().all())
+
+    # Calculate live imprest balances for employees with an active imprest account
+    account_ids = [e.imprest_account_id for e in items if e.imprest_account_id]
+    ledger_totals: Dict[int, Dict[str, Any]] = {}
+    if account_ids:
+        le_stmt = (
+            select(
+                LedgerEntry.account_id,
+                func.sum(LedgerEntry.debit_amount).label("total_debit"),
+                func.sum(LedgerEntry.credit_amount).label("total_credit"),
+            )
+            .where(LedgerEntry.account_id.in_(account_ids))
+            .group_by(LedgerEntry.account_id)
+        )
+        le_res = await session.execute(le_stmt)
+        for row in le_res.all():
+            ledger_totals[row[0]] = {
+                "total_debit": Decimal(str(row[1] or "0.00")),
+                "total_credit": Decimal(str(row[2] or "0.00")),
+            }
+
+    for emp in items:
+        if emp.imprest_account:
+            open_bal = Decimal(str(emp.imprest_account.opening_balance or "0.00"))
+            open_type = emp.imprest_account.opening_balance_type or "DR"
+            stats = ledger_totals.get(emp.imprest_account.id, {})
+            tot_dr = stats.get("total_debit", Decimal("0.00"))
+            tot_cr = stats.get("total_credit", Decimal("0.00"))
+            init_net = open_bal if open_type == "DR" else -open_bal
+            net = init_net + tot_dr - tot_cr
+            if net > Decimal("0.00"):
+                setattr(emp, "current_imprest_balance", net)
+                setattr(emp, "imprest_balance_type", "DR")
+            elif net < Decimal("0.00"):
+                setattr(emp, "current_imprest_balance", abs(net))
+                setattr(emp, "imprest_balance_type", "CR")
+            else:
+                setattr(emp, "current_imprest_balance", Decimal("0.00"))
+                setattr(emp, "imprest_balance_type", "NIL")
+        else:
+            setattr(emp, "current_imprest_balance", Decimal("0.00"))
+            setattr(emp, "imprest_balance_type", "NIL")
+
+    return items
 
 async def get_employee_by_id(session: AsyncSession, item_id: int) -> EmployeeMaster:
-    stmt = select(EmployeeMaster).options(selectinload(EmployeeMaster.designation)).where(EmployeeMaster.id == item_id)
+    stmt = (
+        select(EmployeeMaster)
+        .options(
+            selectinload(EmployeeMaster.designation),
+            selectinload(EmployeeMaster.imprest_account),
+        )
+        .where(EmployeeMaster.id == item_id)
+    )
     res = await session.execute(stmt)
     item = res.scalar_one_or_none()
     if not item:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Employee not found")
+
+    if item.imprest_account:
+        le_stmt = (
+            select(
+                func.sum(LedgerEntry.debit_amount).label("total_debit"),
+                func.sum(LedgerEntry.credit_amount).label("total_credit"),
+            )
+            .where(LedgerEntry.account_id == item.imprest_account.id)
+        )
+        row = (await session.execute(le_stmt)).first()
+        tot_dr = Decimal(str(row[0] or "0.00")) if row else Decimal("0.00")
+        tot_cr = Decimal(str(row[1] or "0.00")) if row else Decimal("0.00")
+        open_bal = Decimal(str(item.imprest_account.opening_balance or "0.00"))
+        open_type = item.imprest_account.opening_balance_type or "DR"
+        init_net = open_bal if open_type == "DR" else -open_bal
+        net = init_net + tot_dr - tot_cr
+        if net > Decimal("0.00"):
+            setattr(item, "current_imprest_balance", net)
+            setattr(item, "imprest_balance_type", "DR")
+        elif net < Decimal("0.00"):
+            setattr(item, "current_imprest_balance", abs(net))
+            setattr(item, "imprest_balance_type", "CR")
+        else:
+            setattr(item, "current_imprest_balance", Decimal("0.00"))
+            setattr(item, "imprest_balance_type", "NIL")
+    else:
+        setattr(item, "current_imprest_balance", Decimal("0.00"))
+        setattr(item, "imprest_balance_type", "NIL")
+
     return item
 
 async def create_employee(session: AsyncSession, data: EmployeeMasterCreate) -> EmployeeMaster:
@@ -234,6 +322,88 @@ async def update_employee(session: AsyncSession, item_id: int, data: EmployeeMas
         setattr(item, field, value)
     await session.commit()
     return await get_employee_by_id(session, item.id)
+
+async def activate_employee_imprest(
+    session: AsyncSession,
+    item_id: int,
+    imprest_limit: Decimal = Decimal("0.00"),
+    opening_balance: Decimal = Decimal("0.00"),
+) -> EmployeeMaster:
+    employee = await get_employee_by_id(session, item_id)
+
+    # 1. Check or create Account for employee imprest
+    account = None
+    if employee.imprest_account_id:
+        account = (await session.execute(select(Account).where(Account.id == employee.imprest_account_id))).scalar_one_or_none()
+
+    if not account:
+        stmt = select(Account).where(
+            or_(
+                Account.employee_id == employee.id,
+                Account.code == f"EMP_IMP_{employee.id:04d}",
+                Account.name == f"Imprest - {employee.name}",
+            )
+        )
+        res = await session.execute(stmt)
+        account = res.scalar_one_or_none()
+
+    # Find group LOANS_ADV_ASSET or CA
+    grp_stmt = select(GroupInPrimary).where(GroupInPrimary.code.in_(["LOANS_ADV_ASSET", "CA"]))
+    grp = (await session.execute(grp_stmt)).scalars().first()
+    if not grp:
+        grp = (await session.execute(select(GroupInPrimary).where(or_(GroupInPrimary.name.ilike("%Loans & Advances%"), GroupInPrimary.code == "CA")))).scalars().first()
+    group_id = grp.id if grp else 1
+
+    # Find or create Subgroup Staff Imprest
+    subgrp_stmt = select(SubgroupInGroup).where(
+        or_(
+            SubgroupInGroup.code == "CA_STAFF_IMPREST",
+            SubgroupInGroup.name.ilike("%Staff Imprest%"),
+            SubgroupInGroup.name.ilike("%Imprest%"),
+        )
+    )
+    subgrp = (await session.execute(subgrp_stmt)).scalars().first()
+    if not subgrp:
+        subgrp = SubgroupInGroup(
+            name="Staff Imprest & Operating Float",
+            code="CA_STAFF_IMPREST",
+            group_id=group_id,
+        )
+        session.add(subgrp)
+        await session.flush()
+    subgroup_id = subgrp.id if subgrp else None
+
+    if not account:
+        account = Account(
+            name=f"Imprest - {employee.name}",
+            code=f"EMP_IMP_{employee.id:04d}",
+            group_id=group_id,
+            subgroup_id=subgroup_id,
+            opening_balance=opening_balance,
+            opening_balance_type="DR",
+            employee_id=employee.id,
+            is_active=True,
+        )
+        session.add(account)
+        await session.flush()
+    else:
+        account.is_active = True
+        account.employee_id = employee.id
+        if opening_balance > Decimal("0.00"):
+            account.opening_balance = opening_balance
+
+    employee.is_imprest_active = True
+    employee.imprest_limit = imprest_limit
+    employee.imprest_account_id = account.id
+    employee.imprest_account = account
+    await session.commit()
+    return await get_employee_by_id(session, employee.id)
+
+async def deactivate_employee_imprest(session: AsyncSession, item_id: int) -> EmployeeMaster:
+    employee = await get_employee_by_id(session, item_id)
+    employee.is_imprest_active = False
+    await session.commit()
+    return await get_employee_by_id(session, employee.id)
 
 async def delete_employee(session: AsyncSession, item_id: int) -> bool:
     item = await get_employee_by_id(session, item_id)

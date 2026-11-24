@@ -219,13 +219,20 @@ export const ALL_NAVIGATION_MODULES: NavGroup[] = [
     ],
   },
   {
+    id: "employee_management",
+    title: "Employee Management",
+    items: [
+      { feature: "employee_master", title: "Employee Master", href: "/employee-management/employee-master" },
+      { feature: "employee_imprest", title: "Employee Imprest", href: "/employee-management/employee-imprest" },
+    ],
+  },
+  {
     id: "misc",
     title: "Misc (Masters)",
     items: [
       { feature: "primary_group", title: "Primary Group", href: "/misc/primary-group" },
       { feature: "group_in_primary", title: "Group in Primary", href: "/misc/group-in-primary" },
       { feature: "subgroup", title: "Subgroup in Group", href: "/misc/subgroup" },
-      { feature: "employee_master", title: "Employee Master", href: "/misc/employee-master" },
       { feature: "charge_head", title: "Charge Head", href: "/misc/charge-head" },
       { feature: "tax_category", title: "Tax Category", href: "/misc/tax-category" },
     ],
@@ -326,6 +333,8 @@ const MODULE_ICONS: Record<string, React.ReactNode> = {
   "transport-reports": <FileSpreadsheet className="w-5 h-5" />,
   einvoicing: <FileCheck2 className="w-5 h-5" />,
   accounts: <Calculator className="w-5 h-5" />,
+  employee_management: <Users className="w-5 h-5" />,
+  "employee-management": <Users className="w-5 h-5" />,
   misc: <Layers className="w-5 h-5" />,
   reports: <BarChart3 className="w-5 h-5" />,
   statements: <Receipt className="w-5 h-5" />,
@@ -410,6 +419,10 @@ const SUB_ITEM_ICONS_BY_HREF: Record<string, React.ComponentType<{ className?: s
   "/misc/employee-master": BadgeCheck,
   "/misc/charge-head": Tag,
   "/misc/tax-category": BadgePercent,
+
+  // Employee Management
+  "/employee-management/employee-master": BadgeCheck,
+  "/employee-management/employee-imprest": Wallet,
 
   // Reports
   "/reports/daybook": Calendar,
@@ -524,6 +537,7 @@ const SUB_ITEM_ICONS_BY_FEATURE: Record<string, React.ComponentType<{ className?
   group_in_primary: FolderTree,
   subgroup: GitBranch,
   employee_master: BadgeCheck,
+  employee_imprest: Wallet,
   charge_head: Tag,
   tax_category: BadgePercent,
   daybook: Calendar,

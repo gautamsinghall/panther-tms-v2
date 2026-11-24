@@ -1169,6 +1169,55 @@ async def get_driver_ledger_detail(
     )
 
 
+@router.get("/master-ledger/staff-imprest", response_model=List[schemas.StaffImprestLedgerListItem])
+async def list_staff_imprest_ledgers(
+    search: Optional[str] = Query(None, description="Search employee name, code, dept, phone"),
+    current_office: Optional[Branch] = Depends(get_current_office),
+    session: AsyncSession = Depends(get_tenant_db),
+    _perm: User = Depends(require_accounts_permission("view")),
+):
+    """
+    List all Staff Imprest & Operating Float ledgers under Current Assets
+    bound to Indian Accounting Standards and Tally Prime hierarchy with live balances.
+    """
+    office_id = current_office.id if current_office else None
+    include_unassigned = True
+    return await master_ledger_service.list_staff_imprest_ledgers(
+        session,
+        office_id=office_id,
+        include_unassigned=include_unassigned,
+        search=search,
+    )
+
+
+@router.get("/master-ledger/staff-imprest/{employee_id}", response_model=schemas.DetailedLedgerResponse)
+async def get_staff_imprest_ledger_detail(
+    employee_id: int,
+    from_date: Optional[date] = Query(None, description="Start date of statement"),
+    to_date: Optional[date] = Query(None, description="End date of statement"),
+    search: Optional[str] = Query(None, description="Search particulars or voucher number"),
+    tx_type: Optional[str] = Query(None, description="Filter transaction type"),
+    current_office: Optional[Branch] = Depends(get_current_office),
+    session: AsyncSession = Depends(get_tenant_db),
+    _perm: User = Depends(require_accounts_permission("view")),
+):
+    """
+    Detailed chronological ledger statement for an individual employee staff imprest account.
+    """
+    office_id = current_office.id if current_office else None
+    include_unassigned = True
+    return await master_ledger_service.get_staff_imprest_ledger_detail(
+        session,
+        employee_id=employee_id,
+        from_date=from_date,
+        to_date=to_date,
+        search=search,
+        tx_type=tx_type,
+        office_id=office_id,
+        include_unassigned=include_unassigned,
+    )
+
+
 @router.get("/master-ledger/duties-and-taxes", response_model=List[schemas.DutiesAndTaxesLedgerListItem])
 async def list_duties_and_taxes_ledgers(
     search: Optional[str] = Query(None, description="Search GST or TDS tax ledger name or code"),

@@ -300,6 +300,11 @@ def _matches_permission(
     if m_req in ("transport_reports", "transport-reports") and m_p in ("transport_reports", "transport-reports") and f_req == f_p:
         return True
 
+    # 9. Employee Management: employee_management <-> misc for employee_master / employee_imprest
+    if (m_req in ("employee_management", "misc") and f_req in ("employee_master", "employee_imprest")) and \
+       (m_p in ("employee_management", "misc") and f_p in ("employee_master", "employee_imprest")):
+        return True
+
     return False
 
 
@@ -336,7 +341,7 @@ def require_permission(module: str, feature: str, permission: str) -> Callable:
         if tenant.plan and tenant.plan.entitlements:
             is_entitled = False
             # Core tenant modules are built-in and always entitled
-            if norm_mod in ("home", "profile", "company", "api_center", "api-center", "settings"):
+            if norm_mod in ("home", "profile", "company", "api_center", "api-center", "settings", "employee_management"):
                 is_entitled = True
             else:
                 for ent in tenant.plan.entitlements:

@@ -135,11 +135,22 @@ class EmployeeMasterBase(BaseModel):
     phone: Optional[str] = None
     email: Optional[str] = None
     pan: Optional[str] = None
+    aadhaar_number: Optional[str] = None
+    address: Optional[str] = None
+    city: Optional[str] = None
+    state: Optional[str] = None
+    pincode: Optional[str] = None
+    emergency_contact_name: Optional[str] = None
+    emergency_contact_phone: Optional[str] = None
+    blood_group: Optional[str] = None
     bank_account_number: Optional[str] = None
     bank_name: Optional[str] = None
     ifsc_code: Optional[str] = None
     date_of_joining: Optional[date] = None
     salary: Decimal = Field(default=Decimal("0.00"))
+    is_imprest_active: bool = False
+    imprest_limit: Decimal = Field(default=Decimal("0.00"))
+    imprest_account_id: Optional[int] = None
     is_active: bool = True
 
 class EmployeeMasterCreate(EmployeeMasterBase):
@@ -153,20 +164,39 @@ class EmployeeMasterUpdate(BaseModel):
     phone: Optional[str] = None
     email: Optional[str] = None
     pan: Optional[str] = None
+    aadhaar_number: Optional[str] = None
+    address: Optional[str] = None
+    city: Optional[str] = None
+    state: Optional[str] = None
+    pincode: Optional[str] = None
+    emergency_contact_name: Optional[str] = None
+    emergency_contact_phone: Optional[str] = None
+    blood_group: Optional[str] = None
     bank_account_number: Optional[str] = None
     bank_name: Optional[str] = None
     ifsc_code: Optional[str] = None
     date_of_joining: Optional[date] = None
     salary: Optional[Decimal] = None
+    is_imprest_active: Optional[bool] = None
+    imprest_limit: Optional[Decimal] = None
+    imprest_account_id: Optional[int] = None
     is_active: Optional[bool] = None
 
 class EmployeeMasterResponse(EmployeeMasterBase):
     id: int
     designation_title: Optional[str] = None
+    imprest_account_name: Optional[str] = None
+    imprest_account_code: Optional[str] = None
+    current_imprest_balance: Decimal = Field(default=Decimal("0.00"))
+    imprest_balance_type: str = "NIL"
     created_at: datetime
     updated_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+class EmployeeImprestActivationRequest(BaseModel):
+    imprest_limit: Decimal = Field(default=Decimal("0.00"))
+    opening_balance: Decimal = Field(default=Decimal("0.00"))
 
 
 # ------------------------------------------------------------------------------

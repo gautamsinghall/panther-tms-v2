@@ -50,7 +50,7 @@ import { toast } from "@/lib/toast";
 // Types
 // ------------------------------------------------------------------------------
 
-type LedgerCategory = "OVERVIEW" | "BILLING_CLIENT" | "VENDOR" | "DRIVER" | "COMPANY_VEHICLE" | "COMPANY_BANK_ACCOUNT" | "DUTIES_AND_TAXES";
+type LedgerCategory = "OVERVIEW" | "BILLING_CLIENT" | "VENDOR" | "DRIVER" | "COMPANY_VEHICLE" | "COMPANY_BANK_ACCOUNT" | "DUTIES_AND_TAXES" | "STAFF_IMPREST";
 
 interface CategoryStat {
   total_accounts: number;
@@ -75,7 +75,34 @@ interface MasterLedgerOverview {
   company_vehicles?: CategoryStat;
   company_bank_accounts?: CategoryStat;
   duties_and_taxes?: CategoryStat;
+  staff_imprest?: CategoryStat;
   hierarchy?: HierarchyOverviewStat;
+}
+
+export interface StaffImprestLedgerItem {
+  id: number;
+  account_id?: number | null;
+  account_name?: string | null;
+  account_code?: string | null;
+  name: string;
+  employee_code: string;
+  department?: string | null;
+  designation_title?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  imprest_limit: number | string;
+  is_imprest_active: boolean;
+  primary_group_name: string;
+  group_name: string;
+  subgroup_name: string;
+  opening_balance: number | string;
+  opening_balance_type: string;
+  total_advances: number | string;
+  total_expenses: number | string;
+  current_balance: number | string;
+  balance_type: string;
+  last_transaction_date?: string | null;
+  transaction_count: number;
 }
 
 export interface CompanyVehicleLedgerItem {
@@ -303,6 +330,7 @@ export default function MasterLedgerPage() {
   const [companyVehicles, setCompanyVehicles] = useState<CompanyVehicleLedgerItem[]>([]);
   const [bankAccounts, setBankAccounts] = useState<CompanyBankAccountLedgerItem[]>([]);
   const [dutiesAndTaxes, setDutiesAndTaxes] = useState<DutiesAndTaxesLedgerItem[]>([]);
+  const [staffImprests, setStaffImprests] = useState<StaffImprestLedgerItem[]>([]);
   const [isVerifyingHierarchy, setIsVerifyingHierarchy] = useState(false);
   const [hierarchyStats, setHierarchyStats] = useState<{
     primary_groups: number;
@@ -325,7 +353,8 @@ export default function MasterLedgerPage() {
       tabParam === "BILLING_CLIENT" ||
       tabParam === "VENDOR" ||
       tabParam === "DRIVER" ||
-      tabParam === "DUTIES_AND_TAXES"
+      tabParam === "DUTIES_AND_TAXES" ||
+      tabParam === "STAFF_IMPREST"
     ) {
       setActiveCategory(tabParam);
       if (idParam) {
@@ -367,7 +396,7 @@ export default function MasterLedgerPage() {
     try {
       setIsLoading(true);
       // Fetch master ledger summaries as well as primary entity masters in parallel
-      const [sumRes, bcRes, vendRes, drvRes, vehRes, bankRes, rawClients, rawVendors, rawDrivers, rawVehicles, dutiesRes] = await Promise.all([
+      const [sumRes, bcRes, vendRes, drvRes, vehRes, bankRes, rawClients, rawVendors, rawDrivers, rawVehicles, dutiesRes, staffImpRes] = await Promise.all([
         apiClient<MasterLedgerOverview>("/api/v1/accounts/master-ledger/summary").catch(() => null),
         apiClient<BillingClientLedgerItem[]>("/api/v1/accounts/master-ledger/billing-clients").catch(() => []),
         apiClient<VendorLedgerItem[]>("/api/v1/accounts/master-ledger/vendors").catch(() => []),
@@ -379,9 +408,11 @@ export default function MasterLedgerPage() {
         apiClient<any[]>("/api/v1/transport/drivers").catch(() => []),
         apiClient<any[]>("/api/v1/transport/company-vehicles").catch(() => []),
         apiClient<DutiesAndTaxesLedgerItem[]>("/api/v1/accounts/master-ledger/duties-and-taxes").catch(() => []),
+        apiClient<StaffImprestLedgerItem[]>("/api/v1/accounts/master-ledger/staff-imprest").catch(() => []),
       ]);
       setBankAccounts(bankRes || []);
       setDutiesAndTaxes(dutiesRes || []);
+      setStaffImprests(staffImpRes || []);
       if (sumRes?.hierarchy) {
         setHierarchyStats({
           primary_groups: sumRes.hierarchy.primary_groups_count,
@@ -588,6 +619,14 @@ export default function MasterLedgerPage() {
           settled_count: (dutiesRes || []).filter((d) => Number(d.current_balance) === 0).length,
           pending_count: (dutiesRes || []).filter((d) => Number(d.current_balance) !== 0).length,
         },
+        staff_imprest: sumRes?.staff_imprest || {
+          total_accounts: (staffImpRes || []).length,
+          total_outstanding: (staffImpRes || []).reduce((s, si) => s + (si.balance_type === "DR" ? Number(si.current_balance || 0) : 0), 0),
+          total_debit: (staffImpRes || []).reduce((s, si) => s + Number(si.total_advances || 0), 0),
+          total_credit: (staffImpRes || []).reduce((s, si) => s + Number(si.total_expenses || 0), 0),
+          settled_count: (staffImpRes || []).filter((si) => Number(si.current_balance) === 0 || si.balance_type === "NIL").length,
+          pending_count: (staffImpRes || []).filter((si) => Number(si.current_balance) > 0 && si.balance_type === "DR").length,
+        },
         hierarchy: sumRes?.hierarchy,
       });
     } catch (err) {
@@ -671,6 +710,8 @@ export default function MasterLedgerPage() {
         endpoint = `/api/v1/accounts/master-ledger/company-bank-accounts/${id}`;
       } else if (category === "DUTIES_AND_TAXES") {
         endpoint = `/api/v1/accounts/master-ledger/accounts/${id}`;
+      } else if (category === "STAFF_IMPREST") {
+        endpoint = `/api/v1/accounts/master-ledger/staff-imprest/${id}`;
       }
 
       const params = new URLSearchParams();
@@ -771,6 +812,22 @@ export default function MasterLedgerPage() {
               name: tax.name,
               code: tax.code,
               company_name: tax.subgroup_name || tax.group_name || "Duties & Taxes",
+            };
+          }
+        } else if (category === "STAFF_IMPREST") {
+          const emp = staffImprests.find((s) => s.id === id);
+          if (emp) {
+            partyObj = {
+              id: emp.id,
+              name: emp.account_name || `Imprest - ${emp.name}`,
+              code: emp.account_code || emp.employee_code,
+              company_name: emp.department || "Staff Imprest",
+              contact_person: emp.designation_title || undefined,
+              phone: emp.phone || undefined,
+              email: emp.email || undefined,
+              group_name: emp.group_name || "Current Assets",
+              subgroup_name: emp.subgroup_name || "Staff Imprest & Operating Float",
+              primary_group_name: emp.primary_group_name || "Assets",
             };
           }
         }
@@ -1117,6 +1174,26 @@ export default function MasterLedgerPage() {
       return matchSearch && matchStatus;
     });
   }, [dutiesAndTaxes, searchQuery, statusFilter]);
+
+  const filteredStaffImprests = useMemo(() => {
+    return staffImprests.filter((s) => {
+      const matchSearch =
+        !searchQuery ||
+        s.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        s.employee_code.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (s.account_name && s.account_name.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        (s.account_code && s.account_code.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        (s.department && s.department.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        (s.designation_title && s.designation_title.toLowerCase().includes(searchQuery.toLowerCase()));
+
+      const matchStatus =
+        statusFilter === "ALL" ||
+        (statusFilter === "ADVANCE" && s.balance_type === "DR" && Number(s.current_balance) > 0) ||
+        (statusFilter === "SETTLED" && (s.balance_type === "NIL" || Number(s.current_balance) === 0));
+
+      return matchSearch && matchStatus;
+    });
+  }, [staffImprests, searchQuery, statusFilter]);
 
   return (
     <div className="space-y-6 pb-12">
@@ -1588,83 +1665,71 @@ export default function MasterLedgerPage() {
                 </div>
               </div>
 
-              {/* Card 6: Duties & Taxes Featured Card (Spans 2 Columns) */}
+              {/* Card 6: Duties & Taxes (Spans 1 Column) */}
               <div
                 onClick={() => {
                   setActiveCategory("DUTIES_AND_TAXES");
                   setSearchQuery("");
                   setStatusFilter("ALL");
                 }}
-                className="xl:col-span-2 group cursor-pointer relative bg-white dark:bg-[#17171B] rounded-2xl border border-slate-200/90 dark:border-[#303036] p-5 shadow-2xs hover:border-[#7C3AED] dark:hover:border-purple-500 hover:shadow-[0_10px_25px_-5px_rgba(124,58,237,0.12)] transition-all duration-200 flex flex-col justify-between"
+                className="group cursor-pointer relative bg-white dark:bg-[#17171B] rounded-2xl border border-slate-200/90 dark:border-[#303036] p-5 shadow-2xs hover:border-[#7C3AED] dark:hover:border-purple-500 hover:shadow-[0_10px_25px_-5px_rgba(124,58,237,0.12)] transition-all duration-200 flex flex-col justify-between"
               >
                 <div>
                   <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-11 h-11 rounded-xl bg-[#F5F3FF] dark:bg-purple-950/60 border border-[#DDD6FE] dark:border-purple-800 flex items-center justify-center text-[#7C3AED] dark:text-purple-400 group-hover:scale-105 transition-transform shrink-0">
-                        <Receipt className="w-5 h-5" />
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          <h3 className="text-base font-bold text-[#101828] dark:text-white group-hover:text-[#7C3AED] dark:group-hover:text-purple-400 transition-colors">
-                            Duties &amp; Taxes
-                          </h3>
-                          <Badge variant="primary" className="text-[10px] font-semibold px-2 py-0.5 bg-purple-100 text-purple-700 dark:bg-purple-950/80 dark:text-purple-300 border-purple-200 dark:border-purple-800 whitespace-nowrap">
-                            Statutory Dues
-                          </Badge>
-                        </div>
-                        <p className="text-[11px] text-[#667085] dark:text-slate-400 mt-0.5 min-h-[16px] line-clamp-1">
-                          Output GST, Input Tax Credit (ITC), GTA 5% RCM, and TDS.
-                        </p>
-                      </div>
+                    <div className="w-11 h-11 rounded-xl bg-[#F5F3FF] dark:bg-purple-950/60 border border-[#DDD6FE] dark:border-purple-800 flex items-center justify-center text-[#7C3AED] dark:text-purple-400 group-hover:scale-105 transition-transform shrink-0">
+                      <Receipt className="w-5 h-5" />
                     </div>
-
-                    <div className="text-right shrink-0">
-                      <span className="text-[10px] uppercase font-bold text-[#667085] dark:text-slate-400 block">Net Liability</span>
-                      <span className="text-base font-extrabold text-[#7C3AED] dark:text-purple-400">
-                        {formatCurrency(overview?.duties_and_taxes?.total_outstanding || 0)}
-                      </span>
-                    </div>
+                    <Badge variant="primary" className="text-[10px] font-semibold px-2 py-0.5 bg-purple-100 text-purple-700 dark:bg-purple-950/80 dark:text-purple-300 border-purple-200 dark:border-purple-800 whitespace-nowrap">
+                      Statutory Dues
+                    </Badge>
                   </div>
+
+                  <h3 className="text-base font-bold text-[#101828] dark:text-white group-hover:text-[#7C3AED] dark:group-hover:text-purple-400 transition-colors">
+                    Duties &amp; Taxes
+                  </h3>
+                  <p className="text-[11px] text-[#667085] dark:text-slate-400 mt-0.5 min-h-[34px] line-clamp-2 leading-relaxed">
+                    Output GST, Input Tax Credit (ITC), GTA 5% RCM, and TDS payable.
+                  </p>
 
                   {/* 3-Tier Ind AS Hierarchy Block */}
                   <div className="mt-3 p-2.5 rounded-xl bg-slate-50 dark:bg-[#101013] border border-slate-100 dark:border-[#303036]/60 text-[11px] space-y-1">
                     <div className="flex items-center justify-between">
                       <span className="text-[#667085] dark:text-slate-400">Primary Group:</span>
-                      <span className="font-semibold text-slate-800 dark:text-slate-200">Current Liabilities &amp; Assets (ITC)</span>
+                      <span className="font-semibold text-slate-800 dark:text-slate-200">Current Liabilities &amp; Assets</span>
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-[#667085] dark:text-slate-400">Group in Primary:</span>
-                      <span className="font-semibold text-slate-800 dark:text-slate-200">Duties &amp; Taxes (TAX)</span>
+                      <span className="font-semibold text-slate-800 dark:text-slate-200">Duties &amp; Taxes</span>
                     </div>
                     <div className="flex items-center justify-between">
-                      <span className="text-[#667085] dark:text-slate-400">Subgroup in Group:</span>
-                      <span className="font-semibold text-[#7C3AED] dark:text-purple-400">GST Output • Input ITC • RCM • TDS</span>
+                      <span className="text-[#667085] dark:text-slate-400">Subgroup:</span>
+                      <span className="font-semibold text-[#7C3AED] dark:text-purple-400">GST Output • Input ITC • TDS</span>
                     </div>
                   </div>
 
-                  {/* 4 Financial Metric Mini-Cards */}
-                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 mt-3 pt-3 border-t border-slate-100 dark:border-[#303036]">
-                    <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-[#101013] border border-slate-100 dark:border-[#303036]/60">
-                      <span className="text-[10px] text-[#667085] dark:text-slate-400 block truncate">Tax Accounts</span>
-                      <span className="text-xs font-bold text-[#101828] dark:text-white mt-0.5 block tabular-nums">
-                        {overview?.duties_and_taxes?.total_accounts || dutiesAndTaxes.length}{" "}ledgers
+                  {/* Financial Summary */}
+                  <div className="mt-3 pt-3 border-t border-slate-100 dark:border-[#303036] space-y-2">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-[#667085] dark:text-slate-400">Ledgers</span>
+                      <span className="font-semibold text-[#101828] dark:text-slate-200">
+                        {overview?.duties_and_taxes?.total_accounts || dutiesAndTaxes.length} accounts
                       </span>
                     </div>
-                    <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-[#101013] border border-slate-100 dark:border-[#303036]/60">
-                      <span className="text-[10px] text-[#667085] dark:text-slate-400 block truncate">Output Tax (Cr)</span>
-                      <span className="text-[11px] xl:text-xs font-bold font-mono text-[#B42318] dark:text-rose-400 mt-0.5 block tabular-nums leading-tight break-all sm:break-normal">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-[#667085] dark:text-slate-400">Output Tax (Cr)</span>
+                      <span className="font-semibold text-[#B42318] dark:text-rose-400">
                         {formatCurrency(overview?.duties_and_taxes?.total_credit || 0)}
                       </span>
                     </div>
-                    <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-[#101013] border border-slate-100 dark:border-[#303036]/60">
-                      <span className="text-[10px] text-[#667085] dark:text-slate-400 block truncate">ITC &amp; TDS Paid</span>
-                      <span className="text-[11px] xl:text-xs font-bold font-mono text-[#027A48] dark:text-emerald-400 mt-0.5 block tabular-nums leading-tight break-all sm:break-normal">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-[#667085] dark:text-slate-400">ITC &amp; TDS (Dr)</span>
+                      <span className="font-semibold text-[#027A48] dark:text-emerald-400">
                         {formatCurrency(overview?.duties_and_taxes?.total_debit || 0)}
                       </span>
                     </div>
-                    <div className="p-2.5 rounded-xl bg-[#F5F3FF] dark:bg-purple-950/30 border border-[#DDD6FE] dark:border-purple-800">
-                      <span className="text-[10px] text-[#7C3AED] dark:text-purple-300 font-medium block truncate">Net Payable</span>
-                      <span className="text-[11px] xl:text-xs font-extrabold font-mono text-[#7C3AED] dark:text-purple-400 mt-0.5 block tabular-nums leading-tight break-all sm:break-normal">
+                    <div className="flex items-center justify-between text-xs font-bold pt-1.5 border-t border-dashed border-slate-200/90 dark:border-[#303036]">
+                      <span className="text-[#101828] dark:text-slate-300">Net Liability</span>
+                      <span className="text-[#7C3AED] dark:text-purple-400 font-extrabold">
                         {formatCurrency(overview?.duties_and_taxes?.total_outstanding || 0)}
                       </span>
                     </div>
@@ -1672,7 +1737,84 @@ export default function MasterLedgerPage() {
                 </div>
 
                 <div className="mt-4 pt-2.5 flex items-center justify-between text-xs font-semibold text-[#7C3AED] dark:text-purple-400 border-t border-slate-100 dark:border-[#303036]">
-                  <span>Open Duties &amp; Taxes Directory</span>
+                  <span>Open Duties &amp; Taxes</span>
+                  <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                </div>
+              </div>
+
+              {/* Card 7: Staff Imprest & Operating Float (Spans 1 Column) */}
+              <div
+                onClick={() => {
+                  setActiveCategory("STAFF_IMPREST");
+                  setSearchQuery("");
+                  setStatusFilter("ALL");
+                }}
+                className="group cursor-pointer relative bg-white dark:bg-[#17171B] rounded-2xl border border-slate-200/90 dark:border-[#303036] p-5 shadow-2xs hover:border-[#0284C7] dark:hover:border-sky-500 hover:shadow-[0_10px_25px_-5px_rgba(2,132,199,0.12)] transition-all duration-200 flex flex-col justify-between"
+              >
+                <div>
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="w-11 h-11 rounded-xl bg-[#F0F9FF] dark:bg-sky-950/60 border border-[#BAE6FD] dark:border-sky-800 flex items-center justify-center text-[#0284C7] dark:text-sky-400 group-hover:scale-105 transition-transform shrink-0">
+                      <Wallet className="w-5 h-5" />
+                    </div>
+                    <Badge variant="primary" className="text-[10px] font-semibold px-2 py-0.5 bg-sky-100 text-sky-700 dark:bg-sky-950/80 dark:text-sky-300 border-sky-200 dark:border-sky-800 whitespace-nowrap">
+                      Current Assets • Dr
+                    </Badge>
+                  </div>
+
+                  <h3 className="text-base font-bold text-[#101828] dark:text-white group-hover:text-[#0284C7] dark:group-hover:text-sky-400 transition-colors">
+                    Staff Imprest &amp; Float
+                  </h3>
+                  <p className="text-[11px] text-[#667085] dark:text-slate-400 mt-0.5 min-h-[34px] line-clamp-2 leading-relaxed">
+                    Employee operational advances, cash floats, petty cash disbursements &amp; bill settlements.
+                  </p>
+
+                  {/* 3-Tier Ind AS Hierarchy Block */}
+                  <div className="mt-3 p-2.5 rounded-xl bg-slate-50 dark:bg-[#101013] border border-slate-100 dark:border-[#303036]/60 text-[11px] space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[#667085] dark:text-slate-400">Primary Group:</span>
+                      <span className="font-semibold text-slate-800 dark:text-slate-200">Assets</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-[#667085] dark:text-slate-400">Group in Primary:</span>
+                      <span className="font-semibold text-slate-800 dark:text-slate-200">Current Assets (CA)</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-[#667085] dark:text-slate-400">Subgroup:</span>
+                      <span className="font-semibold text-[#0284C7] dark:text-sky-400">Staff Imprest &amp; Float</span>
+                    </div>
+                  </div>
+
+                  {/* Financial Summary */}
+                  <div className="mt-3 pt-3 border-t border-slate-100 dark:border-[#303036] space-y-2">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-[#667085] dark:text-slate-400">Active Staff</span>
+                      <span className="font-semibold text-[#101828] dark:text-slate-200">
+                        {overview?.staff_imprest?.total_accounts || staffImprests.length} employees
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-[#667085] dark:text-slate-400">Advances (Dr)</span>
+                      <span className="font-semibold text-[#027A48] dark:text-emerald-400">
+                        {formatCurrency(overview?.staff_imprest?.total_debit || 0)}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-[#667085] dark:text-slate-400">Settled (Cr)</span>
+                      <span className="font-semibold text-[#B42318] dark:text-rose-400">
+                        {formatCurrency(overview?.staff_imprest?.total_credit || 0)}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between text-xs font-bold pt-1.5 border-t border-dashed border-slate-200/90 dark:border-[#303036]">
+                      <span className="text-[#101828] dark:text-slate-300">Float in Hand</span>
+                      <span className="text-[#0284C7] dark:text-sky-400 font-extrabold">
+                        {formatCurrency(overview?.staff_imprest?.total_outstanding || 0)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-4 pt-2.5 flex items-center justify-between text-xs font-semibold text-[#0284C7] dark:text-sky-400 border-t border-slate-100 dark:border-[#303036]">
+                  <span>Open Staff Imprest</span>
                   <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                 </div>
               </div>
@@ -1836,6 +1978,18 @@ export default function MasterLedgerPage() {
                   <Receipt className="w-3.5 h-3.5 shrink-0" />
                   <span>Duties &amp; Taxes ({dutiesAndTaxes.length})</span>
                 </button>
+                <button
+                  onClick={() => setActiveCategory("STAFF_IMPREST")}
+                  className={cn(
+                    "px-3 py-1.5 text-xs font-semibold rounded-md transition-all flex items-center gap-1.5 whitespace-nowrap shrink-0",
+                    activeCategory === "STAFF_IMPREST"
+                      ? "bg-white dark:bg-[#101013] text-[#0284C7] dark:text-sky-400 shadow-sm"
+                      : "text-[#667085] dark:text-slate-400 hover:text-[#101828] dark:hover:text-white"
+                  )}
+                >
+                  <Wallet className="w-3.5 h-3.5 shrink-0" />
+                  <span>Staff Imprest ({staffImprests.length})</span>
+                </button>
               </div>
             </div>
 
@@ -1856,6 +2010,8 @@ export default function MasterLedgerPage() {
                       ? "vehicles"
                       : activeCategory === "COMPANY_BANK_ACCOUNT"
                       ? "bank accounts"
+                      : activeCategory === "STAFF_IMPREST"
+                      ? "staff imprest"
                       : "tax accounts"
                   }...`}
                   value={searchQuery}
@@ -1921,6 +2077,12 @@ export default function MasterLedgerPage() {
                     <option value="SETTLED">Settled (NIL)</option>
                   </>
                 )}
+                {activeCategory === "STAFF_IMPREST" && (
+                  <>
+                    <option value="ADVANCE">Float in Hand (Dr)</option>
+                    <option value="SETTLED">Settled (NIL)</option>
+                  </>
+                )}
               </select>
             </div>
           </div>
@@ -1937,7 +2099,8 @@ export default function MasterLedgerPage() {
                     activeCategory === "DRIVER" && "bg-emerald-50 border-emerald-200 text-emerald-600 dark:bg-emerald-950/60 dark:border-emerald-800 dark:text-emerald-400",
                     activeCategory === "COMPANY_VEHICLE" && "bg-blue-50 border-blue-200 text-blue-600 dark:bg-blue-950/60 dark:border-blue-800 dark:text-blue-400",
                     activeCategory === "COMPANY_BANK_ACCOUNT" && "bg-teal-50 border-teal-200 text-teal-600 dark:bg-teal-950/60 dark:border-teal-800 dark:text-teal-400",
-                    activeCategory === "DUTIES_AND_TAXES" && "bg-purple-50 border-purple-200 text-purple-600 dark:bg-purple-950/60 dark:border-purple-800 dark:text-purple-400"
+                    activeCategory === "DUTIES_AND_TAXES" && "bg-purple-50 border-purple-200 text-purple-600 dark:bg-purple-950/60 dark:border-purple-800 dark:text-purple-400",
+                    activeCategory === "STAFF_IMPREST" && "bg-sky-50 border-sky-200 text-sky-600 dark:bg-sky-950/60 dark:border-sky-800 dark:text-sky-400"
                   )}
                 >
                   {activeCategory === "BILLING_CLIENT" && <Building2 className="w-5 h-5" />}
@@ -1946,6 +2109,7 @@ export default function MasterLedgerPage() {
                   {activeCategory === "COMPANY_VEHICLE" && <Truck className="w-5 h-5" />}
                   {activeCategory === "COMPANY_BANK_ACCOUNT" && <Landmark className="w-5 h-5" />}
                   {activeCategory === "DUTIES_AND_TAXES" && <Receipt className="w-5 h-5" />}
+                  {activeCategory === "STAFF_IMPREST" && <Wallet className="w-5 h-5" />}
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
@@ -1956,6 +2120,7 @@ export default function MasterLedgerPage() {
                       {activeCategory === "COMPANY_VEHICLE" && "Company Vehicles (Fixed Assets & Fleet PPE)"}
                       {activeCategory === "COMPANY_BANK_ACCOUNT" && "Company Bank Accounts & Liquidity"}
                       {activeCategory === "DUTIES_AND_TAXES" && "Statutory Duties & Taxes (GST, TDS & TCS)"}
+                      {activeCategory === "STAFF_IMPREST" && "Staff Imprest & Operating Float"}
                     </h4>
                     <Badge variant="neutral" className="text-[10px] font-mono whitespace-nowrap">
                       Ind AS &amp; TallyPrime Linked
@@ -1968,6 +2133,7 @@ export default function MasterLedgerPage() {
                     {activeCategory === "COMPANY_VEHICLE" && "Company-owned fleet asset accounts bound to Fixed Assets for capital additions, depreciation, and operating trip costs."}
                     {activeCategory === "COMPANY_BANK_ACCOUNT" && "Commercial bank accounts linked to issuing offices for automated inflows, disbursements & contra transfers."}
                     {activeCategory === "DUTIES_AND_TAXES" && "Statutory tax accounts mapped under Duties & Taxes for GST returns (GSTR-1, GSTR-3B) and TDS quarterly returns."}
+                    {activeCategory === "STAFF_IMPREST" && "Employee cash float advance ledgers bound to Current Assets for petty cash, field operations, and bill settlements."}
                   </p>
                 </div>
               </div>
@@ -1983,6 +2149,7 @@ export default function MasterLedgerPage() {
                     {activeCategory === "COMPANY_VEHICLE" && "Fixed Assets (Dr)"}
                     {activeCategory === "COMPANY_BANK_ACCOUNT" && "Current Assets / Liab"}
                     {activeCategory === "DUTIES_AND_TAXES" && "Liabilities & Assets (ITC)"}
+                    {activeCategory === "STAFF_IMPREST" && "Assets (Dr)"}
                   </span>
                 </div>
                 <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
@@ -1995,6 +2162,7 @@ export default function MasterLedgerPage() {
                     {activeCategory === "COMPANY_VEHICLE" && "Fixed Assets"}
                     {activeCategory === "COMPANY_BANK_ACCOUNT" && "Bank Accounts / OD"}
                     {activeCategory === "DUTIES_AND_TAXES" && "Duties & Taxes (TAX)"}
+                    {activeCategory === "STAFF_IMPREST" && "Current Assets (CA)"}
                   </span>
                 </div>
                 <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
@@ -2007,7 +2175,8 @@ export default function MasterLedgerPage() {
                     activeCategory === "DRIVER" && "text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 border-emerald-200 dark:border-emerald-800",
                     activeCategory === "COMPANY_VEHICLE" && "text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60 border-blue-200 dark:border-blue-800",
                     activeCategory === "COMPANY_BANK_ACCOUNT" && "text-teal-600 dark:text-teal-400 bg-teal-50 dark:bg-teal-950/60 border-teal-200 dark:border-teal-800",
-                    activeCategory === "DUTIES_AND_TAXES" && "text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-950/60 border-purple-200 dark:border-purple-800"
+                    activeCategory === "DUTIES_AND_TAXES" && "text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-950/60 border-purple-200 dark:border-purple-800",
+                    activeCategory === "STAFF_IMPREST" && "text-sky-600 dark:text-sky-400 bg-sky-50 dark:bg-sky-950/60 border-sky-200 dark:border-sky-800"
                   )}>
                     {activeCategory === "BILLING_CLIENT" && "Corporate Billing Clients"}
                     {activeCategory === "VENDOR" && "Market Vehicle Vendors"}
@@ -2015,6 +2184,7 @@ export default function MasterLedgerPage() {
                     {activeCategory === "COMPANY_VEHICLE" && "Company Owned Fleet Vehicles"}
                     {activeCategory === "COMPANY_BANK_ACCOUNT" && "Current & OD Accounts"}
                     {activeCategory === "DUTIES_AND_TAXES" && "GST Output / Input ITC / TDS"}
+                    {activeCategory === "STAFF_IMPREST" && "Staff Imprest & Operating Float"}
                   </span>
                 </div>
               </div>
@@ -2703,6 +2873,119 @@ export default function MasterLedgerPage() {
                   </tbody>
                 </table>
               )}
+
+              {/* Category 6: Staff Imprest Table */}
+              {activeCategory === "STAFF_IMPREST" && (
+                <table className="w-full text-left border-separate border-spacing-0">
+                  <thead>
+                    <tr className="bg-slate-50 dark:bg-[#101013] border-b border-slate-200/90 dark:border-[#303036] text-[11px] font-semibold text-slate-600 dark:text-slate-300 uppercase tracking-wider">
+                      <th className="py-3 px-4 border-b border-slate-200/90 dark:border-[#303036]">Staff Member</th>
+                      <th className="py-3 px-4 border-b border-slate-200/90 dark:border-[#303036]">Imprest Account</th>
+                      <th className="py-3 px-4 border-b border-slate-200/90 dark:border-[#303036]">Group / Subgroup</th>
+                      <th className="py-3 px-4 text-right border-b border-slate-200/90 dark:border-[#303036]">Float Limit</th>
+                      <th className="py-3 px-4 text-right border-b border-slate-200/90 dark:border-[#303036]">Advances (Dr)</th>
+                      <th className="py-3 px-4 text-right border-b border-slate-200/90 dark:border-[#303036]">Settled (Cr)</th>
+                      <th className="py-3 px-4 text-right border-b border-slate-200/90 dark:border-[#303036]">Net Balance</th>
+                      <th className="py-3 px-4 border-b border-slate-200/90 dark:border-[#303036]">Activity</th>
+                      <th className="py-3 px-4 text-center w-36 min-w-[130px] whitespace-nowrap sticky right-0 z-20 bg-slate-50 dark:bg-[#101013] border-b border-slate-200/90 dark:border-[#303036]">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[#F2F4F7] dark:divide-[#303036]/70 text-xs">
+                    {filteredStaffImprests.length === 0 ? (
+                      <tr>
+                        <td colSpan={9} className="py-12 text-center text-[#667085] dark:text-slate-400">
+                          <Wallet className="w-8 h-8 mx-auto text-[#98A2B3] mb-2" />
+                          <p className="font-semibold text-sm text-[#101828] dark:text-slate-200">No Staff Imprest Ledgers Found</p>
+                          <p className="text-xs mt-0.5">Activate employee imprest under Employee Management → Employee Imprest to create ledger accounts.</p>
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredStaffImprests.map((si) => {
+                        const hasAdvance = si.balance_type === "DR" && Number(si.current_balance) > 0;
+                        return (
+                          <tr key={si.id} className="hover:bg-[#F9FAFB] dark:hover:bg-slate-800/40 transition-colors">
+                            <td className="py-3.5 px-4">
+                              <div className="font-semibold text-[#101828] dark:text-white">
+                                {si.name}
+                              </div>
+                              <div className="flex items-center gap-1.5 mt-0.5 text-[11px] text-[#667085] dark:text-slate-400">
+                                <span className="font-mono">{si.employee_code}</span>
+                                {(si.department || si.designation_title) && (
+                                  <>
+                                    <span>•</span>
+                                    <span>{[si.department, si.designation_title].filter(Boolean).join(" - ")}</span>
+                                  </>
+                                )}
+                              </div>
+                            </td>
+                            <td className="py-3.5 px-4">
+                              <div className="font-medium text-xs text-sky-700 dark:text-sky-300">
+                                {si.account_name || `Imprest - ${si.name}`}
+                              </div>
+                              <div className="font-mono text-[11px] text-slate-500 dark:text-slate-400">
+                                {si.account_code || `EMP_IMP_${String(si.id).padStart(4, "0")}`}
+                              </div>
+                            </td>
+                            <td className="py-3.5 px-4 text-slate-600 dark:text-slate-300">
+                              <div className="font-medium text-xs text-slate-800 dark:text-slate-200">{si.subgroup_name || "Staff Imprest & Operating Float"}</div>
+                              <div className="text-[10px] text-[#98A2B3]">Group: {si.group_name || "Current Assets"}</div>
+                            </td>
+                            <td className="py-3.5 px-4 text-right font-medium text-[#101828] dark:text-slate-200 font-mono">
+                              {formatCurrency(si.imprest_limit)}
+                            </td>
+                            <td className="py-3.5 px-4 text-right font-medium text-[#027A48] dark:text-emerald-400 font-mono">
+                              {formatCurrency(si.total_advances)}
+                            </td>
+                            <td className="py-3.5 px-4 text-right font-medium text-[#B42318] dark:text-rose-400 font-mono">
+                              {formatCurrency(si.total_expenses)}
+                            </td>
+                            <td className="py-3.5 px-4 text-right">
+                              <span className={cn(
+                                "font-bold text-xs font-mono",
+                                hasAdvance ? "text-amber-600 dark:text-amber-400" : "text-[#027A48] dark:text-emerald-400"
+                              )}>
+                                {formatCurrency(si.current_balance)}
+                              </span>
+                              <Badge
+                                variant={hasAdvance ? "warning" : "success"}
+                                className="ml-2 text-[10px] px-1.5 py-0"
+                              >
+                                {hasAdvance ? "Float in Hand" : "Settled"}
+                              </Badge>
+                            </td>
+                            <td className="py-3.5 px-4 text-slate-600 dark:text-slate-300">
+                              <div className="text-[11px]">
+                                {si.last_transaction_date ? formatDate(si.last_transaction_date) : "No vouchers"}
+                              </div>
+                              <div className="text-[10px] text-[#98A2B3]">
+                                {si.transaction_count} voucher lines
+                              </div>
+                            </td>
+                            <td className="py-3.5 px-4 text-center whitespace-nowrap w-36 min-w-[130px] sticky right-0 z-10 bg-white dark:bg-[#17171B] group-hover:bg-slate-50/90 dark:group-hover:bg-slate-800/60 border-b border-[#F2F4F7] dark:border-[#303036]/70">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => {
+                                  setSelectedAccountId(si.id);
+                                  setDatePreset("ALL");
+                                  setDetailFromDate("");
+                                  setDetailToDate("");
+                                  setDetailSearch("");
+                                  setDetailTxType("ALL");
+                                }}
+                                className="text-xs h-7.5 px-3 gap-1.5 font-semibold whitespace-nowrap inline-flex items-center justify-center hover:border-[#0284C7] hover:text-[#0284C7]"
+                              >
+                                <Eye className="w-3.5 h-3.5" />
+                                View Ledger
+                              </Button>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              )}
             </div>
           </div>
         </div>
@@ -2733,6 +3016,8 @@ export default function MasterLedgerPage() {
                   ? "Company Vehicles"
                   : activeCategory === "COMPANY_BANK_ACCOUNT"
                   ? "Bank Accounts"
+                  : activeCategory === "STAFF_IMPREST"
+                  ? "Staff Imprest"
                   : "Duties & Taxes"
               } List
             </Button>
@@ -2774,6 +3059,7 @@ export default function MasterLedgerPage() {
                     {detailedLedger.category === "COMPANY_VEHICLE" && "Fixed Assets → Fixed Assets → Company Owned Fleet Vehicles"}
                     {detailedLedger.category === "COMPANY_BANK_ACCOUNT" && "Current Assets / Liab → Bank Accounts → Current & OD"}
                     {detailedLedger.category === "DUTIES_AND_TAXES" && "Liabilities & Assets → Duties & Taxes → Statutory Dues"}
+                    {detailedLedger.category === "STAFF_IMPREST" && "Assets → Current Assets → Staff Imprest & Operating Float"}
                   </span>
                   {detailedLedger.party.code && (
                     <span className="font-mono text-xs text-[#667085] dark:text-slate-400">
@@ -3080,6 +3366,13 @@ export default function MasterLedgerPage() {
                       <option value="JOURNAL_VOUCHER">Journal Adjustment</option>
                       <option value="CREDIT_NOTE">Credit Note</option>
                       <option value="DEBIT_NOTE">Debit Note</option>
+                    </>
+                  )}
+                  {detailedLedger.category === "STAFF_IMPREST" && (
+                    <>
+                      <option value="PAYMENT_VOUCHER">Payment Voucher (Advance Issued)</option>
+                      <option value="JOURNAL_VOUCHER">Journal Voucher (Expense Settlement)</option>
+                      <option value="RECEIPT_VOUCHER">Receipt Voucher (Cash Refund)</option>
                     </>
                   )}
                 </select>

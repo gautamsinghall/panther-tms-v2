@@ -501,7 +501,34 @@ class MasterLedgerOverviewResponse(BaseModel):
     company_vehicles: Optional[CategoryOverviewStat] = None
     company_bank_accounts: Optional[CategoryOverviewStat] = None
     duties_and_taxes: Optional[CategoryOverviewStat] = None
+    staff_imprest: Optional[CategoryOverviewStat] = None
     hierarchy: Optional[HierarchyOverviewStat] = None
+
+
+class StaffImprestLedgerListItem(BaseModel):
+    id: int  # Employee ID
+    account_id: Optional[int] = None
+    account_name: Optional[str] = None
+    account_code: Optional[str] = None
+    name: str  # Employee Name
+    employee_code: str
+    department: Optional[str] = None
+    designation_title: Optional[str] = None
+    phone: Optional[str] = None
+    email: Optional[str] = None
+    imprest_limit: Decimal = Decimal("0.00")
+    is_imprest_active: bool = True
+    primary_group_name: str = "Assets"
+    group_name: str = "Current Assets"
+    subgroup_name: str = "Staff Imprest & Operating Float"
+    opening_balance: Decimal = Decimal("0.00")
+    opening_balance_type: str = "DR"
+    total_advances: Decimal = Decimal("0.00")   # Debits (Money given to employee)
+    total_expenses: Decimal = Decimal("0.00")   # Credits (Expenses settled / money returned)
+    current_balance: Decimal = Decimal("0.00")  # Net
+    balance_type: str = "DR"  # DR, CR, NIL
+    last_transaction_date: Optional[date] = None
+    transaction_count: int = 0
 
 
 class CompanyVehicleLedgerListItem(BaseModel):
