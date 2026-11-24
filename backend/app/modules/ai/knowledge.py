@@ -86,11 +86,14 @@ TMS_CORE_KNOWLEDGE = """
 - Vouchers: Receipt, Payment, Contra, Credit/Debit Notes conforming to Tally Prime Chart of Accounts.
 - Master Ledger: /accounts/master-ledger (Real-time running debit/credit balances).
 
-10. MISC MASTERS:
-- Primary Group: /misc/primary-group, Group in Primary: /misc/group-in-primary, Subgroup: /misc/subgroup.
-- Employee Master: /misc/employee-master, Charge Head: /misc/charge-head, Tax Category: /misc/tax-category.
+10. EMPLOYEE MANAGEMENT:
+- Employee Master: /employee-management/employee-master, Employee Imprest: /employee-management/employee-imprest.
 
-11. REPORTS (FINANCIAL):
+11. MISC MASTERS:
+- Primary Group: /misc/primary-group, Group in Primary: /misc/group-in-primary, Subgroup: /misc/subgroup.
+- Charge Head: /misc/charge-head, Tax Category: /misc/tax-category.
+
+12. REPORTS (FINANCIAL):
 - Daybook: /reports/daybook, Ledger: /reports/ledger, Trial Balance: /reports/trial-balance.
 - Balance Sheet: /reports/balance-sheet, Profit & Loss: /reports/profit-loss, Bank Reconciliation: /reports/bank-reconciliation.
 

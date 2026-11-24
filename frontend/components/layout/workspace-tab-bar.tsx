@@ -118,7 +118,6 @@ const ROUTE_INFO_MAP: Record<string, RouteInfo> = {
   "/misc/primary-group": { title: "Primary Group", icon: Layers },
   "/misc/group-in-primary": { title: "Group in Primary", icon: Layers },
   "/misc/subgroup": { title: "Subgroup in Group", icon: Layers },
-  "/misc/employee-master": { title: "Employee Master", icon: Users },
   "/misc/charge-head": { title: "Charge Head", icon: Layers },
   "/misc/tax-category": { title: "Tax Category", icon: Layers },
 

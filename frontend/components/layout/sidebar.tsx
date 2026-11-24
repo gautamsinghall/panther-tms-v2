@@ -416,7 +416,6 @@ const SUB_ITEM_ICONS_BY_HREF: Record<string, React.ComponentType<{ className?: s
   "/misc/primary-group": Folder,
   "/misc/group-in-primary": FolderTree,
   "/misc/subgroup": GitBranch,
-  "/misc/employee-master": BadgeCheck,
   "/misc/charge-head": Tag,
   "/misc/tax-category": BadgePercent,
 

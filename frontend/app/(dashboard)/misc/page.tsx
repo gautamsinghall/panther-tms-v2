@@ -37,13 +37,6 @@ export default function MiscOverviewPage() {
       badge: "Sub-hierarchy",
     },
     {
-      title: "Employee Master",
-      desc: "Internal staff, operations managers, and drivers with department, PAN, and salary accounts.",
-      href: "/misc/employee-master",
-      icon: <Users className="w-5 h-5 text-emerald-600" />,
-      badge: "Personnel",
-    },
-    {
       title: "Charge Head",
       desc: "Billable freight additions and deductions: Basic Freight, Hamali, Demurrage, Tolls.",
       href: "/misc/charge-head",
