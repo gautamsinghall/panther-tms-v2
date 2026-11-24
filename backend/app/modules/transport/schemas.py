@@ -653,6 +653,10 @@ class LRResponse(LRBase):
     job_number: Optional[str] = None
     issuing_office_name: Optional[str] = None
     issuing_office_code: Optional[str] = None
+    challan_id: Optional[int] = None
+    challan_number: Optional[str] = None
+    is_invoiced: Optional[bool] = False
+    invoice_number: Optional[str] = None
     created_at: datetime
     updated_at: datetime
     model_config = ConfigDict(from_attributes=True)

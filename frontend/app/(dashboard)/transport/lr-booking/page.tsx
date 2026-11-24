@@ -24,6 +24,7 @@ import {
   Smartphone,
   FileSpreadsheet,
   ScanSearch,
+  Check,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { FilterBar } from "@/components/ui/filter-bar";
@@ -116,6 +117,10 @@ interface LRRecord {
   balance_amount: string | number;
   status: string;
   lr_series_id?: number;
+  challan_id?: number;
+  challan_number?: string;
+  is_invoiced?: boolean;
+  invoice_number?: string;
   invoice_items?: LRInvoiceItem[];
 }
 
@@ -1431,11 +1436,11 @@ export default function LRBookingPage() {
         },
         {
           name: "dispatch_date",
-          label: "Booking Date (Dispatch Date)",
+          label: "Dispatch Date",
           type: "date",
           required: (values) => values.booking_status !== "Reserved",
           defaultValue: new Date().toISOString().split("T")[0],
-          helperText: "Single consistent booking & dispatch date across LR print, table list, and transport registers.",
+          helperText: "Single consistent dispatch date across LR print, table list, and transport registers.",
         },
         {
           name: "appointment_date",
@@ -1847,6 +1852,18 @@ export default function LRBookingPage() {
 
   const columns: ColumnDef<LRRecord>[] = [
     {
+      key: "lr_date",
+      header: "Dispatch Date",
+      sortable: true,
+      minWidth: "115px",
+      defaultVisible: true,
+      cell: (row) => (
+        <span className="text-xs text-slate-700 dark:text-slate-300 whitespace-nowrap">
+          {formatDate(row.dispatch_date || row.lr_date)}
+        </span>
+      ),
+    },
+    {
       key: "lr_number",
       header: "LR / GR Number",
       sortable: true,
@@ -1867,108 +1884,13 @@ export default function LRBookingPage() {
       ),
     },
     {
-      key: "lr_date",
-      header: "Booking Date",
+      key: "vehicle_number",
+      header: "Truck Number",
       sortable: true,
-      minWidth: "115px",
-      defaultVisible: true,
-      cell: (row) => (
-        <span className="text-xs text-slate-700 dark:text-slate-300 whitespace-nowrap">
-          {formatDate(row.dispatch_date || row.lr_date)}
-        </span>
-      ),
-    },
-    {
-      key: "booking_status",
-      header: "Booking Status",
-      align: "center",
-      minWidth: "120px",
-      defaultVisible: true,
-      cell: (row) => {
-        const bStatus = row.booking_status || (row.status === "CANCELLED" ? "Canceled" : "Booked");
-        const badgeColor =
-          bStatus === "Canceled"
-            ? "bg-rose-50 text-rose-700 border-rose-200"
-            : bStatus === "Reserved"
-            ? "bg-purple-50 text-purple-700 border-purple-200"
-            : "bg-emerald-50 text-emerald-700 border-emerald-200";
-        return (
-          <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-semibold border ${badgeColor}`}>
-            {bStatus}
-          </span>
-        );
-      },
-    },
-    {
-      key: "status",
-      header: "Lifecycle Status",
-      align: "center",
       minWidth: "130px",
       defaultVisible: true,
-      cell: (row) => <StatusBadge status={row.status} />,
-    },
-    {
-      key: "fastag_tracking",
-      header: "FASTag Tracking",
-      align: "center",
-      minWidth: "140px",
-      defaultVisible: true,
-      cell: (row) => {
-        if (!row.vehicle_number) {
-          return <span className="text-xs text-slate-400 italic">No vehicle</span>;
-        }
-        return (
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              router.push(`/tracking/fastag?vehicle=${encodeURIComponent(row.vehicle_number)}`);
-            }}
-            className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-lg bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/40 dark:hover:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 transition-colors shadow-2xs group cursor-pointer whitespace-nowrap"
-            title={`Track FASTag toll movements for ${row.vehicle_number}`}
-          >
-            <Navigation className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400 group-hover:scale-110 transition-transform" />
-            <span>Track FASTag</span>
-          </button>
-        );
-      },
-    },
-    {
-      key: "consigner_name",
-      header: "Consignor (From)",
-      sortable: true,
-      minWidth: "180px",
-      defaultVisible: true,
       cell: (row) => (
-        <div className="text-xs max-w-[200px]">
-          <span className="font-semibold text-slate-900 dark:text-slate-100 truncate block" title={row.consigner_name}>
-            {row.consigner_name || "—"}
-          </span>
-          {row.consigner_address && (
-            <span className="text-[11px] text-slate-400 truncate block" title={row.consigner_address}>
-              {row.consigner_address}
-            </span>
-          )}
-        </div>
-      ),
-    },
-    {
-      key: "consignee_name",
-      header: "Consignee (To)",
-      sortable: true,
-      minWidth: "180px",
-      defaultVisible: true,
-      cell: (row) => (
-        <div className="text-xs max-w-[200px]">
-          <span className="font-semibold text-slate-900 dark:text-slate-100 truncate block" title={row.consignee_name}>
-            {row.consignee_name || "—"}
-          </span>
-          {row.consignee_address && (
-            <span className="text-[11px] text-slate-400 truncate block" title={row.consignee_address}>
-              {row.consignee_address}
-            </span>
-          )}
-        </div>
+        <VehiclePlate vehicleNumber={row.vehicle_number} source={row.vehicle_source as any} />
       ),
     },
     {
@@ -2008,13 +1930,187 @@ export default function LRBookingPage() {
       ),
     },
     {
-      key: "vehicle_number",
-      header: "Vehicle Number",
-      sortable: true,
-      minWidth: "130px",
+      key: "fastag_tracking",
+      header: "FASTag Tracking",
+      align: "center",
+      minWidth: "140px",
       defaultVisible: true,
+      cell: (row) => {
+        if (!row.vehicle_number) {
+          return <span className="text-xs text-slate-400 italic">No vehicle</span>;
+        }
+        return (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              router.push(`/tracking/fastag?vehicle=${encodeURIComponent(row.vehicle_number)}`);
+            }}
+            className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-lg bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/40 dark:hover:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 transition-colors shadow-2xs group cursor-pointer whitespace-nowrap"
+            title={`Track FASTag toll movements for ${row.vehicle_number}`}
+          >
+            <Navigation className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400 group-hover:scale-110 transition-transform" />
+            <span>Track FASTag</span>
+          </button>
+        );
+      },
+    },
+    {
+      key: "linkage",
+      header: "Linked Status",
+      minWidth: "175px",
+      defaultVisible: true,
+      cell: (row) => {
+        const hasJob = Boolean(row.job_number || row.job_id);
+        const hasChallan = Boolean(row.challan_number || row.challan_id);
+        const hasInvoice = Boolean(row.is_invoiced || row.invoice_number);
+
+        return (
+          <div className="flex flex-col gap-1 items-start min-w-[155px]">
+            {/* Primary Document: Job Order + 360 trace icon */}
+            <div className="flex items-center gap-1.5 w-full">
+              {hasJob ? (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    router.push(`/transport/jobs?search=${encodeURIComponent(row.job_number || "")}`);
+                  }}
+                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-semibold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition-colors cursor-pointer"
+                  title="Click to view linked Trip / Job Order"
+                >
+                  <Check className="w-3 h-3 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                  <span className="font-mono">Job #{row.job_number || row.job_id}</span>
+                </button>
+              ) : (
+                <span
+                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] text-slate-400 dark:text-slate-500 bg-slate-50 dark:bg-slate-900/60 border border-slate-200/70 dark:border-slate-800"
+                  title="Direct booking without prior job order"
+                >
+                  <span>Direct LR</span>
+                </span>
+              )}
+
+              {/* 360 Traceability Shortcut */}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  router.push(`/transport/consignment-360?q=${encodeURIComponent(row.lr_number)}`);
+                }}
+                className="p-1 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/50 rounded transition-colors ml-auto cursor-pointer"
+                title="Open 360° Traceability Lifecycle"
+              >
+                <ScanSearch className="w-3.5 h-3.5" />
+              </button>
+            </div>
+
+            {/* Downstream Chain: Challan & Invoice */}
+            <div className="flex items-center gap-1 w-full flex-wrap">
+              {hasChallan && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (row.challan_id) {
+                      router.push(`/transport/hire-challan?edit=${row.challan_id}`);
+                    } else if (row.challan_number) {
+                      router.push(`/transport/hire-challan?search=${encodeURIComponent(row.challan_number)}`);
+                    }
+                  }}
+                  className="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded text-[10px] font-semibold bg-blue-50 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 hover:bg-blue-100 transition-colors cursor-pointer"
+                  title={row.challan_number ? `Hire Challan #${row.challan_number}` : "Hire Challan Linked"}
+                >
+                  <Check className="w-2.5 h-2.5 text-blue-600 dark:text-blue-400 shrink-0" />
+                  <span>{row.challan_number ? `HC #${row.challan_number}` : "Challan"}</span>
+                </button>
+              )}
+
+              {hasInvoice && (
+                <span
+                  className="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded text-[10px] font-semibold bg-purple-50 dark:bg-purple-950/50 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800"
+                  title={row.invoice_number ? `Freight Invoice #${row.invoice_number}` : "Freight Invoiced"}
+                >
+                  <Check className="w-2.5 h-2.5 text-purple-600 dark:text-purple-400 shrink-0" />
+                  <span>{row.invoice_number ? `Inv #${row.invoice_number}` : "Invoiced"}</span>
+                </span>
+              )}
+
+              {!hasChallan && !hasInvoice && (
+                <span className="text-[10px] text-slate-400 dark:text-slate-500">
+                  {row.status === "DELIVERED" ? "Completed" : "Awaiting Challan/Inv"}
+                </span>
+              )}
+            </div>
+          </div>
+        );
+      },
+    },
+    {
+      key: "booking_status",
+      header: "Booking Status",
+      align: "center",
+      minWidth: "120px",
+      defaultVisible: false,
+      cell: (row) => {
+        const bStatus = row.booking_status || (row.status === "CANCELLED" ? "Canceled" : "Booked");
+        const badgeColor =
+          bStatus === "Canceled"
+            ? "bg-rose-50 text-rose-700 border-rose-200"
+            : bStatus === "Reserved"
+            ? "bg-purple-50 text-purple-700 border-purple-200"
+            : "bg-emerald-50 text-emerald-700 border-emerald-200";
+        return (
+          <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-semibold border ${badgeColor}`}>
+            {bStatus}
+          </span>
+        );
+      },
+    },
+    {
+      key: "status",
+      header: "Lifecycle Status",
+      align: "center",
+      minWidth: "130px",
+      defaultVisible: false,
+      cell: (row) => <StatusBadge status={row.status} />,
+    },
+    {
+      key: "consigner_name",
+      header: "Consignor (From)",
+      sortable: true,
+      minWidth: "180px",
+      defaultVisible: false,
       cell: (row) => (
-        <VehiclePlate vehicleNumber={row.vehicle_number} source={row.vehicle_source as any} />
+        <div className="text-xs max-w-[200px]">
+          <span className="font-semibold text-slate-900 dark:text-slate-100 truncate block" title={row.consigner_name}>
+            {row.consigner_name || "—"}
+          </span>
+          {row.consigner_address && (
+            <span className="text-[11px] text-slate-400 truncate block" title={row.consigner_address}>
+              {row.consigner_address}
+            </span>
+          )}
+        </div>
+      ),
+    },
+    {
+      key: "consignee_name",
+      header: "Consignee (To)",
+      sortable: true,
+      minWidth: "180px",
+      defaultVisible: false,
+      cell: (row) => (
+        <div className="text-xs max-w-[200px]">
+          <span className="font-semibold text-slate-900 dark:text-slate-100 truncate block" title={row.consignee_name}>
+            {row.consignee_name || "—"}
+          </span>
+          {row.consignee_address && (
+            <span className="text-[11px] text-slate-400 truncate block" title={row.consignee_address}>
+              {row.consignee_address}
+            </span>
+          )}
+        </div>
       ),
     },
     {
@@ -2037,7 +2133,7 @@ export default function LRBookingPage() {
       key: "driver_name",
       header: "Driver Name",
       minWidth: "130px",
-      defaultVisible: true,
+      defaultVisible: false,
       cell: (row) => (
         <span className="text-xs text-slate-800 dark:text-slate-200">
           {row.driver_name || "—"}
@@ -2074,7 +2170,7 @@ export default function LRBookingPage() {
       isNumeric: true,
       align: "right",
       minWidth: "115px",
-      defaultVisible: true,
+      defaultVisible: false,
       cell: (row) => (
         <span className="text-xs font-semibold text-slate-900 dark:text-slate-100 font-mono">
           {row.chargeable_weight_mt ? `${parseFloat(String(row.chargeable_weight_mt))} MT` : "0 MT"}
@@ -2102,7 +2198,7 @@ export default function LRBookingPage() {
       isNumeric: true,
       align: "right",
       minWidth: "95px",
-      defaultVisible: true,
+      defaultVisible: false,
       cell: (row) => (
         <span className="text-xs text-slate-800 dark:text-slate-200 font-mono">
           {row.package_count || 0}
@@ -2168,7 +2264,7 @@ export default function LRBookingPage() {
       isNumeric: true,
       align: "right",
       minWidth: "115px",
-      defaultVisible: true,
+      defaultVisible: false,
       cell: (row) => (
         <span className={cn(
           "font-mono font-bold text-xs",
@@ -2562,7 +2658,7 @@ export default function LRBookingPage() {
       />
 
       <DataTable
-        tableId="lr_booking_table"
+        tableId="lr_booking_table_v2"
         columns={columns}
         data={filteredData}
         isLoading={isLoading}

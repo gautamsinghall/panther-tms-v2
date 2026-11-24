@@ -718,13 +718,22 @@ def _location_display(location: Any) -> Optional[str]:
     return ", ".join(part for part in [location.address, location.city_name, location.state, location.pincode] if part)
 
 
-def _build_lr_response(l: LR) -> LRResponse:
+def _build_lr_response(l: LR, invoice_map: Optional[Dict[int, str]] = None) -> LRResponse:
     consigner_addr_parts = []
     if l.consigner:
         consigner_addr_parts = [p for p in [l.consigner.address, l.consigner.city, l.consigner.state, l.consigner.pincode] if p]
     consignee_addr_parts = []
     if l.consignee:
         consignee_addr_parts = [p for p in [l.consignee.address, l.consignee.city, l.consignee.state, l.consignee.pincode] if p]
+
+    hc = getattr(l, "hire_challan", None)
+    is_invoiced = getattr(l, "is_billed", False)
+    inv_num = None
+    if invoice_map and l.id in invoice_map:
+        inv_num = invoice_map[l.id]
+        is_invoiced = True
+    elif getattr(l, "invoice_no", None):
+        inv_num = l.invoice_no
 
     return LRResponse(
         id=l.id,
@@ -795,6 +804,10 @@ def _build_lr_response(l: LR) -> LRResponse:
         created_by_user_id=l.created_by_user_id,
         invoice_items=l.invoice_items or [],
         job_number=l.job.job_number if l.job else None,
+        challan_id=hc.id if hc else None,
+        challan_number=hc.challan_number if hc else None,
+        is_invoiced=is_invoiced,
+        invoice_number=inv_num,
         created_at=l.created_at,
         updated_at=l.updated_at,
     )
@@ -914,7 +927,22 @@ async def list_lrs(
         offset=offset,
         search=search,
     )
-    return [_build_lr_response(l) for l in lrs]
+    lr_ids = [l.id for l in lrs if l.id]
+    invoice_map: Dict[int, str] = {}
+    if lr_ids:
+        v_stmt = (
+            select(Voucher.lr_id, Voucher.voucher_number)
+            .where(
+                Voucher.lr_id.in_(lr_ids),
+                Voucher.is_void == False,
+                Voucher.voucher_type.ilike("%INVOICE%")
+            )
+        )
+        v_res = await db.execute(v_stmt)
+        for row in v_res.all():
+            invoice_map[row[0]] = row[1]
+
+    return [_build_lr_response(l, invoice_map) for l in lrs]
 
 
 
