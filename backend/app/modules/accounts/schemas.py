@@ -511,7 +511,7 @@ class StaffImprestLedgerListItem(BaseModel):
     account_name: Optional[str] = None
     account_code: Optional[str] = None
     name: str  # Employee Name
-    employee_code: str
+    employee_code: Optional[str] = None
     department: Optional[str] = None
     designation_title: Optional[str] = None
     phone: Optional[str] = None

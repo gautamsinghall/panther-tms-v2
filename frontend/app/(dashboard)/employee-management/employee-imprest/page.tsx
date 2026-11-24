@@ -6,30 +6,33 @@ import {
   CheckCircle2,
   XCircle,
   Users,
-  Search,
-  SlidersHorizontal,
-  ArrowUpRight,
   ShieldCheck,
   AlertCircle,
-  HelpCircle,
-  RefreshCw,
+  Clock,
+  ArrowRight,
+  Settings2,
+  ExternalLink,
+  Phone,
+  Mail,
 } from "lucide-react";
 import Link from "next/link";
 import { toast } from "@/lib/toast";
-import { DataTable } from "@/components/tables/data-table";
 import { PageHeader } from "@/components/ui/page-header";
+import { KpiCard } from "@/components/ui/kpi-card";
+import { FilterBar } from "@/components/ui/filter-bar";
+import { DataTable } from "@/components/tables/data-table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge, StatusBadge } from "@/components/ui/badge";
+import { StatusBadge } from "@/components/ui/badge";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { ColumnDef } from "@/types/table";
+import { ColumnDef, RowAction } from "@/types/table";
 import { apiClient } from "@/lib/api-client";
 import { cn } from "@/lib/utils";
 
-interface EmployeeRecord {
+export interface EmployeeRecord {
   id: number;
   name: string;
-  employee_code: string;
+  employee_code?: string | null;
   designation_title?: string | null;
   department?: string | null;
   phone?: string | null;
@@ -49,8 +52,12 @@ interface EmployeeRecord {
 export default function EmployeeImprestPage() {
   const [data, setData] = useState<EmployeeRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  // Filters
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<"ALL" | "ACTIVE" | "INACTIVE">("ALL");
+  const [balanceFilter, setBalanceFilter] = useState<"ALL" | "CASH_IN_HAND" | "SETTLED">("ALL");
 
   // Activation modal state
   const [activatingEmployee, setActivatingEmployee] = useState<EmployeeRecord | null>(null);
@@ -64,10 +71,12 @@ export default function EmployeeImprestPage() {
 
   const loadData = useCallback(async () => {
     setIsLoading(true);
+    setErrorMessage(null);
     try {
       const res = await apiClient<EmployeeRecord[]>("/api/v1/misc/employees");
       setData(res);
     } catch (err: any) {
+      setErrorMessage(err.message || "Failed to load employee directory");
       toast.error(err.message || "Failed to load employee directory");
     } finally {
       setIsLoading(false);
@@ -85,7 +94,7 @@ export default function EmployeeImprestPage() {
     setOpeningBalanceInput("0");
   };
 
-  // Submit activation
+  // Submit activation / limit update
   const handleConfirmActivate = async () => {
     if (!activatingEmployee) return;
     const limit = parseFloat(floatLimitInput || "0");
@@ -105,7 +114,7 @@ export default function EmployeeImprestPage() {
         }),
       });
       toast.success(
-        `Imprest activated for ${activatingEmployee.name}. Ledger account created under Staff Imprest.`
+        `Imprest operating float updated for ${activatingEmployee.name}. Ledger mapped under Staff Imprest.`
       );
       setActivatingEmployee(null);
       await loadData();
@@ -134,35 +143,40 @@ export default function EmployeeImprestPage() {
     }
   };
 
-  // Filtered dataset
+  // Filtered dataset (No employee_code matching required)
   const filteredData = useMemo(() => {
     return data.filter((emp) => {
       if (statusFilter === "ACTIVE" && !emp.is_imprest_active) return false;
       if (statusFilter === "INACTIVE" && emp.is_imprest_active) return false;
 
+      const bal = Number(emp.current_imprest_balance || 0);
+      const isDR = emp.imprest_balance_type === "DR" && bal > 0;
+      if (balanceFilter === "CASH_IN_HAND" && (!emp.is_imprest_active || !isDR)) return false;
+      if (balanceFilter === "SETTLED" && (!emp.is_imprest_active || isDR)) return false;
+
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase().trim();
         const matchesName = (emp.name || "").toLowerCase().includes(q);
-        const matchesCode = (emp.employee_code || "").toLowerCase().includes(q);
         const matchesDept = (emp.department || "").toLowerCase().includes(q);
         const matchesDesig = (emp.designation_title || "").toLowerCase().includes(q);
         const matchesPhone = (emp.phone || "").toLowerCase().includes(q);
         const matchesAccount = (emp.imprest_account_name || "").toLowerCase().includes(q);
+        const matchesAccCode = (emp.imprest_account_code || "").toLowerCase().includes(q);
         return (
           matchesName ||
-          matchesCode ||
           matchesDept ||
           matchesDesig ||
           matchesPhone ||
-          matchesAccount
+          matchesAccount ||
+          matchesAccCode
         );
       }
       return true;
     });
-  }, [data, statusFilter, searchQuery]);
+  }, [data, statusFilter, balanceFilter, searchQuery]);
 
+  // KPI Metrics
   const activeCount = data.filter((e) => e.is_imprest_active).length;
-  const inactiveCount = data.length - activeCount;
   const totalAllocatedFloat = data.reduce(
     (acc, curr) => (curr.is_imprest_active ? acc + Number(curr.imprest_limit || 0) : acc),
     0
@@ -175,20 +189,11 @@ export default function EmployeeImprestPage() {
     0
   );
 
+  // Table Columns (No employee_code column)
   const columns: ColumnDef<EmployeeRecord>[] = [
     {
-      key: "employee_code",
-      header: "Emp Code",
-      sortable: true,
-      cell: (row) => (
-        <span className="font-mono text-xs font-semibold px-2 py-0.5 rounded bg-surface-secondary text-text-primary border border-border">
-          {row.employee_code}
-        </span>
-      ),
-    },
-    {
       key: "name",
-      header: "Employee & Role",
+      header: "Staff Member & Role",
       sortable: true,
       cell: (row) => (
         <div>
@@ -204,26 +209,15 @@ export default function EmployeeImprestPage() {
       header: "Contact",
       cell: (row) => (
         <div className="text-xs text-text-secondary leading-snug">
-          <div className="font-medium text-text-primary">{row.phone || "—"}</div>
-          <div className="text-text-muted">{row.email || ""}</div>
-        </div>
-      ),
-    },
-    {
-      key: "is_imprest_active",
-      header: "Imprest Status",
-      cell: (row) => (
-        <div>
-          {row.is_imprest_active ? (
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-semibold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
-              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
-              <span>ACTIVE IMPREST</span>
-            </span>
-          ) : (
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
-              <XCircle className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-              <span>NOT ACTIVATED</span>
-            </span>
+          <div className="flex items-center gap-1 font-medium text-text-primary">
+            <Phone className="w-3 h-3 text-text-muted shrink-0" />
+            <span>{row.phone || "—"}</span>
+          </div>
+          {row.email && (
+            <div className="flex items-center gap-1 text-text-muted mt-0.5">
+              <Mail className="w-3 h-3 text-text-muted shrink-0" />
+              <span>{row.email}</span>
+            </div>
           )}
         </div>
       ),
@@ -239,7 +233,7 @@ export default function EmployeeImprestPage() {
                 {row.imprest_account_name || `Imprest - ${row.name}`}
               </span>
               <span className="font-mono text-[11px] text-text-muted">
-                {row.imprest_account_code || `EMP_IMP_${row.id}`} • Staff Imprest (CA)
+                {row.imprest_account_code || `EMP_IMP_${String(row.id).padStart(4, "0")}`} • Staff Imprest (CA)
               </span>
             </div>
           ) : (
@@ -262,7 +256,7 @@ export default function EmployeeImprestPage() {
               <span className="font-mono text-xs font-bold text-text-primary tabular-nums">
                 ₹{Number(row.imprest_limit || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
               </span>
-              <span className="text-[10px] text-text-muted block">Approved Limit</span>
+              <span className="text-[10px] text-text-muted block">Authorized Limit</span>
             </div>
           ) : (
             <span className="text-xs text-text-muted">—</span>
@@ -302,8 +296,18 @@ export default function EmployeeImprestPage() {
       },
     },
     {
+      key: "is_imprest_active",
+      header: "Imprest Status",
+      cell: (row) => (
+        <StatusBadge
+          status={row.is_imprest_active ? "ACTIVE" : "INACTIVE"}
+          variant={row.is_imprest_active ? "active" : "inactive"}
+        />
+      ),
+    },
+    {
       key: "actions",
-      header: "Imprest Activation",
+      header: "Float Actions",
       align: "right",
       cell: (row) => (
         <div className="flex items-center justify-end gap-1.5">
@@ -318,6 +322,14 @@ export default function EmployeeImprestPage() {
               >
                 Update Float
               </Button>
+              <Link
+                href={`/accounts/master-ledger?category=STAFF_IMPREST&selectedId=${row.id}`}
+                className="text-xs text-text-secondary hover:text-text-primary px-2 py-1 rounded hover:bg-surface-secondary border border-border inline-flex items-center gap-1 h-7"
+                title="View full ledger statement"
+              >
+                <span>Ledger</span>
+                <ExternalLink className="w-3 h-3" />
+              </Link>
               <Button
                 size="sm"
                 variant="ghost"
@@ -345,10 +357,12 @@ export default function EmployeeImprestPage() {
 
   return (
     <div className="space-y-6">
+      {/* Page Header */}
       <PageHeader
-        title="Employee Imprest Activation"
-        description="Activate and manage operational cash floats, petty cash accounts, and advance limits for company employees."
+        title="Employee Imprest"
+        description="Activate operational cash floats, petty cash accounts, and advance limits for staff with automatic ledger binding."
         breadcrumbs={[
+          { label: "Home", href: "/" },
           { label: "Employee Management", href: "/employee-management/employee-master" },
           { label: "Employee Imprest" },
         ]}
@@ -363,196 +377,167 @@ export default function EmployeeImprestPage() {
 
       {/* KPI Overview Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="p-4 rounded-xl border border-border bg-surface-primary shadow-2xs">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-text-muted uppercase tracking-wider">
-              Total Personnel
-            </span>
-            <Users className="w-4 h-4 text-primary" />
-          </div>
-          <div className="mt-2 text-2xl font-bold font-mono text-text-primary">
-            {data.length}
-          </div>
-          <p className="mt-1 text-[11px] text-text-muted">Registered in employee master</p>
-        </div>
-
-        <div className="p-4 rounded-xl border border-border bg-surface-primary shadow-2xs">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-text-muted uppercase tracking-wider">
-              Active Imprest Holders
-            </span>
-            <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-          </div>
-          <div className="mt-2 text-2xl font-bold font-mono text-emerald-600 dark:text-emerald-400">
-            {activeCount}
-          </div>
-          <p className="mt-1 text-[11px] text-text-muted">
-            Float enabled &amp; ledger mapped
-          </p>
-        </div>
-
-        <div className="p-4 rounded-xl border border-border bg-surface-primary shadow-2xs">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-text-muted uppercase tracking-wider">
-              Eligible / Inactive
-            </span>
-            <XCircle className="w-4 h-4 text-slate-400" />
-          </div>
-          <div className="mt-2 text-2xl font-bold font-mono text-slate-600 dark:text-slate-400">
-            {inactiveCount}
-          </div>
-          <p className="mt-1 text-[11px] text-text-muted">
-            Can be activated with 1 click
-          </p>
-        </div>
-
-        <div className="p-4 rounded-xl border border-border bg-surface-primary shadow-2xs">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-text-muted uppercase tracking-wider">
-              Total Authorized Float
-            </span>
-            <Wallet className="w-4 h-4 text-purple-500" />
-          </div>
-          <div className="mt-2 text-2xl font-bold font-mono text-purple-600 dark:text-purple-400">
-            ₹{totalAllocatedFloat.toLocaleString("en-IN", { maximumFractionDigits: 0 })}
-          </div>
-          <div className="mt-1 flex items-center justify-between text-[11px] text-text-muted pt-1 border-t border-border">
-            <span>Float in Hand:</span>
-            <span className="font-mono font-bold text-amber-600 dark:text-amber-400">
-              ₹{totalOutstandingBalance.toLocaleString("en-IN", { minimumFractionDigits: 2 })} DR
-            </span>
-          </div>
-        </div>
+        <KpiCard
+          title="Total Personnel"
+          value={data.length}
+          subtext="Registered staff members"
+          icon={<Users className="w-4 h-4 text-indigo-600" />}
+        />
+        <KpiCard
+          title="Active Imprest Holders"
+          value={activeCount}
+          subtext="Operating float authorized"
+          icon={<CheckCircle2 className="w-4 h-4 text-emerald-600" />}
+        />
+        <KpiCard
+          title="Total Authorized Float"
+          value={`₹${totalAllocatedFloat.toLocaleString("en-IN", { maximumFractionDigits: 0 })}`}
+          subtext="Approved cash advance limit"
+          icon={<Wallet className="w-4 h-4 text-purple-600" />}
+        />
+        <KpiCard
+          title="Active Float in Hand"
+          value={`₹${totalOutstandingBalance.toLocaleString("en-IN", { maximumFractionDigits: 0 })} DR`}
+          subtext="En-route float with staff"
+          icon={<Clock className="w-4 h-4 text-amber-600" />}
+        />
       </div>
 
-      {/* Info Banner */}
+      {/* Automated Ledger Integration Banner */}
       <div className="p-4 rounded-xl bg-blue-50/70 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900/60 flex items-start gap-3">
         <ShieldCheck className="w-5 h-5 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
         <div className="text-xs text-blue-950 dark:text-blue-200 leading-relaxed">
-          <span className="font-bold">Automated Chart of Accounts Integration:</span> When an employee&apos;s imprest is activated, Panther TMS automatically binds a dedicated leaf ledger account under <span className="font-semibold underline">Staff Imprest &amp; Operating Float (Current Assets)</span>. This allows branch managers and dispatch teams to issue operational cash advances, petty cash vouchers, and settle en-route expenses seamlessly.
+          <span className="font-bold">Automated Chart of Accounts Integration:</span> When an employee&apos;s imprest is activated, Panther TMS automatically binds a dedicated leaf ledger account under{" "}
+          <span className="font-semibold underline">Staff Imprest &amp; Operating Float (Current Assets)</span>. All activated imprest accounts immediately appear in Payment Vouchers under Direct Expenses for seamless cash issuance and expense settlements.
         </div>
       </div>
 
-      {/* Filter Tabs & Search Controls */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-surface-primary p-3 rounded-xl border border-border shadow-2xs">
-        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+      {/* Filter Bar */}
+      <FilterBar
+        searchValue={searchQuery}
+        onSearchChange={setSearchQuery}
+        searchPlaceholder="Search staff by name, department, phone, ledger account..."
+        filters={[
+          {
+            id: "status",
+            label: "Imprest Status",
+            options: [
+              { label: "All Staff", value: "ALL" },
+              { label: "Active Imprest", value: "ACTIVE" },
+              { label: "Not Activated", value: "INACTIVE" },
+            ],
+            value: statusFilter,
+            onChange: (val) => setStatusFilter(val as any),
+          },
+          {
+            id: "balance",
+            label: "Balance Status",
+            options: [
+              { label: "All Balances", value: "ALL" },
+              { label: "Cash in Hand (DR)", value: "CASH_IN_HAND" },
+              { label: "Fully Settled", value: "SETTLED" },
+            ],
+            value: balanceFilter,
+            onChange: (val) => setBalanceFilter(val as any),
+          },
+        ]}
+        onClear={() => {
+          setSearchQuery("");
+          setStatusFilter("ALL");
+          setBalanceFilter("ALL");
+        }}
+      />
+
+      {/* Error Banner */}
+      {errorMessage && (
+        <div className="p-4 rounded-xl bg-danger-light border border-danger/20 text-danger text-sm flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 shrink-0" />
+            <span>{errorMessage}</span>
+          </div>
           <button
-            type="button"
-            onClick={() => setStatusFilter("ALL")}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
-              statusFilter === "ALL"
-                ? "bg-primary text-white shadow-2xs"
-                : "bg-surface-secondary text-text-secondary hover:text-text-primary hover:bg-surface-tertiary"
-            }`}
+            onClick={() => setErrorMessage(null)}
+            className="text-danger hover:opacity-80 font-bold"
           >
-            All Staff ({data.length})
-          </button>
-          <button
-            type="button"
-            onClick={() => setStatusFilter("ACTIVE")}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
-              statusFilter === "ACTIVE"
-                ? "bg-emerald-600 text-white shadow-2xs"
-                : "bg-surface-secondary text-text-secondary hover:text-text-primary hover:bg-surface-tertiary"
-            }`}
-          >
-            Active Imprest ({activeCount})
-          </button>
-          <button
-            type="button"
-            onClick={() => setStatusFilter("INACTIVE")}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
-              statusFilter === "INACTIVE"
-                ? "bg-slate-700 text-white shadow-2xs"
-                : "bg-surface-secondary text-text-secondary hover:text-text-primary hover:bg-surface-tertiary"
-            }`}
-          >
-            Not Activated ({inactiveCount})
+            ×
           </button>
         </div>
+      )}
 
-        <div className="relative w-full sm:w-72">
-          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
-          <Input
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search by name, code, dept..."
-            className="pl-9 h-9 text-xs"
-          />
-        </div>
-      </div>
-
-      {/* Main DataTable */}
+      {/* Data Table */}
       <DataTable
         data={filteredData}
         columns={columns}
         isLoading={isLoading}
-        searchPlaceholder="Filter table rows..."
-        searchColumn="name"
+        onRetry={loadData}
         emptyMessage="No employees found"
-        emptySubtext="Ensure employees are registered in Employee Master."
+        emptySubtext="Ensure staff profiles are registered in Employee Master first."
       />
 
-      {/* Imprest Activation Modal */}
+      {/* Imprest Activation & Limit Configuration Modal */}
       {activatingEmployee && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-in fade-in duration-200">
-          <div className="bg-surface-primary border border-border rounded-2xl w-full max-w-md shadow-2xl p-6 space-y-5 animate-in zoom-in-95 duration-200">
-            <div className="flex items-start justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0">
-                  <Wallet className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 className="text-base font-bold text-text-primary">
-                    {activatingEmployee.is_imprest_active
-                      ? "Update Imprest Float Limit"
-                      : "Activate Employee Imprest"}
-                  </h3>
-                  <p className="text-xs text-text-muted">
-                    {activatingEmployee.name} ({activatingEmployee.employee_code})
-                  </p>
-                </div>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs">
+          <div className="bg-surface-primary border border-border rounded-xl shadow-xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+            <div className="p-5 border-b border-border">
+              <div className="flex items-center gap-2 text-primary font-semibold text-sm">
+                <Wallet className="w-4 h-4" />
+                <span>
+                  {activatingEmployee.is_imprest_active
+                    ? "Update Operating Float Limit"
+                    : "Activate Staff Operating Imprest"}
+                </span>
               </div>
-              <button
-                type="button"
-                onClick={() => setActivatingEmployee(null)}
-                className="text-text-muted hover:text-text-primary text-lg font-bold p-1 rounded cursor-pointer"
-              >
-                ×
-              </button>
+              <h3 className="text-base font-bold text-text-primary mt-1">
+                {activatingEmployee.name}
+              </h3>
+              <p className="text-xs text-text-muted mt-0.5">
+                {activatingEmployee.designation_title || activatingEmployee.department || "General Staff"}
+              </p>
             </div>
 
-            <div className="space-y-4 text-xs">
+            <div className="p-5 space-y-4">
+              <div className="p-3 rounded-lg bg-surface-secondary border border-border text-xs text-text-secondary leading-relaxed">
+                Ledger account{" "}
+                <span className="font-semibold text-text-primary">
+                  Imprest - {activatingEmployee.name}
+                </span>{" "}
+                will be automatically linked under{" "}
+                <span className="font-semibold text-text-primary">
+                  Assets &gt; Current Assets &gt; Staff Imprest &amp; Operating Float
+                </span>
+                .
+              </div>
+
               <div>
                 <label className="block text-xs font-semibold text-text-primary mb-1">
-                  Approved Operating Float Limit (₹) *
+                  Operating Float Limit (₹)*
                 </label>
                 <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted font-bold">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-mono text-text-muted">
                     ₹
                   </span>
                   <Input
                     type="number"
                     min="0"
-                    step="500"
+                    step="1000"
                     value={floatLimitInput}
                     onChange={(e) => setFloatLimitInput(e.target.value)}
-                    placeholder="e.g. 15000"
-                    className="pl-8 text-sm font-mono font-semibold"
+                    className="pl-7 text-xs font-mono font-semibold"
+                    placeholder="10000"
                   />
                 </div>
                 <p className="text-[11px] text-text-muted mt-1">
-                  Maximum operating cash float the employee is authorized to hold at any time.
+                  Maximum permitted advance cash float held by employee for operational logistics/petty cash.
                 </p>
               </div>
 
               {!activatingEmployee.is_imprest_active && (
                 <div>
                   <label className="block text-xs font-semibold text-text-primary mb-1">
-                    Initial Opening Cash Float (₹)
+                    Initial Float Advance / Opening Balance (₹)
                   </label>
                   <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted font-bold">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-mono text-text-muted">
                       ₹
                     </span>
                     <Input
@@ -561,67 +546,51 @@ export default function EmployeeImprestPage() {
                       step="500"
                       value={openingBalanceInput}
                       onChange={(e) => setOpeningBalanceInput(e.target.value)}
+                      className="pl-7 text-xs font-mono"
                       placeholder="0.00"
-                      className="pl-8 text-sm font-mono"
                     />
                   </div>
                   <p className="text-[11px] text-text-muted mt-1">
-                    Opening debit balance in hand (set to 0 if issuing float via Payment Voucher later).
+                    Initial cash float already with employee (optional, defaults to ₹0.00).
                   </p>
                 </div>
               )}
-
-              <div className="p-3 rounded-lg bg-surface-secondary border border-border space-y-1 text-[11px] text-text-secondary">
-                <div className="font-semibold text-text-primary flex items-center gap-1.5">
-                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
-                  <span>Automatic Ledger Account Mapping</span>
-                </div>
-                <p>
-                  Account Name:{" "}
-                  <span className="font-mono font-medium text-text-primary">
-                    Imprest - {activatingEmployee.name}
-                  </span>
-                </p>
-                <p>
-                  Ledger Group:{" "}
-                  <span className="font-medium text-text-primary">
-                    Staff Imprest &amp; Operating Float (Current Assets)
-                  </span>
-                </p>
-              </div>
             </div>
 
-            <div className="flex items-center justify-end gap-2 pt-2 border-t border-border">
+            <div className="p-4 bg-surface-secondary border-t border-border flex items-center justify-end gap-2">
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => setActivatingEmployee(null)}
                 disabled={isActivating}
+                className="text-xs"
               >
                 Cancel
               </Button>
               <Button
                 size="sm"
                 onClick={handleConfirmActivate}
-                isLoading={isActivating}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold"
+                disabled={isActivating}
+                className="bg-primary text-white text-xs font-semibold px-4"
               >
-                {activatingEmployee.is_imprest_active
+                {isActivating
+                  ? "Saving..."
+                  : activatingEmployee.is_imprest_active
                   ? "Update Float Limit"
-                  : "Confirm & Activate Imprest"}
+                  : "Activate & Create Ledger"}
               </Button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Imprest Deactivation Confirmation Dialog */}
+      {/* Deactivation Confirmation Dialog */}
       <ConfirmDialog
         isOpen={Boolean(deactivatingEmployee)}
         onClose={() => setDeactivatingEmployee(null)}
         onConfirm={handleConfirmDeactivate}
-        title={`Deactivate Imprest for "${deactivatingEmployee?.name || ""}"?`}
-        description="This will mark the employee's imprest status as inactive and freeze new operational cash float authorizations. Existing ledger entries and historical transaction records will remain intact."
+        title={`Deactivate Imprest for "${deactivatingEmployee?.name || ""}"`}
+        description="Are you sure you want to deactivate this employee's imprest float? The linked ledger account and previous vouchers will be retained for auditing, but the employee will not be available for new direct expense floats."
         confirmText="Deactivate Imprest"
         variant="danger"
         isLoading={isDeactivating}

@@ -85,7 +85,7 @@ export interface StaffImprestLedgerItem {
   account_name?: string | null;
   account_code?: string | null;
   name: string;
-  employee_code: string;
+  employee_code?: string;
   department?: string | null;
   designation_title?: string | null;
   phone?: string | null;
@@ -820,7 +820,7 @@ export default function MasterLedgerPage() {
             partyObj = {
               id: emp.id,
               name: emp.account_name || `Imprest - ${emp.name}`,
-              code: emp.account_code || emp.employee_code,
+              code: emp.account_code || emp.employee_code || `EMP_IMP_${emp.id}`,
               company_name: emp.department || "Staff Imprest",
               contact_person: emp.designation_title || undefined,
               phone: emp.phone || undefined,
@@ -1180,7 +1180,7 @@ export default function MasterLedgerPage() {
       const matchSearch =
         !searchQuery ||
         s.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        s.employee_code.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (s.employee_code && s.employee_code.toLowerCase().includes(searchQuery.toLowerCase())) ||
         (s.account_name && s.account_name.toLowerCase().includes(searchQuery.toLowerCase())) ||
         (s.account_code && s.account_code.toLowerCase().includes(searchQuery.toLowerCase())) ||
         (s.department && s.department.toLowerCase().includes(searchQuery.toLowerCase())) ||
@@ -2909,12 +2909,10 @@ export default function MasterLedgerPage() {
                                 {si.name}
                               </div>
                               <div className="flex items-center gap-1.5 mt-0.5 text-[11px] text-[#667085] dark:text-slate-400">
-                                <span className="font-mono">{si.employee_code}</span>
-                                {(si.department || si.designation_title) && (
-                                  <>
-                                    <span>•</span>
-                                    <span>{[si.department, si.designation_title].filter(Boolean).join(" - ")}</span>
-                                  </>
+                                {(si.department || si.designation_title) ? (
+                                  <span>{[si.department, si.designation_title].filter(Boolean).join(" - ")}</span>
+                                ) : (
+                                  <span>General Staff</span>
                                 )}
                               </div>
                             </td>

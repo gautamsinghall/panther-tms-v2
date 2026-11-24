@@ -2471,7 +2471,7 @@ async def get_staff_imprest_ledger_detail(
     resp.party = schemas.PartyDetails(
         id=emp.id,
         name=emp.name,
-        code=f"EMP-{emp.employee_code}",
+        code=f"EMP-{emp.employee_code}" if emp.employee_code else f"EMP-{emp.id:04d}",
         phone=emp.phone,
         pan=emp.pan,
         address=emp.address,

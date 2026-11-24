@@ -1396,7 +1396,7 @@ class EmployeeMaster(TenantBase):
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(150), nullable=False, index=True)
-    employee_code = Column(String(50), unique=True, nullable=False, index=True)
+    employee_code = Column(String(50), nullable=True, index=True)
     designation_id = Column(Integer, ForeignKey("general_designations.id"), nullable=True)
     department = Column(String(100), nullable=True)
     phone = Column(String(50), nullable=True)

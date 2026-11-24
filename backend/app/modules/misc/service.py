@@ -305,10 +305,11 @@ async def get_employee_by_id(session: AsyncSession, item_id: int) -> EmployeeMas
     return item
 
 async def create_employee(session: AsyncSession, data: EmployeeMasterCreate) -> EmployeeMaster:
-    stmt = select(EmployeeMaster).where(EmployeeMaster.employee_code == data.employee_code)
-    existing = (await session.execute(stmt)).scalar_one_or_none()
-    if existing:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Employee code '{data.employee_code}' already exists")
+    if data.employee_code:
+        stmt = select(EmployeeMaster).where(EmployeeMaster.employee_code == data.employee_code)
+        existing = (await session.execute(stmt)).scalar_one_or_none()
+        if existing:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Employee code '{data.employee_code}' already exists")
 
     item = EmployeeMaster(**data.model_dump())
     session.add(item)

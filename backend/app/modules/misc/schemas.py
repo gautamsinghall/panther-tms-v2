@@ -129,7 +129,7 @@ class AccountResponse(AccountBase):
 # ------------------------------------------------------------------------------
 class EmployeeMasterBase(BaseModel):
     name: str = Field(..., max_length=150)
-    employee_code: str = Field(..., max_length=50)
+    employee_code: Optional[str] = None
     designation_id: Optional[int] = None
     department: Optional[str] = None
     phone: Optional[str] = None
