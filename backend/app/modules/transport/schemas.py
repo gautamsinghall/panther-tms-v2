@@ -407,6 +407,7 @@ class JobResponse(JobBase):
     total_freight_amount: Optional[Decimal] = None
     challan_id: Optional[int] = None
     challan_number: Optional[str] = None
+    invoice_id: Optional[int] = None
     is_invoiced: bool = False
     invoice_number: Optional[str] = None
     created_at: datetime
@@ -655,6 +656,7 @@ class LRResponse(LRBase):
     issuing_office_code: Optional[str] = None
     challan_id: Optional[int] = None
     challan_number: Optional[str] = None
+    invoice_id: Optional[int] = None
     is_invoiced: Optional[bool] = False
     invoice_number: Optional[str] = None
     created_at: datetime

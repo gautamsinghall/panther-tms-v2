@@ -18,6 +18,9 @@ import { useRouter } from "next/navigation";
 import { useWorkspaceTabs } from "@/lib/workspace-tabs-context";
 import { JobExcelImportModal } from "@/components/modals/job-excel-import-modal";
 import { JobOrderViewModal } from "@/components/modals/job-order-view-modal";
+import { LRViewModal } from "@/components/modals/lr-view-modal";
+import { HireChallanViewModal } from "@/components/modals/hire-challan-view-modal";
+import { TransportInvoicePrintModal } from "@/components/modals/transport-invoice-print-modal";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
 interface JobRecord {
@@ -50,6 +53,7 @@ interface JobRecord {
   driver_name?: string;
   challan_id?: number;
   challan_number?: string;
+  invoice_id?: number;
   is_invoiced?: boolean;
   invoice_number?: string;
   created_at: string;
@@ -119,6 +123,72 @@ export default function JobsPage() {
   const [activeOffice, setActiveOfficeState] = useState<any>(() => getActiveOffice());
   const editingJobRef = useRef<JobRecord | null>(null);
   editingJobRef.current = editingJob;
+
+  // Print preview modal states for LR, Challan, Invoice
+  const [viewingLr, setViewingLr] = useState<any | null>(null);
+  const [viewingChallan, setViewingChallan] = useState<any | null>(null);
+  const [viewingInvoice, setViewingInvoice] = useState<any | null>(null);
+
+  const handleOpenLrPrint = async (lrId?: number, lrNumber?: string) => {
+    if (!lrId && !lrNumber) return;
+    try {
+      if (lrId) {
+        const fullLr = await apiClient<any>(`/api/v1/transport/lrs/${lrId}`);
+        setViewingLr(fullLr);
+      } else if (lrNumber) {
+        const results = await apiClient<any[]>(`/api/v1/transport/lrs?search=${encodeURIComponent(lrNumber)}`);
+        if (results && results.length > 0) {
+          setViewingLr(results[0]);
+        } else {
+          toast.error(`Could not find LR #${lrNumber}`);
+        }
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Failed to load LR print preview");
+    }
+  };
+
+  const handleOpenChallanPrint = async (challanId?: number, challanNumber?: string) => {
+    if (!challanId && !challanNumber) return;
+    try {
+      if (challanId) {
+        const fullChallan = await apiClient<any>(`/api/v1/transport/hire-challans/${challanId}`);
+        setViewingChallan(fullChallan);
+      } else {
+        toast.error("Hire Challan ID not available for print preview");
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Failed to load Hire Challan print preview");
+    }
+  };
+
+  const handleOpenInvoicePrint = async (invoiceId?: number, invoiceNumber?: string, lrId?: number) => {
+    if (!invoiceId && !invoiceNumber && !lrId) return;
+    try {
+      if (invoiceId) {
+        const fullInvoice = await apiClient<any>(`/api/v1/accounts/vouchers/${invoiceId}`);
+        setViewingInvoice(fullInvoice);
+      } else if (invoiceNumber) {
+        const results = await apiClient<any>(`/api/v1/accounts/vouchers?search=${encodeURIComponent(invoiceNumber)}`);
+        const items = Array.isArray(results) ? results : (results?.items || []);
+        if (items.length > 0) {
+          setViewingInvoice(items[0]);
+        } else {
+          toast.error(`Could not find Freight Invoice #${invoiceNumber}`);
+        }
+      } else if (lrId) {
+        const results = await apiClient<any>(`/api/v1/accounts/vouchers?lr_id=${lrId}`);
+        const items = Array.isArray(results) ? results : (results?.items || []);
+        if (items.length > 0) {
+          setViewingInvoice(items[0]);
+        } else {
+          toast.error("Invoice voucher not found for this LR");
+        }
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Failed to load Freight Invoice print preview");
+    }
+  };
 
   const loadData = useCallback(async (targetOffice?: any) => {
     setIsLoading(true);
@@ -406,14 +476,10 @@ export default function JobsPage() {
                   type="button"
                   onClick={(e) => {
                     e.stopPropagation();
-                    if (row.lr_id) {
-                      router.push(`/transport/lr-booking?edit=${row.lr_id}`);
-                    } else if (row.lr_number) {
-                      router.push(`/transport/lr-booking?search=${encodeURIComponent(row.lr_number)}`);
-                    }
+                    handleOpenLrPrint(row.lr_id, row.lr_number);
                   }}
                   className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-semibold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition-colors cursor-pointer"
-                  title="Click to view LR booking"
+                  title="Click to open LR print preview"
                 >
                   <Check className="w-3 h-3 text-emerald-600 dark:text-emerald-400 shrink-0" />
                   <span className="font-mono">LR #{lrDisplay}</span>
@@ -450,23 +516,33 @@ export default function JobsPage() {
             {/* Downstream Chain: Challan & Invoice */}
             <div className="flex items-center gap-1 w-full flex-wrap">
               {hasChallan && (
-                <span
-                  className="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded text-[10px] font-semibold bg-blue-50 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800"
-                  title={row.challan_number ? `Hire Challan #${row.challan_number}` : "Hire Challan Linked"}
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleOpenChallanPrint(row.challan_id, row.challan_number);
+                  }}
+                  className="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded text-[10px] font-semibold bg-blue-50 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 hover:bg-blue-100 transition-colors cursor-pointer"
+                  title={row.challan_number ? `Click to open Hire Challan #${row.challan_number} print preview` : "Click to open Hire Challan print preview"}
                 >
                   <Check className="w-2.5 h-2.5 text-blue-600 dark:text-blue-400 shrink-0" />
                   <span>{row.challan_number ? `HC #${row.challan_number}` : "Challan"}</span>
-                </span>
+                </button>
               )}
 
               {hasInvoice && (
-                <span
-                  className="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded text-[10px] font-semibold bg-purple-50 dark:bg-purple-950/50 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800"
-                  title={row.invoice_number ? `Freight Invoice #${row.invoice_number}` : "Freight Invoiced"}
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleOpenInvoicePrint(row.invoice_id, row.invoice_number, row.lr_id);
+                  }}
+                  className="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded text-[10px] font-semibold bg-purple-50 dark:bg-purple-950/50 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800 hover:bg-purple-100 transition-colors cursor-pointer"
+                  title={row.invoice_number ? `Click to open Freight Invoice #${row.invoice_number} print preview` : "Click to open Freight Invoice print preview"}
                 >
                   <Check className="w-2.5 h-2.5 text-purple-600 dark:text-purple-400 shrink-0" />
                   <span>{row.invoice_number ? `Inv #${row.invoice_number}` : "Invoiced"}</span>
-                </span>
+                </button>
               )}
 
               {!hasChallan && !hasInvoice && (
@@ -1075,6 +1151,32 @@ export default function JobsPage() {
           }
         }}
       />
+      {/* View LR Print Preview Modal */}
+      {viewingLr && (
+        <LRViewModal
+          isOpen={!!viewingLr}
+          lr={viewingLr}
+          onClose={() => setViewingLr(null)}
+        />
+      )}
+
+      {/* View Hire Challan Print Preview Modal */}
+      {viewingChallan && (
+        <HireChallanViewModal
+          isOpen={!!viewingChallan}
+          challan={viewingChallan}
+          onClose={() => setViewingChallan(null)}
+        />
+      )}
+
+      {/* View Transport Invoice Print Preview Modal */}
+      {viewingInvoice && (
+        <TransportInvoicePrintModal
+          isOpen={!!viewingInvoice}
+          invoice={viewingInvoice}
+          onClose={() => setViewingInvoice(null)}
+        />
+      )}
     </div>
   );
 }

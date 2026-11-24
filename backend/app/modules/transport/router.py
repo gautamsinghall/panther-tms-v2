@@ -498,7 +498,7 @@ async def import_jobs_excel(
     )
     return res
 
-def _build_job_response(job: Job, invoice_map: Optional[Dict[int, str]] = None) -> JobResponse:
+def _build_job_response(job: Job, invoice_map: Optional[Dict[int, Any]] = None) -> JobResponse:
     job_d = job.__dict__
     lrs = job_d.get("lrs") or []
     linked_lr = lrs[0] if (lrs and len(lrs) > 0) else None
@@ -512,6 +512,7 @@ def _build_job_response(job: Job, invoice_map: Optional[Dict[int, str]] = None) 
     dest_loc = job_d.get("destination_location")
 
     hc = None
+    inv_id = None
     inv_num = None
     is_invoiced = False
     for l in lrs:
@@ -520,10 +521,12 @@ def _build_job_response(job: Job, invoice_map: Optional[Dict[int, str]] = None) 
         if getattr(l, "is_billed", False):
             is_invoiced = True
         if invoice_map and l.id in invoice_map:
-            inv_num = invoice_map[l.id]
+            mapping = invoice_map[l.id]
+            if isinstance(mapping, tuple):
+                inv_id, inv_num = mapping
+            else:
+                inv_num = mapping
             is_invoiced = True
-    if not inv_num and linked_lr and getattr(linked_lr, "invoice_no", None):
-        inv_num = linked_lr.invoice_no
 
     return JobResponse(
         id=job.id,
@@ -560,6 +563,7 @@ def _build_job_response(job: Job, invoice_map: Optional[Dict[int, str]] = None) 
         total_freight_amount=linked_lr.total_freight_amount if linked_lr else None,
         challan_id=hc.id if hc else None,
         challan_number=hc.challan_number if hc else None,
+        invoice_id=inv_id,
         is_invoiced=is_invoiced,
         invoice_number=inv_num,
         created_at=job.created_at,
@@ -586,10 +590,10 @@ async def list_jobs(
         search=search,
     )
     lr_ids = [l.id for j in jobs for l in (getattr(j, "lrs", []) or []) if l.id]
-    invoice_map: Dict[int, str] = {}
+    invoice_map: Dict[int, Any] = {}
     if lr_ids:
         v_stmt = (
-            select(Voucher.lr_id, Voucher.voucher_number)
+            select(Voucher.lr_id, Voucher.id, Voucher.voucher_number)
             .where(
                 Voucher.lr_id.in_(lr_ids),
                 Voucher.is_void == False,
@@ -598,7 +602,7 @@ async def list_jobs(
         )
         v_res = await db.execute(v_stmt)
         for row in v_res.all():
-            invoice_map[row[0]] = row[1]
+            invoice_map[row[0]] = (row[1], row[2])
 
     return [_build_job_response(j, invoice_map) for j in jobs]
 
@@ -610,10 +614,10 @@ async def get_job(
 ):
     job = await service.get_job_by_id(db, id)
     lr_ids = [l.id for l in (getattr(job, "lrs", []) or []) if l.id]
-    invoice_map: Dict[int, str] = {}
+    invoice_map: Dict[int, Any] = {}
     if lr_ids:
         v_stmt = (
-            select(Voucher.lr_id, Voucher.voucher_number)
+            select(Voucher.lr_id, Voucher.id, Voucher.voucher_number)
             .where(
                 Voucher.lr_id.in_(lr_ids),
                 Voucher.is_void == False,
@@ -622,7 +626,7 @@ async def get_job(
         )
         v_res = await db.execute(v_stmt)
         for row in v_res.all():
-            invoice_map[row[0]] = row[1]
+            invoice_map[row[0]] = (row[1], row[2])
     return _build_job_response(job, invoice_map)
 
 @router.post("/jobs", response_model=JobResponse, status_code=status.HTTP_201_CREATED)
@@ -718,7 +722,7 @@ def _location_display(location: Any) -> Optional[str]:
     return ", ".join(part for part in [location.address, location.city_name, location.state, location.pincode] if part)
 
 
-def _build_lr_response(l: LR, invoice_map: Optional[Dict[int, str]] = None) -> LRResponse:
+def _build_lr_response(l: LR, invoice_map: Optional[Dict[int, Any]] = None) -> LRResponse:
     consigner_addr_parts = []
     if l.consigner:
         consigner_addr_parts = [p for p in [l.consigner.address, l.consigner.city, l.consigner.state, l.consigner.pincode] if p]
@@ -727,13 +731,16 @@ def _build_lr_response(l: LR, invoice_map: Optional[Dict[int, str]] = None) -> L
         consignee_addr_parts = [p for p in [l.consignee.address, l.consignee.city, l.consignee.state, l.consignee.pincode] if p]
 
     hc = getattr(l, "hire_challan", None)
-    is_invoiced = getattr(l, "is_billed", False)
     inv_num = None
+    inv_id = None
+    is_invoiced = False
     if invoice_map and l.id in invoice_map:
-        inv_num = invoice_map[l.id]
+        mapping = invoice_map[l.id]
+        if isinstance(mapping, tuple):
+            inv_id, inv_num = mapping
+        else:
+            inv_num = mapping
         is_invoiced = True
-    elif getattr(l, "invoice_no", None):
-        inv_num = l.invoice_no
 
     return LRResponse(
         id=l.id,
@@ -806,6 +813,7 @@ def _build_lr_response(l: LR, invoice_map: Optional[Dict[int, str]] = None) -> L
         job_number=l.job.job_number if l.job else None,
         challan_id=hc.id if hc else None,
         challan_number=hc.challan_number if hc else None,
+        invoice_id=inv_id,
         is_invoiced=is_invoiced,
         invoice_number=inv_num,
         created_at=l.created_at,
@@ -928,10 +936,10 @@ async def list_lrs(
         search=search,
     )
     lr_ids = [l.id for l in lrs if l.id]
-    invoice_map: Dict[int, str] = {}
+    invoice_map: Dict[int, Any] = {}
     if lr_ids:
         v_stmt = (
-            select(Voucher.lr_id, Voucher.voucher_number)
+            select(Voucher.lr_id, Voucher.id, Voucher.voucher_number)
             .where(
                 Voucher.lr_id.in_(lr_ids),
                 Voucher.is_void == False,
@@ -940,7 +948,7 @@ async def list_lrs(
         )
         v_res = await db.execute(v_stmt)
         for row in v_res.all():
-            invoice_map[row[0]] = row[1]
+            invoice_map[row[0]] = (row[1], row[2])
 
     return [_build_lr_response(l, invoice_map) for l in lrs]
 
@@ -995,7 +1003,20 @@ async def get_lr(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="LR not found in your assigned issuing office.",
             )
-    return _build_lr_response(lr)
+    invoice_map: Dict[int, Any] = {}
+    if lr.id:
+        v_stmt = (
+            select(Voucher.lr_id, Voucher.id, Voucher.voucher_number)
+            .where(
+                Voucher.lr_id == lr.id,
+                Voucher.is_void == False,
+                Voucher.voucher_type.ilike("%INVOICE%")
+            )
+        )
+        v_res = await db.execute(v_stmt)
+        for row in v_res.all():
+            invoice_map[row[0]] = (row[1], row[2])
+    return _build_lr_response(lr, invoice_map)
 
 @router.post("/lrs", response_model=LRResponse, status_code=status.HTTP_201_CREATED)
 async def create_lr(

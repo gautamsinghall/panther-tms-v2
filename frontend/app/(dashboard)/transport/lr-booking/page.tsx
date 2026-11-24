@@ -45,6 +45,9 @@ import { canAccessRoute } from "@/lib/permissions";
 import { useWorkspaceTabs } from "@/lib/workspace-tabs-context";
 import { LRViewModal, LRViewRecord } from "@/components/modals/lr-view-modal";
 import { LRExcelImportModal } from "@/components/modals/lr-excel-import-modal";
+import { JobOrderViewModal } from "@/components/modals/job-order-view-modal";
+import { HireChallanViewModal } from "@/components/modals/hire-challan-view-modal";
+import { TransportInvoicePrintModal } from "@/components/modals/transport-invoice-print-modal";
 import {
   LRInvoiceItemsTable,
   LRInvoiceItem,
@@ -119,6 +122,7 @@ interface LRRecord {
   lr_series_id?: number;
   challan_id?: number;
   challan_number?: string;
+  invoice_id?: number;
   is_invoiced?: boolean;
   invoice_number?: string;
   invoice_items?: LRInvoiceItem[];
@@ -273,6 +277,72 @@ export default function LRBookingPage() {
   // View & Print LR state
   const [selectedLrForView, setSelectedLrForView] = useState<LRRecord | null>(null);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+
+  // Print preview modal states for linked documents (Job, Challan, Invoice)
+  const [viewingJob, setViewingJob] = useState<any | null>(null);
+  const [viewingChallan, setViewingChallan] = useState<any | null>(null);
+  const [viewingInvoice, setViewingInvoice] = useState<any | null>(null);
+
+  const handleOpenJobPrint = async (jobId?: number, jobNumber?: string) => {
+    if (!jobId && !jobNumber) return;
+    try {
+      if (jobId) {
+        const fullJob = await apiClient<any>(`/api/v1/transport/jobs/${jobId}`);
+        setViewingJob(fullJob);
+      } else if (jobNumber) {
+        const results = await apiClient<any[]>(`/api/v1/transport/jobs?search=${encodeURIComponent(jobNumber)}`);
+        if (results && results.length > 0) {
+          setViewingJob(results[0]);
+        } else {
+          toast.error(`Could not find Job #${jobNumber}`);
+        }
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Failed to load Job print preview");
+    }
+  };
+
+  const handleOpenChallanPrint = async (challanId?: number, challanNumber?: string) => {
+    if (!challanId && !challanNumber) return;
+    try {
+      if (challanId) {
+        const fullChallan = await apiClient<any>(`/api/v1/transport/hire-challans/${challanId}`);
+        setViewingChallan(fullChallan);
+      } else {
+        toast.error("Hire Challan ID not available for print preview");
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Failed to load Hire Challan print preview");
+    }
+  };
+
+  const handleOpenInvoicePrint = async (invoiceId?: number, invoiceNumber?: string, lrId?: number) => {
+    if (!invoiceId && !invoiceNumber && !lrId) return;
+    try {
+      if (invoiceId) {
+        const fullInvoice = await apiClient<any>(`/api/v1/accounts/vouchers/${invoiceId}`);
+        setViewingInvoice(fullInvoice);
+      } else if (invoiceNumber) {
+        const results = await apiClient<any>(`/api/v1/accounts/vouchers?search=${encodeURIComponent(invoiceNumber)}`);
+        const items = Array.isArray(results) ? results : (results?.items || []);
+        if (items.length > 0) {
+          setViewingInvoice(items[0]);
+        } else {
+          toast.error(`Could not find Freight Invoice #${invoiceNumber}`);
+        }
+      } else if (lrId) {
+        const results = await apiClient<any>(`/api/v1/accounts/vouchers?lr_id=${lrId}`);
+        const items = Array.isArray(results) ? results : (results?.items || []);
+        if (items.length > 0) {
+          setViewingInvoice(items[0]);
+        } else {
+          toast.error("Invoice voucher not found for this LR");
+        }
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Failed to load Freight Invoice print preview");
+    }
+  };
 
   // Series Master State
   const [isSeriesLoading, setIsSeriesLoading] = useState(true);
@@ -1963,7 +2033,7 @@ export default function LRBookingPage() {
       cell: (row) => {
         const hasJob = Boolean(row.job_number || row.job_id);
         const hasChallan = Boolean(row.challan_number || row.challan_id);
-        const hasInvoice = Boolean(row.is_invoiced || row.invoice_number);
+        const hasInvoice = Boolean(row.invoice_number || row.invoice_id);
 
         return (
           <div className="flex flex-col gap-1 items-start min-w-[155px]">
@@ -1974,10 +2044,10 @@ export default function LRBookingPage() {
                   type="button"
                   onClick={(e) => {
                     e.stopPropagation();
-                    router.push(`/transport/jobs?search=${encodeURIComponent(row.job_number || "")}`);
+                    handleOpenJobPrint(row.job_id, row.job_number);
                   }}
                   className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-semibold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition-colors cursor-pointer"
-                  title="Click to view linked Trip / Job Order"
+                  title={row.job_number ? `Click to open Job Order #${row.job_number} print preview` : "Click to open Job Order print preview"}
                 >
                   <Check className="w-3 h-3 text-emerald-600 dark:text-emerald-400 shrink-0" />
                   <span className="font-mono">Job #{row.job_number || row.job_id}</span>
@@ -2012,14 +2082,10 @@ export default function LRBookingPage() {
                   type="button"
                   onClick={(e) => {
                     e.stopPropagation();
-                    if (row.challan_id) {
-                      router.push(`/transport/hire-challan?edit=${row.challan_id}`);
-                    } else if (row.challan_number) {
-                      router.push(`/transport/hire-challan?search=${encodeURIComponent(row.challan_number)}`);
-                    }
+                    handleOpenChallanPrint(row.challan_id, row.challan_number);
                   }}
                   className="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded text-[10px] font-semibold bg-blue-50 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 hover:bg-blue-100 transition-colors cursor-pointer"
-                  title={row.challan_number ? `Hire Challan #${row.challan_number}` : "Hire Challan Linked"}
+                  title={row.challan_number ? `Click to open Hire Challan #${row.challan_number} print preview` : "Click to open Hire Challan print preview"}
                 >
                   <Check className="w-2.5 h-2.5 text-blue-600 dark:text-blue-400 shrink-0" />
                   <span>{row.challan_number ? `HC #${row.challan_number}` : "Challan"}</span>
@@ -2027,13 +2093,18 @@ export default function LRBookingPage() {
               )}
 
               {hasInvoice && (
-                <span
-                  className="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded text-[10px] font-semibold bg-purple-50 dark:bg-purple-950/50 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800"
-                  title={row.invoice_number ? `Freight Invoice #${row.invoice_number}` : "Freight Invoiced"}
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleOpenInvoicePrint(row.invoice_id, row.invoice_number, row.id);
+                  }}
+                  className="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded text-[10px] font-semibold bg-purple-50 dark:bg-purple-950/50 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800 hover:bg-purple-100 transition-colors cursor-pointer"
+                  title={row.invoice_number ? `Click to open Freight Invoice #${row.invoice_number} print preview` : "Click to open Freight Invoice print preview"}
                 >
                   <Check className="w-2.5 h-2.5 text-purple-600 dark:text-purple-400 shrink-0" />
                   <span>{row.invoice_number ? `Inv #${row.invoice_number}` : "Invoiced"}</span>
-                </span>
+                </button>
               )}
 
               {!hasChallan && !hasInvoice && (
@@ -2811,6 +2882,33 @@ export default function LRBookingPage() {
         }}
         activeOffice={activeOffice}
       />
+
+      {/* View Linked Job Print Preview Modal */}
+      {viewingJob && (
+        <JobOrderViewModal
+          isOpen={!!viewingJob}
+          job={viewingJob}
+          onClose={() => setViewingJob(null)}
+        />
+      )}
+
+      {/* View Linked Hire Challan Print Preview Modal */}
+      {viewingChallan && (
+        <HireChallanViewModal
+          isOpen={!!viewingChallan}
+          challan={viewingChallan}
+          onClose={() => setViewingChallan(null)}
+        />
+      )}
+
+      {/* View Linked Transport Invoice Print Preview Modal */}
+      {viewingInvoice && (
+        <TransportInvoicePrintModal
+          isOpen={!!viewingInvoice}
+          invoice={viewingInvoice}
+          onClose={() => setViewingInvoice(null)}
+        />
+      )}
     </div>
   );
 }
