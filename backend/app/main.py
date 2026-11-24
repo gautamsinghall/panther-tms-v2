@@ -553,8 +553,10 @@ async def lifespan(app: FastAPI):
                             "against_voucher_id INTEGER",
                             "attachment_url TEXT",
                             "itc_eligibility VARCHAR(50) DEFAULT 'ELIGIBLE'",
+                            "bank_statement_line_id INTEGER",
                         ]:
                             await t_conn.execute(text(f"ALTER TABLE accounts_vouchers ADD COLUMN IF NOT EXISTS {vch_col};"))
+                        await t_conn.execute(text("CREATE INDEX IF NOT EXISTS ix_accounts_vouchers_bank_statement_line_id ON accounts_vouchers (bank_statement_line_id);"))
                         await t_conn.execute(text("CREATE INDEX IF NOT EXISTS ix_accounts_vouchers_billing_client_id ON accounts_vouchers (billing_client_id);"))
                         await t_conn.execute(text("CREATE INDEX IF NOT EXISTS ix_accounts_vouchers_vendor_id ON accounts_vouchers (vendor_id);"))
                         await t_conn.execute(text("CREATE INDEX IF NOT EXISTS ix_accounts_vouchers_driver_id ON accounts_vouchers (driver_id);"))
@@ -584,6 +586,78 @@ async def lifespan(app: FastAPI):
                         await t_conn.execute(text("UPDATE accounts_vouchers SET gst_treatment = 'FCM' WHERE gst_treatment IS NULL;"))
                         await t_conn.execute(text("ALTER TABLE accounts_voucher_items ADD COLUMN IF NOT EXISTS hsn_sac VARCHAR(20);"))
                         await t_conn.execute(text("ALTER TABLE accounts_voucher_items ADD COLUMN IF NOT EXISTS discount_amount NUMERIC(12, 2) DEFAULT 0.00;"))
+                        await t_conn.execute(text("""
+                            CREATE TABLE IF NOT EXISTS bank_statement_imports (
+                                id SERIAL PRIMARY KEY,
+                                company_bank_account_id INTEGER NOT NULL REFERENCES company_bank_accounts(id),
+                                file_name VARCHAR(255) NOT NULL,
+                                file_hash VARCHAR(64) NOT NULL,
+                                uploaded_by_user_id INTEGER REFERENCES users(id),
+                                total_rows INTEGER NOT NULL DEFAULT 0,
+                                money_out_count INTEGER NOT NULL DEFAULT 0,
+                                money_in_count INTEGER NOT NULL DEFAULT 0,
+                                matched_count INTEGER NOT NULL DEFAULT 0,
+                                ready_count INTEGER NOT NULL DEFAULT 0,
+                                needs_decision_count INTEGER NOT NULL DEFAULT 0,
+                                skipped_count INTEGER NOT NULL DEFAULT 0,
+                                posted_count INTEGER NOT NULL DEFAULT 0,
+                                opening_balance NUMERIC(14, 2),
+                                closing_balance NUMERIC(14, 2),
+                                status VARCHAR(50) NOT NULL DEFAULT 'IN_REVIEW',
+                                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                                updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                            );
+                        """))
+                        await t_conn.execute(text("""
+                            CREATE TABLE IF NOT EXISTS bank_statement_lines (
+                                id SERIAL PRIMARY KEY,
+                                import_id INTEGER NOT NULL REFERENCES bank_statement_imports(id) ON DELETE CASCADE,
+                                line_number INTEGER NOT NULL,
+                                transaction_id VARCHAR(100),
+                                value_date DATE NOT NULL,
+                                txn_posted_date DATE,
+                                cheque_number VARCHAR(100),
+                                description TEXT NOT NULL,
+                                cr_dr VARCHAR(10) NOT NULL,
+                                amount NUMERIC(14, 2) NOT NULL,
+                                available_balance NUMERIC(14, 2),
+                                status VARCHAR(50) NOT NULL DEFAULT 'NEEDS_DECISION',
+                                rule_applied VARCHAR(100),
+                                matched_party_type VARCHAR(50),
+                                matched_party_id INTEGER,
+                                matched_party_name VARCHAR(255),
+                                confidence_score NUMERIC(5, 2) DEFAULT 0.00,
+                                question_prompt TEXT,
+                                question_options JSONB DEFAULT '[]'::jsonb,
+                                suggested_ledger_id INTEGER REFERENCES misc_accounts(id),
+                                suggested_voucher_type VARCHAR(50),
+                                contra_transfer_bank_account_id INTEGER REFERENCES company_bank_accounts(id),
+                                bill_allocations JSONB DEFAULT '[]'::jsonb,
+                                matched_voucher_id INTEGER REFERENCES accounts_vouchers(id),
+                                created_voucher_id INTEGER REFERENCES accounts_vouchers(id),
+                                skip_reason TEXT,
+                                ignored_permanently BOOLEAN NOT NULL DEFAULT FALSE,
+                                ignore_reason TEXT,
+                                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                                updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                            );
+                        """))
+                        await t_conn.execute(text("""
+                            CREATE TABLE IF NOT EXISTS master_aliases (
+                                id SERIAL PRIMARY KEY,
+                                alias_text VARCHAR(255) NOT NULL,
+                                master_type VARCHAR(50) NOT NULL,
+                                master_id INTEGER NOT NULL,
+                                master_name VARCHAR(255) NOT NULL,
+                                upi_id VARCHAR(100),
+                                created_by_user_id INTEGER REFERENCES users(id),
+                                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                            );
+                        """))
+                        await t_conn.execute(text("CREATE INDEX IF NOT EXISTS ix_bank_statement_imports_account ON bank_statement_imports(company_bank_account_id);"))
+                        await t_conn.execute(text("CREATE INDEX IF NOT EXISTS ix_bank_statement_lines_import ON bank_statement_lines(import_id);"))
+                        await t_conn.execute(text("CREATE INDEX IF NOT EXISTS ix_bank_statement_lines_status ON bank_statement_lines(status);"))
+                        await t_conn.execute(text("CREATE INDEX IF NOT EXISTS ix_master_aliases_text ON master_aliases(alias_text);"))
 
                         # E-Invoicing Records Schema Evolution
                         await t_conn.execute(text("""
