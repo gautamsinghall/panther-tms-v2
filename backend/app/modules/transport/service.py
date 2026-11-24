@@ -411,7 +411,7 @@ async def get_all_jobs(
             selectinload(Job.destination_location),
             selectinload(Job.billing_client),
             selectinload(Job.issuing_office),
-            selectinload(Job.lrs),
+            selectinload(Job.lrs).selectinload(LR.hire_challan),
         )
         .order_by(desc(Job.created_at))
     )
@@ -446,7 +446,7 @@ async def get_job_by_id(db: AsyncSession, job_id: int) -> Job:
             selectinload(Job.destination_location),
             selectinload(Job.billing_client),
             selectinload(Job.issuing_office),
-            selectinload(Job.lrs),
+            selectinload(Job.lrs).selectinload(LR.hire_challan),
         )
         .where(Job.id == job_id)
     )

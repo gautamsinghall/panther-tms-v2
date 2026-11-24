@@ -2,11 +2,12 @@ from typing import List, Dict, Any, Optional
 from fastapi import APIRouter, Depends, status, UploadFile, File, Query, Form, HTTPException
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 from app.core.errors import AppException, ForbiddenException, ResourceNotFoundException as NotFoundException
 from app.tenant_db.session import get_tenant_db, get_current_tenant
 from app.auth.dependencies import require_permission, get_current_user, check_entitlement_limit, get_current_office
 from app.control.models import Tenant
-from app.tenant_db.models import User, Branch, LR, Job
+from app.tenant_db.models import User, Branch, LR, Job, Voucher
 from app.modules.transport import service
 from app.services.activity_logger import log_activity
 from app.modules.transport.excel_import import (
@@ -497,7 +498,7 @@ async def import_jobs_excel(
     )
     return res
 
-def _build_job_response(job: Job) -> JobResponse:
+def _build_job_response(job: Job, invoice_map: Optional[Dict[int, str]] = None) -> JobResponse:
     job_d = job.__dict__
     lrs = job_d.get("lrs") or []
     linked_lr = lrs[0] if (lrs and len(lrs) > 0) else None
@@ -509,6 +510,21 @@ def _build_job_response(job: Job) -> JobResponse:
     billing_client = job_d.get("billing_client")
     origin_loc = job_d.get("origin_location")
     dest_loc = job_d.get("destination_location")
+
+    hc = None
+    inv_num = None
+    is_invoiced = False
+    for l in lrs:
+        if not hc and getattr(l, "hire_challan", None):
+            hc = l.hire_challan
+        if getattr(l, "is_billed", False):
+            is_invoiced = True
+        if invoice_map and l.id in invoice_map:
+            inv_num = invoice_map[l.id]
+            is_invoiced = True
+    if not inv_num and linked_lr and getattr(linked_lr, "invoice_no", None):
+        inv_num = linked_lr.invoice_no
+
     return JobResponse(
         id=job.id,
         job_number=job.job_number,
@@ -542,6 +558,10 @@ def _build_job_response(job: Job) -> JobResponse:
         driver_name=linked_lr.driver_name if linked_lr else None,
         driver_phone=linked_lr.driver_phone if linked_lr else None,
         total_freight_amount=linked_lr.total_freight_amount if linked_lr else None,
+        challan_id=hc.id if hc else None,
+        challan_number=hc.challan_number if hc else None,
+        is_invoiced=is_invoiced,
+        invoice_number=inv_num,
         created_at=job.created_at,
         updated_at=job.updated_at,
     )
@@ -565,7 +585,22 @@ async def list_jobs(
         offset=offset,
         search=search,
     )
-    return [_build_job_response(j) for j in jobs]
+    lr_ids = [l.id for j in jobs for l in (getattr(j, "lrs", []) or []) if l.id]
+    invoice_map: Dict[int, str] = {}
+    if lr_ids:
+        v_stmt = (
+            select(Voucher.lr_id, Voucher.voucher_number)
+            .where(
+                Voucher.lr_id.in_(lr_ids),
+                Voucher.is_void == False,
+                Voucher.voucher_type.ilike("%INVOICE%")
+            )
+        )
+        v_res = await db.execute(v_stmt)
+        for row in v_res.all():
+            invoice_map[row[0]] = row[1]
+
+    return [_build_job_response(j, invoice_map) for j in jobs]
 
 @router.get("/jobs/{id}", response_model=JobResponse)
 async def get_job(
@@ -574,7 +609,21 @@ async def get_job(
     db: AsyncSession = Depends(get_tenant_db),
 ):
     job = await service.get_job_by_id(db, id)
-    return _build_job_response(job)
+    lr_ids = [l.id for l in (getattr(job, "lrs", []) or []) if l.id]
+    invoice_map: Dict[int, str] = {}
+    if lr_ids:
+        v_stmt = (
+            select(Voucher.lr_id, Voucher.voucher_number)
+            .where(
+                Voucher.lr_id.in_(lr_ids),
+                Voucher.is_void == False,
+                Voucher.voucher_type.ilike("%INVOICE%")
+            )
+        )
+        v_res = await db.execute(v_stmt)
+        for row in v_res.all():
+            invoice_map[row[0]] = row[1]
+    return _build_job_response(job, invoice_map)
 
 @router.post("/jobs", response_model=JobResponse, status_code=status.HTTP_201_CREATED)
 async def create_job(

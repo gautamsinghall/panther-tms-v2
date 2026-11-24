@@ -405,6 +405,10 @@ class JobResponse(JobBase):
     driver_name: Optional[str] = None
     driver_phone: Optional[str] = None
     total_freight_amount: Optional[Decimal] = None
+    challan_id: Optional[int] = None
+    challan_number: Optional[str] = None
+    is_invoiced: bool = False
+    invoice_number: Optional[str] = None
     created_at: datetime
     updated_at: datetime
     model_config = ConfigDict(from_attributes=True)

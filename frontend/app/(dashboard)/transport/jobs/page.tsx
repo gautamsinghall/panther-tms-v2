@@ -2,7 +2,7 @@
 import { toast } from "@/lib/toast";
 
 import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
-import { Plus, ArrowRight, Truck, FileText, CheckCircle2, Clock, Layers, Sparkles, FileSpreadsheet, Pencil, Printer, ScanSearch } from "lucide-react";
+import { Plus, ArrowRight, Truck, FileText, CheckCircle2, Clock, Layers, Sparkles, FileSpreadsheet, Pencil, Printer, ScanSearch, Check, X } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { FilterBar } from "@/components/ui/filter-bar";
 import { DataTable } from "@/components/tables/data-table";
@@ -48,6 +48,10 @@ interface JobRecord {
   linked_lrs?: string[];
   vehicle_number?: string;
   driver_name?: string;
+  challan_id?: number;
+  challan_number?: string;
+  is_invoiced?: boolean;
+  invoice_number?: string;
   created_at: string;
 }
 
@@ -209,6 +213,8 @@ export default function JobsPage() {
           item.destination_city?.toLowerCase().includes(term) ||
           item.cargo_description?.toLowerCase().includes(term) ||
           item.lr_number?.toLowerCase().includes(term) ||
+          item.challan_number?.toLowerCase().includes(term) ||
+          item.invoice_number?.toLowerCase().includes(term) ||
           item.vehicle_number?.toLowerCase().includes(term);
         if (!match) return false;
       }
@@ -314,6 +320,109 @@ export default function JobsPage() {
       header: "Trip Status",
       align: "center",
       cell: (row) => <StatusBadge status={row.status} />,
+    },
+    {
+      key: "linkage",
+      header: "Linked Status",
+      cell: (row) => {
+        const hasLr = Boolean(row.lr_number || row.lr_id || (row.linked_lrs && row.linked_lrs.length > 0));
+        const lrDisplay = row.lr_number || (row.linked_lrs && row.linked_lrs[0]);
+        const hasChallan = Boolean(row.challan_number || row.challan_id);
+        const hasInvoice = Boolean(row.is_invoiced || row.invoice_number);
+
+        return (
+          <div className="flex flex-col gap-1 items-start min-w-[145px]">
+            {/* Primary Document: LR */}
+            <div className="flex items-center gap-1.5 w-full">
+              {hasLr ? (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (row.lr_id) {
+                      router.push(`/transport/lr-booking?edit=${row.lr_id}`);
+                    } else if (row.lr_number) {
+                      router.push(`/transport/lr-booking?search=${encodeURIComponent(row.lr_number)}`);
+                    }
+                  }}
+                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-semibold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition-colors cursor-pointer"
+                  title="Click to view LR booking"
+                >
+                  <Check className="w-3 h-3 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                  <span className="font-mono">LR #{lrDisplay}</span>
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    router.push(`/transport/lr-booking?job_id=${row.id}`);
+                  }}
+                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-medium bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border border-rose-200/80 dark:border-rose-900/40 hover:bg-rose-100 dark:hover:bg-rose-900/40 transition-colors cursor-pointer"
+                  title="No LR linked. Click to book LR for this trip"
+                >
+                  <X className="w-3 h-3 text-rose-500 shrink-0" />
+                  <span>No LR</span>
+                </button>
+              )}
+            </div>
+
+            {/* Downstream Chain: Challan & Invoice & 360 trace */}
+            <div className="flex items-center gap-1 w-full flex-wrap">
+              {/* Challan Badge */}
+              {hasChallan ? (
+                <span
+                  className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-blue-50 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800"
+                  title={row.challan_number ? `Hire Challan #${row.challan_number}` : "Hire Challan Linked"}
+                >
+                  <Check className="w-2.5 h-2.5 text-blue-600 dark:text-blue-400 shrink-0" />
+                  <span>{row.challan_number ? `HC #${row.challan_number}` : "Challan"}</span>
+                </span>
+              ) : (
+                <span
+                  className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] text-slate-400 dark:text-slate-500 bg-slate-50 dark:bg-slate-900/60 border border-slate-200/70 dark:border-slate-800"
+                  title="No Hire Challan Issued"
+                >
+                  <X className="w-2.5 h-2.5 text-rose-400 shrink-0" />
+                  <span>Challan</span>
+                </span>
+              )}
+
+              {/* Invoice Badge */}
+              {hasInvoice ? (
+                <span
+                  className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-purple-50 dark:bg-purple-950/50 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800"
+                  title={row.invoice_number ? `Freight Invoice #${row.invoice_number}` : "Freight Invoiced"}
+                >
+                  <Check className="w-2.5 h-2.5 text-purple-600 dark:text-purple-400 shrink-0" />
+                  <span>{row.invoice_number ? `Inv #${row.invoice_number}` : "Invoiced"}</span>
+                </span>
+              ) : (
+                <span
+                  className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] text-slate-400 dark:text-slate-500 bg-slate-50 dark:bg-slate-900/60 border border-slate-200/70 dark:border-slate-800"
+                  title="Freight Invoice Not Generated"
+                >
+                  <X className="w-2.5 h-2.5 text-rose-400 shrink-0" />
+                  <span>Invoice</span>
+                </span>
+              )}
+
+              {/* 360 Traceability Shortcut */}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  router.push(`/transport/consignment-360?q=${encodeURIComponent(row.job_number)}`);
+                }}
+                className="p-0.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/50 rounded transition-colors ml-auto cursor-pointer"
+                title="Open 360° Traceability Lifecycle"
+              >
+                <ScanSearch className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+        );
+      },
     },
   ];
 

@@ -1500,6 +1500,22 @@ export default function NormalPurchasePage() {
                 </span>
               </div>
             </div>
+
+            <div className="pt-2 border-t border-slate-100 dark:border-[#303036]">
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                Narration / Remarks (Optional)
+              </label>
+              <textarea
+                rows={2}
+                placeholder="Enter internal purchase notes, vehicle maintenance details, or bill remarks..."
+                value={narration}
+                onChange={(e) => setNarration(e.target.value)}
+                className="w-full px-3.5 py-2 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#303036] bg-white dark:bg-[#101013] text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all shadow-2xs resize-none"
+              />
+              <span className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5 block">
+                Printed on purchase voucher and posted to double-entry ledger accounts.
+              </span>
+            </div>
           </div>
 
           {/* Step 3: Itemized Line Items */}
