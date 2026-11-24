@@ -1520,6 +1520,7 @@ class Voucher(TenantBase):
     driver_id = Column(Integer, ForeignKey("transport_drivers.id"), nullable=True, index=True)
     company_bank_account_id = Column(Integer, ForeignKey("company_bank_accounts.id"), nullable=True, index=True)
     company_vehicle_id = Column(Integer, ForeignKey("transport_company_vehicles.id"), nullable=True, index=True)
+    bank_statement_line_id = Column(Integer, nullable=True, index=True)
 
     # Tally-style bill-wise & tax tracking
     due_date = Column(Date, nullable=True)
@@ -2133,3 +2134,134 @@ class AIOperationIdempotency(TenantBase):
         onupdate=lambda: datetime.now(timezone.utc),
         nullable=False
     )
+
+
+# ==============================================================================
+# Bank Statement Import & Reconciliation (Auto BRS & Review Queue)
+# ==============================================================================
+
+class BankStatementImport(TenantBase):
+    """
+    Header record for imported bank statement files.
+    """
+    __tablename__ = "accounts_bank_statement_imports"
+
+    id = Column(Integer, primary_key=True, index=True)
+    company_bank_account_id = Column(Integer, ForeignKey("company_bank_accounts.id"), nullable=False, index=True)
+    file_name = Column(String(255), nullable=False)
+    file_hash = Column(String(64), nullable=False, index=True)  # SHA-256 for duplicate detection
+    file_size_bytes = Column(Integer, nullable=True)
+    account_number_in_file = Column(String(50), nullable=True)
+    
+    opening_balance = Column(Numeric(14, 2), default=0.00, nullable=False)
+    closing_balance = Column(Numeric(14, 2), default=0.00, nullable=False)
+    
+    total_lines = Column(Integer, default=0, nullable=False)
+    money_out_count = Column(Integer, default=0, nullable=False)
+    money_out_amount = Column(Numeric(14, 2), default=0.00, nullable=False)
+    money_in_count = Column(Integer, default=0, nullable=False)
+    money_in_amount = Column(Numeric(14, 2), default=0.00, nullable=False)
+    
+    matched_count = Column(Integer, default=0, nullable=False)
+    ready_count = Column(Integer, default=0, nullable=False)
+    needs_decision_count = Column(Integer, default=0, nullable=False)
+    skipped_count = Column(Integer, default=0, nullable=False)
+    vouchers_created_count = Column(Integer, default=0, nullable=False)
+    
+    status = Column(String(50), default="IN_REVIEW", nullable=False, index=True)  # IN_REVIEW, COMPLETED, VOID
+    void_reason = Column(Text, nullable=True)
+    voided_at = Column(DateTime(timezone=True), nullable=True)
+    voided_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    
+    created_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
+    updated_at = Column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+        nullable=False
+    )
+
+    bank_account = relationship("CompanyBankAccount", foreign_keys=[company_bank_account_id], lazy="selectin")
+    created_by = relationship("User", foreign_keys=[created_by_id], lazy="selectin")
+    voided_by = relationship("User", foreign_keys=[voided_by_id], lazy="selectin")
+    lines = relationship("BankStatementLine", back_populates="import_session", cascade="all, delete-orphan", lazy="selectin")
+
+
+class BankStatementLine(TenantBase):
+    """
+    Individual transaction line from bank statement review queue.
+    """
+    __tablename__ = "accounts_bank_statement_lines"
+
+    id = Column(Integer, primary_key=True, index=True)
+    import_id = Column(Integer, ForeignKey("accounts_bank_statement_imports.id", ondelete="CASCADE"), nullable=False, index=True)
+    row_number = Column(Integer, nullable=False)
+    transaction_id = Column(String(100), nullable=True, index=True)
+    value_date = Column(Date, nullable=False, index=True)
+    txn_posted_date = Column(String(100), nullable=True)
+    cheque_number = Column(String(50), nullable=True)
+    description = Column(Text, nullable=False)
+    cr_dr = Column(String(10), nullable=False, index=True)  # DR (money out) or CR (money in)
+    amount = Column(Numeric(14, 2), nullable=False)
+    available_balance = Column(Numeric(14, 2), nullable=True)
+    
+    status = Column(String(50), default="NEEDS_DECISION", nullable=False, index=True)  # MATCHED, READY, NEEDS_DECISION, SKIPPED, POSTED, IGNORED
+    skip_reason = Column(Text, nullable=True)
+    ignore_reason = Column(Text, nullable=True)
+    ignored_by = Column(String(100), nullable=True)
+    ignored_at = Column(DateTime(timezone=True), nullable=True)
+    
+    suggested_party_type = Column(String(50), nullable=True)  # VENDOR, CLIENT, DRIVER, TRANSPORTER, STATUTORY, EXPENSE, CONTRA
+    suggested_party_id = Column(Integer, nullable=True)
+    suggested_party_name = Column(String(255), nullable=True)
+    suggested_ledger_account_id = Column(Integer, ForeignKey("misc_accounts.id"), nullable=True)
+    confidence_score = Column(Integer, default=0, nullable=False)
+    
+    suggested_voucher_type = Column(String(50), nullable=True)  # PAYMENT_VOUCHER, RECEIPT_VOUCHER, CONTRA_VOUCHER
+    suggested_payment_type = Column(String(50), nullable=True)  # AGAINST_REF, DRIVER_ADVANCE, DIRECT_EXPENSE, ADVANCE, STATUTORY_PAYMENT, CONTRA, CLIENT_REFUND
+    
+    # Interactive questions (Step 7A)
+    question_prompt = Column(Text, nullable=True)
+    question_options = Column(JSON, nullable=True)
+    question_answered = Column(Boolean, default=False, nullable=False)
+    question_answer = Column(String(100), nullable=True)
+    
+    # Bill-by-bill matching and allocations (Step 4)
+    bill_allocations_data = Column(JSON, nullable=True)  # List of {invoice_id, bill_number, balance_due, allocated_amount, remaining_balance}
+    
+    # Linking
+    matched_voucher_id = Column(Integer, ForeignKey("accounts_vouchers.id"), nullable=True, index=True)
+    matched_voucher_number = Column(String(50), nullable=True)
+    created_voucher_id = Column(Integer, ForeignKey("accounts_vouchers.id"), nullable=True, index=True)
+    created_voucher_number = Column(String(50), nullable=True)
+    
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
+    updated_at = Column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+        nullable=False
+    )
+
+    import_session = relationship("BankStatementImport", back_populates="lines")
+    suggested_ledger_account = relationship("Account", foreign_keys=[suggested_ledger_account_id], lazy="selectin")
+    matched_voucher = relationship("Voucher", foreign_keys=[matched_voucher_id], lazy="selectin")
+    created_voucher = relationship("Voucher", foreign_keys=[created_voucher_id], lazy="selectin")
+
+
+class MasterAlias(TenantBase):
+    """
+    Alias learning for party and ledger resolution from bank statement narrations and UPI IDs.
+    """
+    __tablename__ = "accounts_master_aliases"
+
+    id = Column(Integer, primary_key=True, index=True)
+    party_type = Column(String(50), nullable=False, index=True)  # VENDOR, CLIENT, DRIVER, VEHICLE_OWNER, ACCOUNT
+    party_id = Column(Integer, nullable=False, index=True)
+    alias_text = Column(String(255), nullable=False, index=True)
+    upi_id = Column(String(100), nullable=True, index=True)
+    party_name = Column(String(255), nullable=True)
+    created_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
+

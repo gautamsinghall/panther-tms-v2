@@ -215,6 +215,8 @@ export const ALL_NAVIGATION_MODULES: NavGroup[] = [
       { feature: "journal_voucher", title: "Journal Voucher", href: "/accounts/journal-voucher" },
       { feature: "credit_debit_notes", title: "Credit / Debit Note", href: "/accounts/credit-debit-notes" },
       { feature: "company_bank_accounts", title: "Company Bank Accounts", href: "/accounts/bank-accounts" },
+      { feature: "company_bank_accounts", title: "Bank Statement Auto BRS", href: "/accounts/bank-reconciliation/review" },
+      { feature: "company_bank_accounts", title: "Skipped Entries Report", href: "/accounts/bank-reconciliation/skipped-entries" },
       { feature: "master_ledger", title: "Master Ledger", href: "/accounts/master-ledger" },
     ],
   },

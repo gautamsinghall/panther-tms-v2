@@ -2,6 +2,7 @@
 import { toast } from "@/lib/toast";
 
 import React, { useState, useEffect, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import { createPortal } from "react-dom";
 import {
   Plus,
@@ -27,6 +28,7 @@ import {
   Clock,
   Check,
   Pencil,
+  UploadCloud,
 } from "lucide-react";
 import { KpiCard } from "@/components/ui/kpi-card";
 import { DataTable } from "@/components/tables/data-table";
@@ -40,6 +42,7 @@ import { ColumnDef, RowAction } from "@/types/table";
 import { apiClient } from "@/lib/api-client";
 import { getActiveOffice, getStoredAuth } from "@/lib/auth";
 import { formatCurrency, formatDate, cn } from "@/lib/utils";
+import { BankStatementImportModal } from "@/components/accounts/bank-statement-import-modal";
 
 // Indian Rupees Number to Words
 function numberToWords(num: number): string {
@@ -229,10 +232,14 @@ export default function ReceiptVoucherPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
+  const router = useRouter();
   // Masters
   const [billingClients, setBillingClients] = useState<BillingClientOption[]>([]);
   const [bankAccounts, setBankAccounts] = useState<AccountOption[]>([]);
   const [seriesInfo, setSeriesInfo] = useState<any>(null);
+
+  // Bank Statement Auto BRS Import
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
 
   // Filters
   const [searchQuery, setSearchQuery] = useState("");
@@ -1021,6 +1028,24 @@ export default function ReceiptVoucherPage() {
           },
         }}
         secondaryActions={[
+          {
+            label: "Import Statement",
+            icon: <UploadCloud className="w-4 h-4 text-indigo-600" />,
+            onClick: () => setIsImportModalOpen(true),
+            variant: "outline",
+          },
+          {
+            label: "Review Queue",
+            icon: <CheckCircle className="w-4 h-4 text-emerald-600" />,
+            onClick: () => router.push("/accounts/bank-reconciliation/review"),
+            variant: "outline",
+          },
+          {
+            label: "Skipped Entries",
+            icon: <FileText className="w-4 h-4 text-amber-600" />,
+            onClick: () => router.push("/accounts/bank-reconciliation/skipped-entries"),
+            variant: "outline",
+          },
           {
             label: "Export CSV",
             icon: <FileSpreadsheet className="w-4 h-4 text-emerald-600" />,
@@ -2592,6 +2617,15 @@ export default function ReceiptVoucherPage() {
           />
         </div>
       </ConfirmDialog>
+
+      {/* Bank Statement Auto BRS Import Modal */}
+      <BankStatementImportModal
+        isOpen={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
+        onSuccess={(imp) => {
+          router.push(`/accounts/bank-reconciliation/review?id=${imp.id}`);
+        }}
+      />
     </div>
   );
 }

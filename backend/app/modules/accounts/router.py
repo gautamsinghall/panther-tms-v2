@@ -1,7 +1,7 @@
 from datetime import date
 from decimal import Decimal
 from typing import List, Optional
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, Query, status, UploadFile, File, Form
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.tenant_db.session import get_tenant_db, get_current_tenant
 from app.auth.dependencies import (
@@ -9,8 +9,8 @@ from app.auth.dependencies import (
 )
 from app.core.errors import ForbiddenException
 from app.control.models import Tenant
-from app.tenant_db.models import User, Branch
-from app.modules.accounts import schemas, service, master_ledger_service
+from app.tenant_db.models import User, Branch, BankStatementImport, BankStatementLine
+from app.modules.accounts import schemas, service, master_ledger_service, bank_statement_service
 from app.services.activity_logger import log_activity
 
 router = APIRouter(
@@ -1635,3 +1635,284 @@ async def reverse_journal_voucher_endpoint(
     """
     voucher = await service.reverse_journal_voucher(session, voucher_id, data, current_user=current_user)
     return map_voucher_response(voucher)
+
+
+# ==============================================================================
+# Bank Statement Import & Reconciliation Endpoints (Auto BRS & Review Queue)
+# ==============================================================================
+
+def map_line_response(line: BankStatementLine) -> schemas.BankStatementLineResponse:
+    return schemas.BankStatementLineResponse(
+        id=line.id,
+        import_id=line.import_id,
+        row_number=line.row_number,
+        transaction_id=line.transaction_id,
+        value_date=line.value_date,
+        txn_posted_date=line.txn_posted_date,
+        cheque_number=line.cheque_number,
+        description=line.description,
+        cr_dr=line.cr_dr,
+        amount=line.amount,
+        available_balance=line.available_balance,
+        status=line.status,
+        skip_reason=line.skip_reason,
+        ignore_reason=line.ignore_reason,
+        ignored_by=line.ignored_by,
+        ignored_at=line.ignored_at,
+        suggested_party_type=line.suggested_party_type,
+        suggested_party_id=line.suggested_party_id,
+        suggested_party_name=line.suggested_party_name,
+        suggested_ledger_account_id=line.suggested_ledger_account_id,
+        confidence_score=line.confidence_score,
+        suggested_voucher_type=line.suggested_voucher_type,
+        suggested_payment_type=line.suggested_payment_type,
+        question_prompt=line.question_prompt,
+        question_options=line.question_options,
+        question_answered=line.question_answered,
+        question_answer=line.question_answer,
+        bill_allocations_data=line.bill_allocations_data,
+        matched_voucher_id=line.matched_voucher_id,
+        matched_voucher_number=line.matched_voucher_number,
+        created_voucher_id=line.created_voucher_id,
+        created_voucher_number=line.created_voucher_number,
+        created_at=line.created_at,
+        updated_at=line.updated_at,
+    )
+
+
+def map_import_response(imp: BankStatementImport, include_lines: bool = True) -> schemas.BankStatementImportResponse:
+    ba = imp.bank_account
+    ac_num = ba.account_number if ba else ""
+    masked = f"...{ac_num[-4:]}" if ac_num and len(ac_num) >= 4 else ac_num
+
+    questions_waiting = 0
+    lines_resp = None
+    if include_lines and imp.lines:
+        lines_resp = []
+        for l in imp.lines:
+            lines_resp.append(map_line_response(l))
+            if l.status == "NEEDS_DECISION" and l.question_prompt and not l.question_answered:
+                questions_waiting += 1
+    elif imp.lines:
+        for l in imp.lines:
+            if l.status == "NEEDS_DECISION" and l.question_prompt and not l.question_answered:
+                questions_waiting += 1
+
+    return schemas.BankStatementImportResponse(
+        id=imp.id,
+        company_bank_account_id=imp.company_bank_account_id,
+        bank_name=ba.bank_name if ba else None,
+        account_number_masked=masked,
+        account_number=ac_num,
+        file_name=imp.file_name,
+        file_hash=imp.file_hash,
+        opening_balance=imp.opening_balance,
+        closing_balance=imp.closing_balance,
+        total_lines=imp.total_lines,
+        money_out_count=imp.money_out_count,
+        money_out_amount=imp.money_out_amount,
+        money_in_count=imp.money_in_count,
+        money_in_amount=imp.money_in_amount,
+        matched_count=imp.matched_count,
+        ready_count=imp.ready_count,
+        needs_decision_count=imp.needs_decision_count,
+        skipped_count=imp.skipped_count,
+        vouchers_created_count=imp.vouchers_created_count,
+        questions_waiting_count=questions_waiting,
+        status=imp.status,
+        void_reason=imp.void_reason,
+        created_at=imp.created_at,
+        lines=lines_resp,
+    )
+
+
+@router.post("/bank-statements/import", response_model=schemas.BankStatementImportResponse, status_code=status.HTTP_201_CREATED)
+async def import_bank_statement_file(
+    bank_account_id: int = Form(...),
+    file: UploadFile = File(...),
+    session: AsyncSession = Depends(get_tenant_db),
+    current_user: User = Depends(require_accounts_permission("create")),
+):
+    """
+    Upload and parse bank statement file into review queue.
+    Validates company bank account match and duplicate file guard.
+    """
+    content = await file.read()
+    import_rec = await bank_statement_service.import_and_queue_bank_statement(
+        session=session,
+        bank_account_id=bank_account_id,
+        file_bytes=content,
+        file_name=file.filename or "statement.xls",
+        current_user_id=current_user.id,
+    )
+    return map_import_response(import_rec, include_lines=True)
+
+
+@router.get("/bank-statements/skipped-entries", response_model=List[schemas.SkippedEntriesReportItem])
+async def get_skipped_entries_report_endpoint(
+    bank_account_id: Optional[int] = Query(None, description="Optional bank account filter"),
+    session: AsyncSession = Depends(get_tenant_db),
+    _perm: User = Depends(require_accounts_permission("view")),
+):
+    """
+    Retrieve full skipped entries audit report across all imports for this company/bank.
+    """
+    return await bank_statement_service.get_skipped_entries_report(session, bank_account_id=bank_account_id)
+
+
+@router.get("/bank-statements/{import_id}", response_model=schemas.BankStatementImportResponse)
+async def get_bank_statement_import(
+    import_id: int,
+    session: AsyncSession = Depends(get_tenant_db),
+    _perm: User = Depends(require_accounts_permission("view")),
+):
+    """
+    Retrieve bank statement import review queue with all transaction lines.
+    """
+    from sqlalchemy.orm import selectinload
+    q = (
+        select(BankStatementImport)
+        .options(
+            selectinload(BankStatementImport.bank_account),
+            selectinload(BankStatementImport.lines),
+        )
+        .where(BankStatementImport.id == import_id)
+    )
+    res = await session.execute(q)
+    imp = res.scalar_one_or_none()
+    if not imp:
+        raise HTTPException(status_code=404, detail="Bank statement import not found.")
+    return map_import_response(imp, include_lines=True)
+
+
+@router.get("/bank-statements", response_model=List[schemas.BankStatementImportResponse])
+async def list_bank_statement_imports(
+    bank_account_id: Optional[int] = Query(None),
+    session: AsyncSession = Depends(get_tenant_db),
+    _perm: User = Depends(require_accounts_permission("view")),
+):
+    """
+    List past bank statement imports.
+    """
+    from sqlalchemy.orm import selectinload
+    q = (
+        select(BankStatementImport)
+        .options(
+            selectinload(BankStatementImport.bank_account),
+            selectinload(BankStatementImport.lines),
+        )
+        .order_by(BankStatementImport.created_at.desc())
+    )
+    if bank_account_id:
+        q = q.where(BankStatementImport.company_bank_account_id == bank_account_id)
+    res = await session.execute(q)
+    imps = res.scalars().all()
+    return [map_import_response(imp, include_lines=False) for imp in imps]
+
+
+@router.post("/bank-statements/lines/{line_id}/resolve-question", response_model=schemas.BankStatementLineResponse)
+async def resolve_line_question_endpoint(
+    line_id: int,
+    data: schemas.ResolveQuestionRequest,
+    session: AsyncSession = Depends(get_tenant_db),
+    current_user: User = Depends(require_accounts_permission("create")),
+):
+    """
+    Answer interactive question on a Needs Decision line, updating party/rule and saving alias.
+    """
+    updated_line = await bank_statement_service.answer_line_question(
+        session, line_id=line_id, data=data, current_user_id=current_user.id
+    )
+    return map_line_response(updated_line)
+
+
+@router.post("/bank-statements/lines/{line_id}/confirm", response_model=schemas.VoucherResponse)
+async def confirm_and_post_statement_line_endpoint(
+    line_id: int,
+    confirm_data: Optional[schemas.ConfirmLineRequest] = None,
+    session: AsyncSession = Depends(get_tenant_db),
+    current_user: User = Depends(require_accounts_permission("create")),
+):
+    """
+    Confirm and post a balanced double-entry voucher from a review queue line.
+    Enforces locked bank account.
+    """
+    voucher = await bank_statement_service.confirm_and_post_line(
+        session, line_id=line_id, confirm_data=confirm_data, current_user=current_user
+    )
+    return map_voucher_response(voucher)
+
+
+@router.post("/bank-statements/{import_id}/bulk-confirm")
+async def bulk_confirm_ready_lines_endpoint(
+    import_id: int,
+    data: Optional[schemas.BulkConfirmRequest] = None,
+    session: AsyncSession = Depends(get_tenant_db),
+    current_user: User = Depends(require_accounts_permission("create")),
+):
+    """
+    Bulk confirm all READY lines in import session. Never confirms Needs Decision lines.
+    """
+    line_ids = data.line_ids if data else None
+    return await bank_statement_service.bulk_confirm_ready_lines(
+        session, import_id=import_id, line_ids=line_ids, current_user=current_user
+    )
+
+
+@router.post("/bank-statements/lines/{line_id}/ignore", response_model=schemas.BankStatementLineResponse)
+async def ignore_statement_line_endpoint(
+    line_id: int,
+    data: schemas.IgnoreLineRequest,
+    session: AsyncSession = Depends(get_tenant_db),
+    current_user: User = Depends(require_accounts_permission("create")),
+):
+    """
+    Mark a statement line as ignored permanently with reason (Hard Rule 0: never deleted).
+    """
+    user_name = getattr(current_user, "full_name", None) or getattr(current_user, "name", None) or current_user.email or f"User #{current_user.id}"
+    line = await bank_statement_service.ignore_statement_line(
+        session, line_id=line_id, reason=data.reason, user_name=user_name
+    )
+    return map_line_response(line)
+
+
+@router.post("/bank-statements/lines/{line_id}/map-party", response_model=schemas.BankStatementLineResponse)
+async def map_party_statement_line_endpoint(
+    line_id: int,
+    data: schemas.MapPartyRequest,
+    session: AsyncSession = Depends(get_tenant_db),
+    current_user: User = Depends(require_accounts_permission("create")),
+):
+    """
+    Map an unresolved or skipped statement line to a master party, save alias, and re-process.
+    """
+    line = await bank_statement_service.map_party_and_reprocess(
+        session, line_id=line_id, data=data, current_user_id=current_user.id
+    )
+    return map_line_response(line)
+
+
+@router.post("/bank-statements/{import_id}/void", response_model=schemas.BankStatementImportResponse)
+async def void_bank_statement_import_endpoint(
+    import_id: int,
+    void_reason: str = Query(..., min_length=3, description="Reason for voiding import"),
+    session: AsyncSession = Depends(get_tenant_db),
+    current_user: User = Depends(require_accounts_permission("edit")),
+):
+    """
+    Void a bank statement import session (Hard Rule 0: never delete).
+    """
+    from datetime import datetime, timezone
+    q = select(BankStatementImport).where(BankStatementImport.id == import_id)
+    imp = (await session.execute(q)).scalar_one_or_none()
+    if not imp:
+        raise HTTPException(status_code=404, detail="Bank statement import not found.")
+
+    imp.status = "VOID"
+    imp.void_reason = void_reason
+    imp.voided_at = datetime.now(timezone.utc)
+    imp.voided_by_id = current_user.id
+    await session.commit()
+    await session.refresh(imp)
+    return map_import_response(imp, include_lines=False)
+

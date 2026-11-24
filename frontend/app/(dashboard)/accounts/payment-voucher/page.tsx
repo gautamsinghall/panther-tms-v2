@@ -2,6 +2,7 @@
 import { toast } from "@/lib/toast";
 
 import React, { useState, useEffect, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import { createPortal } from "react-dom";
 import {
   Plus,
@@ -30,6 +31,7 @@ import {
   Check,
   Info,
   Pencil,
+  UploadCloud,
 } from "lucide-react";
 import { KpiCard } from "@/components/ui/kpi-card";
 import { DataTable } from "@/components/tables/data-table";
@@ -43,6 +45,7 @@ import { ColumnDef, RowAction } from "@/types/table";
 import { apiClient } from "@/lib/api-client";
 import { getActiveOffice } from "@/lib/auth";
 import { formatCurrency, formatDate, cn } from "@/lib/utils";
+import { BankStatementImportModal } from "@/components/accounts/bank-statement-import-modal";
 
 // Indian Rupees Number to Words
 function numberToWords(num: number): string {
@@ -259,9 +262,13 @@ export default function PaymentVoucherPage() {
   const [vendorsWithDueBills, setVendorsWithDueBills] = useState<VendorOption[]>([]);
   const [drivers, setDrivers] = useState<DriverOption[]>([]);
   const [hireChallans, setHireChallans] = useState<HireChallanOption[]>([]);
+  const router = useRouter();
   const [bankAccounts, setBankAccounts] = useState<AccountOption[]>([]);
   const [expenseAccounts, setExpenseAccounts] = useState<AccountOption[]>([]);
   const [seriesInfo, setSeriesInfo] = useState<any>(null);
+
+  // Bank Statement Import & Reconciliation
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
 
   // Filters
   const [searchQuery, setSearchQuery] = useState("");
@@ -1110,6 +1117,24 @@ export default function PaymentVoucherPage() {
           },
         }}
         secondaryActions={[
+          {
+            label: "Import Statement",
+            icon: <UploadCloud className="w-4 h-4 text-indigo-600" />,
+            onClick: () => setIsImportModalOpen(true),
+            variant: "outline",
+          },
+          {
+            label: "Review Queue",
+            icon: <CheckCircle className="w-4 h-4 text-emerald-600" />,
+            onClick: () => router.push("/accounts/bank-reconciliation/review"),
+            variant: "outline",
+          },
+          {
+            label: "Skipped Entries",
+            icon: <FileText className="w-4 h-4 text-amber-600" />,
+            onClick: () => router.push("/accounts/bank-reconciliation/skipped-entries"),
+            variant: "outline",
+          },
           {
             label: "Export CSV",
             icon: <FileSpreadsheet className="w-4 h-4 text-emerald-600" />,
@@ -2890,6 +2915,15 @@ export default function PaymentVoucherPage() {
           />
         </div>
       </ConfirmDialog>
+
+      {/* Bank Statement Auto BRS Import Modal */}
+      <BankStatementImportModal
+        isOpen={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
+        onSuccess={(imp) => {
+          router.push(`/accounts/bank-reconciliation/review?id=${imp.id}`);
+        }}
+      />
     </div>
   );
 }

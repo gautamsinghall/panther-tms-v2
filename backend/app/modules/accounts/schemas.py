@@ -916,3 +916,142 @@ class JournalVoucherReverseRequest(BaseModel):
     reversal_date: Optional[date] = None
     reversal_reason: str = Field(..., min_length=3, max_length=500, description="Mandatory reason for reversing posted journal")
 
+
+# ==============================================================================
+# Bank Statement Import & Reconciliation Schemas
+# ==============================================================================
+
+class BankStatementLineResponse(BaseModel):
+    id: int
+    import_id: int
+    row_number: int
+    transaction_id: Optional[str] = None
+    value_date: date
+    txn_posted_date: Optional[str] = None
+    cheque_number: Optional[str] = None
+    description: str
+    cr_dr: str
+    amount: Decimal
+    available_balance: Optional[Decimal] = None
+    status: str
+    skip_reason: Optional[str] = None
+    ignore_reason: Optional[str] = None
+    ignored_by: Optional[str] = None
+    ignored_at: Optional[datetime] = None
+    suggested_party_type: Optional[str] = None
+    suggested_party_id: Optional[int] = None
+    suggested_party_name: Optional[str] = None
+    suggested_ledger_account_id: Optional[int] = None
+    confidence_score: int = 0
+    suggested_voucher_type: Optional[str] = None
+    suggested_payment_type: Optional[str] = None
+    question_prompt: Optional[str] = None
+    question_options: Optional[List[Dict[str, Any]]] = None
+    question_answered: bool = False
+    question_answer: Optional[str] = None
+    bill_allocations_data: Optional[List[Dict[str, Any]]] = None
+    matched_voucher_id: Optional[int] = None
+    matched_voucher_number: Optional[str] = None
+    created_voucher_id: Optional[int] = None
+    created_voucher_number: Optional[str] = None
+    created_at: datetime
+    updated_at: datetime
+
+
+class BankStatementImportResponse(BaseModel):
+    id: int
+    company_bank_account_id: int
+    bank_name: Optional[str] = None
+    account_number_masked: Optional[str] = None
+    account_number: Optional[str] = None
+    file_name: str
+    file_hash: str
+    opening_balance: Decimal = Decimal("0.00")
+    closing_balance: Decimal = Decimal("0.00")
+    total_lines: int = 0
+    money_out_count: int = 0
+    money_out_amount: Decimal = Decimal("0.00")
+    money_in_count: int = 0
+    money_in_amount: Decimal = Decimal("0.00")
+    matched_count: int = 0
+    ready_count: int = 0
+    needs_decision_count: int = 0
+    skipped_count: int = 0
+    vouchers_created_count: int = 0
+    questions_waiting_count: int = 0
+    status: str = "IN_REVIEW"
+    void_reason: Optional[str] = None
+    created_at: datetime
+    lines: Optional[List[BankStatementLineResponse]] = None
+
+
+class ResolveQuestionRequest(BaseModel):
+    party_type: str = Field(..., description="DRIVER, VENDOR, CLIENT, STAFF, TRANSPORTER, OTHER, SKIP")
+    party_id: Optional[int] = None
+    party_name: Optional[str] = None
+    save_alias: bool = True
+
+
+class UpdateLineAllocationRequest(BaseModel):
+    party_type: Optional[str] = None
+    party_id: Optional[int] = None
+    party_account_id: Optional[int] = None
+    party_name: Optional[str] = None
+    payment_type: Optional[str] = None
+    allocations: Optional[List[Dict[str, Any]]] = None
+    tds_amount: Optional[Decimal] = Decimal("0.00")
+    discount_amount: Optional[Decimal] = Decimal("0.00")
+    narration: Optional[str] = None
+
+
+class ConfirmLineRequest(BaseModel):
+    voucher_date: Optional[date] = None
+    party_type: Optional[str] = None
+    party_id: Optional[int] = None
+    party_name: Optional[str] = None
+    party_account_id: Optional[int] = None
+    payment_type: Optional[str] = None
+    amount: Optional[Decimal] = None
+    allocations: Optional[List[Dict[str, Any]]] = None
+    tds_amount: Optional[Decimal] = None
+    discount_amount: Optional[Decimal] = None
+    narration: Optional[str] = None
+
+
+class BulkConfirmRequest(BaseModel):
+    line_ids: Optional[List[int]] = None
+
+
+class IgnoreLineRequest(BaseModel):
+    reason: str = Field(..., min_length=2, max_length=500)
+
+
+class MapPartyRequest(BaseModel):
+    party_type: str = Field(..., description="VENDOR, CLIENT, DRIVER, VEHICLE_OWNER, ACCOUNT")
+    party_id: int
+    party_name: Optional[str] = None
+    alias_text: Optional[str] = None
+    upi_id: Optional[str] = None
+
+
+class SkippedEntriesReportItem(BaseModel):
+    line_id: int
+    import_id: int
+    import_date: datetime
+    company_name: str
+    bank_name: str
+    account_number_masked: str
+    file_name: str
+    value_date: date
+    description: str
+    cr_dr: str
+    amount: Decimal
+    transaction_id: Optional[str] = None
+    cheque_number: Optional[str] = None
+    skip_reason: Optional[str] = None
+    status: str
+    ignore_reason: Optional[str] = None
+    ignored_by: Optional[str] = None
+    created_voucher_number: Optional[str] = None
+
+
