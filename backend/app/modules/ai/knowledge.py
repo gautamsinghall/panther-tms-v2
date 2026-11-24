@@ -140,6 +140,12 @@ ROUTE_SUGGESTIONS: Dict[str, List[str]] = {
         "How to open print preview for LR, Job, or Hire Challan?",
         "Consignment ke 8 lifecycle stages kya hain?",
     ],
+    "/settings/email-settings": [
+        "How do I set up company email SMTP settings?",
+        "Gmail App Password kaise use karein?",
+        "Staff email alert recipient kaise add karein?",
+        "How to send a test email to verify SMTP?",
+    ],
     "/transport/lr-booking": [
         "What are the mandatory fields to book an LR?",
         "LR series number kaise generate hota hai?",
@@ -215,6 +221,35 @@ ROUTE_SUGGESTIONS: Dict[str, List[str]] = {
 # /transport/tracking vs /tracking/fastag|sim|gps.
 # ==========================================================================
 PAGE_REGISTRY: Dict[str, Dict[str, Any]] = {
+    "/settings/email-settings": {
+        "title": "Email Settings & Notification Routing",
+        "purpose": "Configure company outbound SMTP parameters (host, port, sender email/name, credentials) and manage internal staff notification recipients for consignment and billing alerts.",
+        "key_fields": [
+            ("Sender Email Address", True),
+            ("Sender Display Name", True),
+            ("SMTP Host / Server", True),
+            ("SMTP Port (587 or 465)", True),
+            ("SMTP Username / Email", False),
+            ("SMTP Password / App Secret", False),
+        ],
+        "common_errors": [
+            "For Gmail or Google Workspace, standard account passwords will fail due to security policies — generate an App Password in your Google Account security settings.",
+            "Port 587 requires STARTTLS enabled; Port 465 requires Direct SSL enabled.",
+            "Staff recipients cannot receive notifications if their status is toggled to Inactive.",
+        ],
+        "next_steps": [
+            "Send a test email to verify SMTP credentials and server connectivity",
+            "Register staff recipients under Staff Notification Recipients",
+            "Select subscribed notification topics per staff member",
+        ],
+        "save": "Click \"Save Email Gateway Settings\" to persist SMTP configuration.",
+        "verified": True,
+        "bullets": [
+            "Configure outbound SMTP email gateway for LRs, invoices, and delivery slips",
+            "Verify live connection by sending an instant test email",
+            "Manage staff email recipients and route operational notification topics",
+        ],
+    },
     "/transport/consignment-360": {
         "title": "Consignment 360° Traceability",
         "purpose": "Unified end-to-end investigation and audit screen: search any LR number, Job number, or Hire Challan number to view complete 8-stage lifecycle, operational links, customer freight billing, vendor hire payouts, gross margin (P&L), and direct print previews for LR, Job, Hire Challan, and Invoice.",
@@ -1073,6 +1108,11 @@ def resolve_navigation_suggestions(
         ("users", ["/company/users"]),
         ("role", ["/company/roles"]),
         ("series", ["/settings/series-master", "/transport-reports/unused-series"]),
+        ("email setting", ["/settings/email-settings"]),
+        ("email settings", ["/settings/email-settings"]),
+        ("smtp", ["/settings/email-settings"]),
+        ("staff email", ["/settings/email-settings"]),
+        ("email recipient", ["/settings/email-settings"]),
         ("activity", ["/settings/activity"]),
         ("log", ["/settings/activity"]),
         ("irn", ["/einvoicing/generate-irn", "/einvoicing/irn-list"]),

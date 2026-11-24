@@ -303,6 +303,7 @@ export const ALL_NAVIGATION_MODULES: NavGroup[] = [
       { feature: "series_master", title: "Series Master", href: "/settings/series-master" },
       { feature: "admin_setting", title: "Admin Setting", href: "/settings/admin" },
       { feature: "activity", title: "User Activity Log", href: "/settings/activity" },
+      { feature: "email_settings", title: "Email Settings", href: "/settings/email-settings" },
     ],
   },
   {
@@ -311,7 +312,7 @@ export const ALL_NAVIGATION_MODULES: NavGroup[] = [
     items: [
       { feature: "account", title: "User Account", href: "/profile/account" },
       { feature: "change_password", title: "Change Password", href: "/profile/change-password" },
-      { feature: "email", title: "Email Settings", href: "/profile/email" },
+      { feature: "email", title: "Email Settings", href: "/settings/email-settings" },
       { feature: "monthly_pnl", title: "Monthly P&L", href: "/profile/monthly-pnl" },
     ],
   },

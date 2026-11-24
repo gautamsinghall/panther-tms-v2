@@ -2073,6 +2073,32 @@ class EmailSetting(TenantBase):
     sender_email = Column(String(255), default="notifications@panthertms.com", nullable=False)
     sender_name = Column(String(100), default="PantherTMS Dispatch", nullable=False)
     use_tls = Column(Boolean, default=True, nullable=False)
+    use_ssl = Column(Boolean, default=False, nullable=False)
+    is_active = Column(Boolean, default=True, nullable=False)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
+    updated_at = Column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+        nullable=False
+    )
+
+
+class StaffEmailRecipient(TenantBase):
+    """
+    Staff / Internal notification recipients to receive operational email alerts
+    (LR Bookings, Invoices, Delivery acknowledgments, Daily summaries).
+    """
+    __tablename__ = "staff_email_recipients"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(150), nullable=False)
+    email = Column(String(255), nullable=False, index=True)
+    department = Column(String(100), nullable=True)  # Operations, Accounts, Dispatch, Management, Billing
+    designation = Column(String(100), nullable=True)
+    # Comma-separated list of subscribed event keys:
+    # lr_booking, job_order, hire_challan, invoicing, pod_delivery, daily_summary
+    notification_types = Column(String(500), default="lr_booking,invoicing,pod_delivery", nullable=False)
     is_active = Column(Boolean, default=True, nullable=False)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
     updated_at = Column(

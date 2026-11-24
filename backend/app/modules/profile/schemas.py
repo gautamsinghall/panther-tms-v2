@@ -162,6 +162,7 @@ class EmailSettingUpdate(BaseModel):
     sender_email: EmailStr
     sender_name: str = "PantherTMS Dispatch"
     use_tls: bool = True
+    use_ssl: bool = False
     is_active: bool = True
 
     @model_validator(mode="before")
@@ -181,13 +182,33 @@ class EmailSettingResponse(BaseModel):
     smtp_host: str
     smtp_port: int
     smtp_user: Optional[str] = None
+    smtp_username: Optional[str] = None
     sender_email: str
+    from_email: Optional[str] = None
     sender_name: str
-    use_tls: bool
+    from_name: Optional[str] = None
+    use_tls: bool = True
+    use_ssl: bool = False
     is_active: bool
     created_at: datetime
     updated_at: datetime
     model_config = ConfigDict(from_attributes=True)
+
+    @model_validator(mode="before")
+    @classmethod
+    def populate_aliases(cls, data: Any) -> Any:
+        if hasattr(data, "sender_email") and not hasattr(data, "from_email"):
+            setattr(data, "from_email", getattr(data, "sender_email", None))
+            setattr(data, "from_name", getattr(data, "sender_name", None))
+            setattr(data, "smtp_username", getattr(data, "smtp_user", None))
+        elif isinstance(data, dict):
+            if "sender_email" in data and "from_email" not in data:
+                data["from_email"] = data["sender_email"]
+            if "sender_name" in data and "from_name" not in data:
+                data["from_name"] = data["sender_name"]
+            if "smtp_user" in data and "smtp_username" not in data:
+                data["smtp_username"] = data["smtp_user"]
+        return data
 
 # Monthly P&L Schemas
 class MonthlyPnLItem(BaseModel):

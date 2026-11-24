@@ -216,6 +216,7 @@ ALL_NAVIGATION_MODULES = [
             {"feature": "series_master", "title": "Series Master", "href": "/settings/series-master"},
             {"feature": "admin_setting", "title": "Admin Setting", "href": "/settings/admin"},
             {"feature": "activity", "title": "User Activity Log", "href": "/settings/activity"},
+            {"feature": "email_settings", "title": "Email Settings", "href": "/settings/email-settings"},
         ],
     },
     {
@@ -224,7 +225,7 @@ ALL_NAVIGATION_MODULES = [
         "items": [
             {"feature": "account", "title": "User Account", "href": "/profile/account"},
             {"feature": "change_password", "title": "Change Password", "href": "/profile/change-password"},
-            {"feature": "email", "title": "Email Settings", "href": "/profile/email"},
+            {"feature": "email", "title": "Email Settings", "href": "/settings/email-settings"},
             {"feature": "monthly_pnl", "title": "Monthly P&L", "href": "/profile/monthly-pnl"},
         ],
     },
@@ -341,6 +342,10 @@ def build_user_navigation(current_user: Any, tenant: Any) -> list:
                 if mod_norm in ("company", "profile") and feat_norm == "branch":
                     allowed_features.add(("company", "branch"))
                     allowed_features.add(("profile", "branch"))
+                if mod_norm in ("settings", "profile") and feat_norm in ("email", "email_settings"):
+                    allowed_features.add(("settings", "email_settings"))
+                    allowed_features.add(("profile", "email"))
+                    allowed_features.add(("profile", "email_settings"))
                 if mod_norm in ("api_center", "api-center", "company"):
                     if feat_norm in ("eway_bill_api", "eway_bill", "ewb"):
                         allowed_features.add(("api_center", "eway_bill_api"))

@@ -1830,6 +1830,39 @@ TMS_KNOWLEDGE_CHUNKS = [
             "transport workflow", "indent to payment",
         ],
     },
+    # ------------------------------------------------------------------
+    # tms-email-settings — Outbound SMTP Gateway & Staff Alert Recipients
+    # ------------------------------------------------------------------
+    {
+        "doc_id": "tms-email-settings",
+        "title": "Email Settings & Staff Notification Recipients",
+        "category": "general",
+        "min_plan_tier": 1,
+        "source_file": "backend/app/modules/ai/tms_knowledge.py",
+        "version": "2026.1",
+        "content": (
+            "Email Settings (/settings/email-settings) in the Settings module allows company administrators "
+            "to configure outbound SMTP parameters and manage staff notification recipient routing. "
+            "Key features include: "
+            "1. Outbound SMTP Gateway: Configure the company's sender email address, sender display name, "
+            "SMTP host server (e.g. smtp.gmail.com, smtp.office365.com), port (587 for TLS, 465 for SSL), "
+            "and SMTP username/password. This gateway is used to send official transport documents "
+            "(Lorry Receipts, GST Invoices, Proof of Delivery, and Hire Challans) directly to clients and transporters. "
+            "2. Test Connection: Verify email configuration in real time by dispatching a verification test email "
+            "to any designated address. "
+            "3. Staff Notification Recipients: Register internal staff members, branch managers, and department heads "
+            "(Operations, Accounts, Dispatch, Billing, Management) who automatically receive operational copies "
+            "when consignments are booked, invoices raised, or deliveries confirmed. "
+            "Staff members can be subscribed to specific alert topics including LR Booking, Job Orders, "
+            "Hire Challan, Transport Invoicing, POD Delivery, and Daily Operations Digest."
+        ),
+        "route": "/settings/email-settings",
+        "keywords": [
+            "email setting", "email settings", "smtp", "smtp server", "email port", "sender email",
+            "from email", "staff email", "notification email", "email alert", "send test email",
+            "staff recipient", "email configuration",
+        ],
+    },
 ]
 
 

@@ -553,55 +553,79 @@ function Consignment360Content() {
               )}
             </div>
 
-            {/* Quick action prominent blue buttons */}
+            {/* Quick action buttons (Default outline button style and color) */}
             <div className="flex items-center gap-2">
               {data.lr && (
-                <button
+                <Button
                   type="button"
+                  variant="outline"
+                  size="sm"
                   onClick={() => handleOpenLrPrint(data.lr.id)}
                   disabled={isOpeningModal === "lr"}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-blue-600 hover:bg-blue-700 text-white shadow-xs transition-colors cursor-pointer"
+                  className="h-8 px-3 text-xs font-medium gap-1.5 shadow-2xs border-slate-200 dark:border-[#303036] text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-[#202028] hover:text-slate-900 dark:hover:text-white cursor-pointer"
                 >
                   {isOpeningModal === "lr" ? (
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <Loader2 className="w-3.5 h-3.5 animate-spin text-slate-400" />
                   ) : (
-                    <Printer className="w-3.5 h-3.5" />
+                    <Printer className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
                   )}
                   <span>Open LR</span>
-                  <ExternalLink className="w-2.5 h-2.5 opacity-80" />
-                </button>
+                  <ExternalLink className="w-2.5 h-2.5 text-slate-400 opacity-80" />
+                </Button>
+              )}
+              {!data.lr && data.job && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleOpenJobPrint(data.job.id)}
+                  disabled={isOpeningModal === "job"}
+                  className="h-8 px-3 text-xs font-medium gap-1.5 shadow-2xs border-slate-200 dark:border-[#303036] text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-[#202028] hover:text-slate-900 dark:hover:text-white cursor-pointer"
+                >
+                  {isOpeningModal === "job" ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin text-slate-400" />
+                  ) : (
+                    <Printer className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
+                  )}
+                  <span>Open Job</span>
+                  <ExternalLink className="w-2.5 h-2.5 text-slate-400 opacity-80" />
+                </Button>
               )}
               {data.hire_challan && (
-                <button
+                <Button
                   type="button"
+                  variant="outline"
+                  size="sm"
                   onClick={() => handleOpenChallanPrint(data.hire_challan.id)}
                   disabled={isOpeningModal === "challan"}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-sky-600 hover:bg-sky-700 text-white shadow-xs transition-colors cursor-pointer"
+                  className="h-8 px-3 text-xs font-medium gap-1.5 shadow-2xs border-slate-200 dark:border-[#303036] text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-[#202028] hover:text-slate-900 dark:hover:text-white cursor-pointer"
                 >
                   {isOpeningModal === "challan" ? (
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <Loader2 className="w-3.5 h-3.5 animate-spin text-slate-400" />
                   ) : (
-                    <Printer className="w-3.5 h-3.5" />
+                    <Printer className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
                   )}
                   <span>Open Challan</span>
-                  <ExternalLink className="w-2.5 h-2.5 opacity-80" />
-                </button>
+                  <ExternalLink className="w-2.5 h-2.5 text-slate-400 opacity-80" />
+                </Button>
               )}
               {data.invoices && data.invoices.length > 0 && (
-                <button
+                <Button
                   type="button"
+                  variant="outline"
+                  size="sm"
                   onClick={() => handleOpenInvoicePrint(data.invoices[0].id)}
                   disabled={isOpeningModal === "invoice"}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs transition-colors cursor-pointer"
+                  className="h-8 px-3 text-xs font-medium gap-1.5 shadow-2xs border-slate-200 dark:border-[#303036] text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-[#202028] hover:text-slate-900 dark:hover:text-white cursor-pointer"
                 >
                   {isOpeningModal === "invoice" ? (
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <Loader2 className="w-3.5 h-3.5 animate-spin text-slate-400" />
                   ) : (
-                    <Printer className="w-3.5 h-3.5" />
+                    <Printer className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
                   )}
                   <span>Open Invoice</span>
-                  <ExternalLink className="w-2.5 h-2.5 opacity-80" />
-                </button>
+                  <ExternalLink className="w-2.5 h-2.5 text-slate-400 opacity-80" />
+                </Button>
               )}
             </div>
           </div>

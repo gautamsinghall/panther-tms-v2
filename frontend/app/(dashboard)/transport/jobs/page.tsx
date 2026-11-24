@@ -685,21 +685,24 @@ export default function JobsPage() {
 
     // Pre-populate dropdown master lists if row's references are not in active state lists
     if (row.billing_client_id) {
+      const bId = row.billing_client_id;
       setBillingClients((prev) => {
-        if (prev.some((b) => String(b.id) === String(row.billing_client_id))) return prev;
-        return [{ id: row.billing_client_id, name: row.billing_client_name || row.billing_party || `Client #${row.billing_client_id}` }, ...prev];
+        if (prev.some((b) => String(b.id) === String(bId))) return prev;
+        return [{ id: bId, name: row.billing_client_name || row.billing_party || `Client #${bId}` }, ...prev];
       });
     }
     if (row.consigner_id) {
+      const cId = row.consigner_id;
       setConsigners((prev) => {
-        if (prev.some((c) => String(c.id) === String(row.consigner_id))) return prev;
-        return [{ id: row.consigner_id, name: row.consigner_name || `Consignor #${row.consigner_id}`, code: row.consigner_code }, ...prev];
+        if (prev.some((c) => String(c.id) === String(cId))) return prev;
+        return [{ id: cId, name: row.consigner_name || `Consignor #${cId}`, code: row.consigner_code }, ...prev];
       });
     }
     if (row.consignee_id) {
+      const eId = row.consignee_id;
       setConsignees((prev) => {
-        if (prev.some((c) => String(c.id) === String(row.consignee_id))) return prev;
-        return [{ id: row.consignee_id, name: row.consignee_name || `Consignee #${row.consignee_id}`, code: row.consignee_code }, ...prev];
+        if (prev.some((c) => String(c.id) === String(eId))) return prev;
+        return [{ id: eId, name: row.consignee_name || `Consignee #${eId}`, code: row.consignee_code }, ...prev];
       });
     }
 
@@ -821,7 +824,7 @@ export default function JobsPage() {
         errorMessage={errorMessage}
         onRetry={loadData}
         actions={actions}
-        actionLayout="inline"
+        actionLayout="dropdown"
         searchable={false}
         emptyMessage="No jobs found"
         emptySubtext="Create a new transport job order to initiate dispatch and vehicle scheduling."

@@ -6,8 +6,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import settings
 from app.core.errors import AppException
 from app.core.security import get_password_hash
-from app.tenant_db.models import User, Role, RolePermission, Branch, UserOfficeAssignment
-from app.modules.settings.schemas import RoleCreate, RoleUpdate, UserCreate, UserUpdate
+from app.tenant_db.models import User, Role, RolePermission, Branch, UserOfficeAssignment, EmailSetting, StaffEmailRecipient
+from app.modules.settings.schemas import (
+    RoleCreate, RoleUpdate, UserCreate, UserUpdate,
+    EmailSettingUpdate, EmailTestRequest, StaffRecipientCreate, StaffRecipientUpdate
+)
+from app.services.email_service import send_smtp_email, build_test_email_html
+from sqlalchemy import text
 
 # --- Roles & Permissions Service ---
 
@@ -719,5 +724,216 @@ async def get_activity_filters_service(
     current_user: User,
 ) -> dict:
     return await fetch_activity_filters(db, current_user)
+
+
+# ==========================================================================
+# Email Settings & Staff Notification Recipients Service
+# ==========================================================================
+
+async def _ensure_email_tables_exist(db: AsyncSession) -> None:
+    """Auto-migrates columns and tables for email settings and staff notification recipients."""
+    try:
+        await db.execute(text("ALTER TABLE profile_email_settings ADD COLUMN IF NOT EXISTS use_ssl BOOLEAN DEFAULT FALSE;"))
+        await db.execute(text("""
+            CREATE TABLE IF NOT EXISTS staff_email_recipients (
+                id SERIAL PRIMARY KEY,
+                name VARCHAR(150) NOT NULL,
+                email VARCHAR(255) NOT NULL,
+                department VARCHAR(100),
+                designation VARCHAR(100),
+                notification_types VARCHAR(500) NOT NULL DEFAULT 'lr_booking,invoicing,pod_delivery',
+                is_active BOOLEAN NOT NULL DEFAULT TRUE,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );
+        """))
+        await db.execute(text("CREATE INDEX IF NOT EXISTS ix_staff_email_recipients_email ON staff_email_recipients(email);"))
+        await db.commit()
+    except Exception as exc:
+        await db.rollback()
+
+
+async def get_email_setting(db: AsyncSession) -> EmailSetting:
+    """Retrieves tenant outbound email gateway settings, creating defaults if missing."""
+    await _ensure_email_tables_exist(db)
+    stmt = select(EmailSetting).limit(1)
+    setting = (await db.execute(stmt)).scalar_one_or_none()
+    if not setting:
+        setting = EmailSetting(
+            smtp_host="smtp.gmail.com",
+            smtp_port=587,
+            sender_email="notifications@panthertms.com",
+            sender_name="PantherTMS Dispatch",
+            use_tls=True,
+            use_ssl=False,
+            is_active=True,
+        )
+        db.add(setting)
+        await db.commit()
+        await db.refresh(setting)
+    return setting
+
+
+async def update_email_setting(db: AsyncSession, data: EmailSettingUpdate) -> EmailSetting:
+    """Updates outbound SMTP credentials and configuration."""
+    setting = await get_email_setting(db)
+
+    setting.smtp_host = data.smtp_host.strip()
+    setting.smtp_port = data.smtp_port
+    if data.smtp_user is not None:
+        setting.smtp_user = data.smtp_user.strip() if data.smtp_user else None
+    if data.smtp_password is not None and data.smtp_password.strip():
+        setting.smtp_password = data.smtp_password.strip()
+    setting.sender_email = str(data.sender_email).strip().lower()
+    setting.sender_name = data.sender_name.strip()
+    setting.use_tls = data.use_tls
+    setting.use_ssl = data.use_ssl
+    setting.is_active = data.is_active
+    setting.updated_at = datetime.now(timezone.utc)
+
+    await db.commit()
+    await db.refresh(setting)
+    return setting
+
+
+async def send_test_email_service(db: AsyncSession, req: EmailTestRequest) -> Tuple[bool, str]:
+    """Dispatches a verification test email using saved or submitted SMTP settings."""
+    saved_setting = await get_email_setting(db)
+
+    host = req.smtp_host or saved_setting.smtp_host
+    port = req.smtp_port or saved_setting.smtp_port
+    user = req.smtp_user if req.smtp_user is not None else saved_setting.smtp_user
+    password = req.smtp_password if (req.smtp_password is not None and req.smtp_password.strip()) else saved_setting.smtp_password
+    sender_email = str(req.sender_email) if req.sender_email else saved_setting.sender_email
+    sender_name = req.sender_name or saved_setting.sender_name
+    use_tls = req.use_tls if req.use_tls is not None else saved_setting.use_tls
+    use_ssl = req.use_ssl if req.use_ssl is not None else getattr(saved_setting, "use_ssl", False)
+
+    html_content = build_test_email_html(
+        sender_name=sender_name,
+        sender_email=sender_email,
+        smtp_host=host,
+        smtp_port=port,
+    )
+
+    success, message = await send_smtp_email(
+        smtp_host=host,
+        smtp_port=port,
+        sender_email=sender_email,
+        to_email=str(req.recipient_email),
+        subject="PantherTMS SMTP Gateway Test — Connection Verified",
+        html_content=html_content,
+        text_content=f"PantherTMS SMTP Test Email. Host: {host}:{port}, Sender: {sender_email}.",
+        sender_name=sender_name,
+        smtp_user=user,
+        smtp_password=password,
+        use_tls=use_tls,
+        use_ssl=use_ssl,
+        timeout=12,
+    )
+    return success, message
+
+
+# --- Staff Email Recipients ---
+
+def _format_recipient_response(r: StaffEmailRecipient) -> dict:
+    types_list = [t.strip() for t in (r.notification_types or "").split(",") if t.strip()]
+    return {
+        "id": r.id,
+        "name": r.name,
+        "email": r.email,
+        "department": r.department,
+        "designation": r.designation,
+        "notification_types": types_list,
+        "is_active": r.is_active,
+        "created_at": r.created_at,
+        "updated_at": r.updated_at,
+    }
+
+
+async def list_staff_recipients(db: AsyncSession) -> List[dict]:
+    """Retrieves all staff email recipients."""
+    await _ensure_email_tables_exist(db)
+    stmt = select(StaffEmailRecipient).order_by(StaffEmailRecipient.department.asc(), StaffEmailRecipient.name.asc())
+    rows = (await db.execute(stmt)).scalars().all()
+    return [_format_recipient_response(r) for r in rows]
+
+
+async def create_staff_recipient(db: AsyncSession, data: StaffRecipientCreate) -> dict:
+    """Creates a new staff email recipient for alert routing."""
+    await _ensure_email_tables_exist(db)
+    clean_email = str(data.email).strip().lower()
+
+    # Check duplicate
+    stmt = select(StaffEmailRecipient).where(StaffEmailRecipient.email == clean_email)
+    existing = (await db.execute(stmt)).scalar_one_or_none()
+    if existing:
+        raise AppException(
+            status_code=409,
+            error_code="RECIPIENT_ALREADY_EXISTS",
+            message=f"Staff email '{clean_email}' is already registered as an alert recipient."
+        )
+
+    types_str = ",".join(data.notification_types) if data.notification_types else "lr_booking,invoicing,pod_delivery"
+    recipient = StaffEmailRecipient(
+        name=data.name.strip(),
+        email=clean_email,
+        department=data.department.strip() if data.department else "Operations",
+        designation=data.designation.strip() if data.designation else None,
+        notification_types=types_str,
+        is_active=data.is_active,
+    )
+    db.add(recipient)
+    await db.commit()
+    await db.refresh(recipient)
+    return _format_recipient_response(recipient)
+
+
+async def update_staff_recipient(db: AsyncSession, recipient_id: int, data: StaffRecipientUpdate) -> dict:
+    """Updates an existing staff recipient profile or subscription topics."""
+    await _ensure_email_tables_exist(db)
+    stmt = select(StaffEmailRecipient).where(StaffEmailRecipient.id == recipient_id)
+    recipient = (await db.execute(stmt)).scalar_one_or_none()
+    if not recipient:
+        raise AppException(status_code=404, error_code="RECIPIENT_NOT_FOUND", message="Staff recipient not found.")
+
+    if data.name is not None:
+        recipient.name = data.name.strip()
+    if data.email is not None:
+        clean_email = str(data.email).strip().lower()
+        # Verify uniqueness
+        dup_stmt = select(StaffEmailRecipient).where(
+            StaffEmailRecipient.email == clean_email,
+            StaffEmailRecipient.id != recipient_id
+        )
+        if (await db.execute(dup_stmt)).scalar_one_or_none():
+            raise AppException(status_code=409, error_code="EMAIL_EXISTS", message=f"Email '{clean_email}' is already in use by another recipient.")
+        recipient.email = clean_email
+    if data.department is not None:
+        recipient.department = data.department.strip() if data.department else None
+    if data.designation is not None:
+        recipient.designation = data.designation.strip() if data.designation else None
+    if data.notification_types is not None:
+        recipient.notification_types = ",".join(data.notification_types)
+    if data.is_active is not None:
+        recipient.is_active = data.is_active
+
+    recipient.updated_at = datetime.now(timezone.utc)
+    await db.commit()
+    await db.refresh(recipient)
+    return _format_recipient_response(recipient)
+
+
+async def delete_staff_recipient(db: AsyncSession, recipient_id: int) -> None:
+    """Deletes a staff email recipient."""
+    await _ensure_email_tables_exist(db)
+    stmt = select(StaffEmailRecipient).where(StaffEmailRecipient.id == recipient_id)
+    recipient = (await db.execute(stmt)).scalar_one_or_none()
+    if not recipient:
+        raise AppException(status_code=404, error_code="RECIPIENT_NOT_FOUND", message="Staff recipient not found.")
+
+    await db.delete(recipient)
+    await db.commit()
+
 
 

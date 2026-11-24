@@ -43,6 +43,7 @@ import {
   LayoutDashboard,
   LucideIcon,
   BookOpen,
+  Mail,
 } from "lucide-react";
 import { useWorkspaceTabs } from "@/lib/workspace-tabs-context";
 import { cn } from "@/lib/utils";
@@ -160,6 +161,8 @@ const ROUTE_INFO_MAP: Record<string, RouteInfo> = {
   "/settings/series-master": { title: "Series Master", icon: Layers },
   "/settings/admin": { title: "Admin Setting", icon: Sliders },
   "/settings/activity": { title: "User Activity Log", icon: History },
+  "/settings/email-settings": { title: "Email Settings", icon: Mail },
+  "/profile/email": { title: "Email Settings", icon: Mail },
 };
 
 function formatRouteTitle(pathname: string): RouteInfo {

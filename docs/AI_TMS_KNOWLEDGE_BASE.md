@@ -294,6 +294,21 @@ The Consignment 360° Traceability page is the unified end-to-end investigation 
 - Linked Ledger Audit: Complete visibility into client freight sales bills, incoming customer receipts, vendor hire purchase vouchers, and supplier payment vouchers.
 - Gross Margin & P&L Calculation: Reconciles billed freight revenue against hire costs and direct trip expenses.
 
+## Email Settings page
+- **Document ID**: `page-email-settings`
+- **Category**: `general`
+- **Minimum Plan Tier**: `1`
+- **Route**: `/settings/email-settings`
+- **Keywords**: `email settings, email setting, smtp, smtp host, smtp port, sender email, staff email, notification email, email recipients, send test email`
+
+### What it is
+The Email Settings page under the Settings menu allows administrators to configure outbound SMTP email parameters and manage internal staff notification routing.
+
+### Key Capabilities
+- Outbound SMTP Gateway: Configure sender email, display name, host (e.g. `smtp.gmail.com`), port (`587` TLS or `465` SSL), and authentication credentials.
+- Real-Time Connection Verification: Send instant test emails to verify server reachability and credential authentication.
+- Staff Notification Recipients: Register internal employees and department heads (Operations, Accounts, Dispatch, Billing, Management) and subscribe them to specific alert events such as LR Bookings, Transport Invoicing, POD Delivery, and Daily Summaries.
+
 ## What Parth AI can do on any page
 - **Document ID**: `page-panther-ai-help`
 - **Category**: `general`

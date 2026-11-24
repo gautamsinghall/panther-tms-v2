@@ -886,7 +886,7 @@ export function DataTable<T extends Record<string, any>>({
                               trigger={
                                 <button
                                   type="button"
-                                  className="p-1 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+                                  className="p-1 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 dark:text-slate-400 dark:hover:text-slate-200 dark:hover:bg-[#202028] transition-colors cursor-pointer"
                                   title="Actions"
                                   aria-label="Row actions"
                                 >
@@ -899,7 +899,7 @@ export function DataTable<T extends Record<string, any>>({
                                   label: a.label,
                                   icon: a.icon,
                                   disabled: a.disabled ? a.disabled(row) : false,
-                                  variant: a.variant === "danger" ? "danger" : "default",
+                                  variant: a.variant === "danger" || (a as any).danger ? "danger" : "default",
                                   onClick: () => a.onClick(row),
                                 }))}
                             />

@@ -375,6 +375,23 @@ async def lifespan(app: FastAPI):
                         await t_conn.execute(text("CREATE INDEX IF NOT EXISTS ix_sim_wallet_tx_vehicle ON sim_wallet_transactions(vehicle_number);"))
                         await t_conn.execute(text("CREATE INDEX IF NOT EXISTS ix_sim_wallet_tx_trip_id ON sim_wallet_transactions(trip_id);"))
                         
+                        # Email Gateway & Staff Notification Schema Evolution
+                        await t_conn.execute(text("ALTER TABLE profile_email_settings ADD COLUMN IF NOT EXISTS use_ssl BOOLEAN DEFAULT FALSE;"))
+                        await t_conn.execute(text("""
+                            CREATE TABLE IF NOT EXISTS staff_email_recipients (
+                                id SERIAL PRIMARY KEY,
+                                name VARCHAR(150) NOT NULL,
+                                email VARCHAR(255) NOT NULL,
+                                department VARCHAR(100),
+                                designation VARCHAR(100),
+                                notification_types VARCHAR(500) NOT NULL DEFAULT 'lr_booking,invoicing,pod_delivery',
+                                is_active BOOLEAN NOT NULL DEFAULT TRUE,
+                                created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                                updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+                            );
+                        """))
+                        await t_conn.execute(text("CREATE INDEX IF NOT EXISTS ix_staff_email_recipients_email ON staff_email_recipients(email);"))
+
                         # Issuing Office Schema Evolution & Backfill
                         for office_col_tbl in [
                             "transport_lrs", "transport_jobs", "transport_hire_challans",

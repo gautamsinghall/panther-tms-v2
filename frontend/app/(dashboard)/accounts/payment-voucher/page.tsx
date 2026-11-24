@@ -2,6 +2,7 @@
 import { toast } from "@/lib/toast";
 
 import React, { useState, useEffect, useMemo } from "react";
+import { createPortal } from "react-dom";
 import {
   Plus,
   ArrowUpRight,
@@ -116,6 +117,43 @@ interface LedgerEntry {
   credit_amount: string | number;
   is_reversal: boolean;
   narration?: string;
+}
+
+interface CompanySettingData {
+  id?: number;
+  company_name: string;
+  gstin?: string | null;
+  pan?: string | null;
+  address?: string | null;
+  city?: string | null;
+  state?: string | null;
+  pincode?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  website?: string | null;
+  logo_url?: string | null;
+  signature_url?: string | null;
+  signing_authority_name?: string | null;
+  signing_authority_designation?: string | null;
+  issuing_office?: string | null;
+  default_issuing_office_id?: number | null;
+}
+
+interface BranchOption {
+  id: number;
+  code?: string;
+  name?: string;
+  branch_name?: string;
+  branch_code?: string;
+  is_head_office?: boolean;
+  gstin?: string | null;
+  pan?: string | null;
+  state?: string | null;
+  city?: string | null;
+  address?: string | null;
+  pincode?: string | null;
+  phone?: string | null;
+  email?: string | null;
 }
 
 interface VoucherRecord {
@@ -283,6 +321,9 @@ export default function PaymentVoucherPage() {
   // Modal 3: Print Payment Voucher
   const [printVoucher, setPrintVoucher] = useState<VoucherRecord | null>(null);
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
+  const [company, setCompany] = useState<CompanySettingData | null>(null);
+  const [branches, setBranches] = useState<BranchOption[]>([]);
+  const [mounted, setMounted] = useState(false);
 
   // Modal 4: Void Payment
   const [isVoidOpen, setIsVoidOpen] = useState(false);
@@ -298,7 +339,7 @@ export default function PaymentVoucherPage() {
       const activeOffice = getActiveOffice();
       const officeParam = activeOffice?.id ? `?office_id=${activeOffice.id}` : "";
 
-      const [stdRes, athRes, bthRes, sInfo, vendorsRes, dueVendorsRes, driversRes, challansRes, accountsRes] = await Promise.all([
+      const [stdRes, athRes, bthRes, sInfo, vendorsRes, dueVendorsRes, driversRes, challansRes, accountsRes, compRes, branchesRes] = await Promise.all([
         apiClient<VoucherRecord[]>("/api/v1/accounts/vouchers?voucher_type=PAYMENT_VOUCHER").catch(() => []),
         apiClient<VoucherRecord[]>("/api/v1/accounts/vouchers?voucher_type=PAYMENT_ATH").catch(() => []),
         apiClient<VoucherRecord[]>("/api/v1/accounts/vouchers?voucher_type=PAYMENT_BTH").catch(() => []),
@@ -308,6 +349,8 @@ export default function PaymentVoucherPage() {
         apiClient<DriverOption[]>("/api/v1/transport/drivers").catch(() => []),
         apiClient<HireChallanOption[]>("/api/v1/transport/hire-challans").catch(() => []),
         apiClient<AccountOption[]>("/api/v1/misc/accounts").catch(() => []),
+        apiClient<CompanySettingData>("/api/v1/profile/company").catch(() => null),
+        apiClient<BranchOption[]>("/api/v1/profile/branches").catch(() => []),
       ]);
 
       const all = [...stdRes, ...athRes, ...bthRes];
@@ -321,6 +364,8 @@ export default function PaymentVoucherPage() {
       setVendorsWithDueBills(dueVendorsRes);
       setDrivers(driversRes);
       setHireChallans(challansRes);
+      if (compRes) setCompany(compRes);
+      if (branchesRes) setBranches(Array.isArray(branchesRes) ? branchesRes : []);
 
       // Separate bank/cash vs expense accounts
       const liquid = accountsRes.filter((a) => {
@@ -343,8 +388,20 @@ export default function PaymentVoucherPage() {
   };
 
   useEffect(() => {
+    setMounted(true);
     loadData();
   }, []);
+
+  useEffect(() => {
+    if (isPrintModalOpen && !company) {
+      apiClient<CompanySettingData>("/api/v1/profile/company")
+        .then((c) => setCompany(c))
+        .catch(() => {});
+      apiClient<BranchOption[]>("/api/v1/profile/branches")
+        .then((b) => setBranches(Array.isArray(b) ? b : []))
+        .catch(() => {});
+    }
+  }, [isPrintModalOpen, company]);
 
   // When selected vendor changes in Against Bills, fetch open purchase bills
   useEffect(() => {
@@ -2146,132 +2203,663 @@ export default function PaymentVoucherPage() {
         )}
       </EntityDrawer>
 
-      {/* MODAL 3: Print Payment Voucher (Indian Transport Standard) */}
-      {isPrintModalOpen && printVoucher && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 overflow-y-auto print:p-0 print:bg-white print:overflow-visible print:static">
-          <div className="printable-paper-sheet printable-document-sheet bg-white text-slate-900 rounded-xl max-w-2xl w-full p-6 space-y-6 shadow-2xl relative print:m-0 print:p-0 print:w-full print:shadow-none">
-            {/* Modal Controls */}
-            <div className="flex items-center justify-between border-b pb-3 print:hidden">
-              <span className="font-semibold text-sm text-slate-700 flex items-center gap-1.5">
-                <Printer className="h-4 w-4 text-emerald-600" />
-                Print Preview: Payment Voucher
-              </span>
-              <div className="flex items-center gap-2">
-                <Button
-                  size="sm"
-                  onClick={() => window.print()}
-                  className="bg-blue-600 hover:bg-blue-700 text-white"
-                >
-                  <Printer className="h-4 w-4 mr-1.5" />
-                  Print Now
-                </Button>
-                <button
-                  onClick={() => setIsPrintModalOpen(false)}
-                  className="p-1 rounded text-slate-500 hover:text-slate-800"
-                >
-                  <X className="h-5 w-5" />
-                </button>
+      {/* MODAL 3: Print Payment Voucher (Standard Indian Transport & Double-Entry Accounting Format) */}
+      {mounted && isPrintModalOpen && printVoucher && typeof document !== "undefined" && createPortal(
+        (() => {
+          const activeOffice = getActiveOffice();
+          const targetOfficeId =
+            printVoucher.tax_breakup?.issuing_office_id ||
+            (printVoucher as any).issuing_office_id ||
+            activeOffice?.id;
+
+          const issuingBranch =
+            branches.find((b) => b.id === targetOfficeId) ||
+            branches.find((b) => (b.name || b.branch_name) === (printVoucher as any).issuing_office_name) ||
+            branches.find((b) => b.is_head_office) ||
+            branches[0] ||
+            null;
+
+          const officeName =
+            (printVoucher as any).issuing_office_name ||
+            issuingBranch?.name ||
+            issuingBranch?.branch_name ||
+            activeOffice?.name ||
+            company?.issuing_office ||
+            "Head Office";
+
+          const officeCode = issuingBranch?.code || issuingBranch?.branch_code || activeOffice?.code || "";
+
+          const headOfficeBranch = branches.find((b) => b.is_head_office) || branches[0];
+          const rawAddress =
+            company?.address?.trim() ||
+            headOfficeBranch?.address?.trim() ||
+            issuingBranch?.address?.trim() ||
+            "";
+
+          const city = company?.city || headOfficeBranch?.city || issuingBranch?.city || "";
+          const state = company?.state || headOfficeBranch?.state || issuingBranch?.state || "";
+          const pincode = company?.pincode || headOfficeBranch?.pincode || issuingBranch?.pincode || "";
+
+          const fullAddressLine = [
+            rawAddress,
+            city && !rawAddress.toLowerCase().includes(city.toLowerCase()) ? city : null,
+            state && !rawAddress.toLowerCase().includes(state.toLowerCase()) ? state : null,
+            pincode && !rawAddress.includes(pincode) ? `- ${pincode}` : null,
+          ]
+            .filter(Boolean)
+            .join(" ")
+            .trim();
+
+          const companyName = company?.company_name || "Company Fleet & Accounts";
+          const companyFirstLetter = (companyName[0] || "C").toUpperCase();
+          const companyPhone = company?.phone?.trim() || headOfficeBranch?.phone?.trim() || issuingBranch?.phone?.trim() || "";
+          const companyEmail = company?.email?.trim() || headOfficeBranch?.email?.trim() || issuingBranch?.email?.trim() || "";
+          const companyWebsite = company?.website?.trim() || "";
+
+          const companyGstin =
+            company?.gstin?.trim() ||
+            issuingBranch?.gstin?.trim() ||
+            headOfficeBranch?.gstin?.trim() ||
+            "";
+
+          const companyPan =
+            company?.pan?.trim() ||
+            headOfficeBranch?.pan?.trim() ||
+            issuingBranch?.pan?.trim() ||
+            (companyGstin.length === 15 ? companyGstin.slice(2, 12).toUpperCase() : "");
+
+          const officeGstin = issuingBranch?.gstin?.trim() || "";
+
+          // Resolve credit ledger entry for bank/cash account
+          const creditLedger = printVoucher.ledger_entries?.find(
+            (e) => !e.is_reversal && parseFloat(String(e.credit_amount)) > 0
+          );
+          const paymentAccount =
+            creditLedger?.account_name ||
+            printVoucher.tax_breakup?.bank_account_name ||
+            "Bank / Cash Operating Account";
+
+          const voucherBadgeLabel =
+            printVoucher.voucher_type === "PAYMENT_ATH"
+              ? "LORRY HIRE ADVANCE (ATH)"
+              : printVoucher.voucher_type === "PAYMENT_BTH"
+              ? "LORRY BALANCE SETTLEMENT (BTH)"
+              : "PAYMENT DISBURSEMENT VOUCHER";
+
+          return (
+            <div className="payment-voucher-modal-portal fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 print:p-0 print:m-0 print:static print:overflow-visible print:block print:inset-auto">
+              {/* Backdrop */}
+              <div
+                className="payment-voucher-backdrop fixed inset-0 bg-black/60 backdrop-blur-xs transition-opacity print:hidden"
+                onClick={() => setIsPrintModalOpen(false)}
+              />
+
+              {/* Print Isolation & Layout CSS */}
+              <style jsx global>{`
+                @media print {
+                  @page {
+                    size: A4 portrait;
+                    margin: 8mm;
+                  }
+                  html,
+                  body {
+                    margin: 0 !important;
+                    padding: 0 !important;
+                    height: auto !important;
+                    min-height: 0 !important;
+                    background: #ffffff !important;
+                    overflow: visible !important;
+                  }
+                  body > *:not(.payment-voucher-modal-portal) {
+                    display: none !important;
+                  }
+                  body * {
+                    visibility: hidden;
+                  }
+                  .payment-voucher-modal-portal,
+                  .payment-voucher-modal-portal * {
+                    visibility: visible;
+                  }
+                  .no-print,
+                  .no-print *,
+                  .payment-voucher-backdrop,
+                  .payment-voucher-backdrop * {
+                    display: none !important;
+                    visibility: hidden !important;
+                  }
+                  .payment-voucher-modal-portal {
+                    position: static !important;
+                    display: block !important;
+                    width: 100% !important;
+                    height: auto !important;
+                    margin: 0 !important;
+                    padding: 0 !important;
+                    overflow: visible !important;
+                    inset: auto !important;
+                    z-index: auto !important;
+                    background: #ffffff !important;
+                    -webkit-print-color-adjust: exact !important;
+                    print-color-adjust: exact !important;
+                  }
+                  .payment-voucher-container {
+                    position: static !important;
+                    display: block !important;
+                    width: 100% !important;
+                    max-width: 100% !important;
+                    height: auto !important;
+                    max-height: none !important;
+                    margin: 0 !important;
+                    padding: 0 !important;
+                    border: none !important;
+                    box-shadow: none !important;
+                    border-radius: 0 !important;
+                    overflow: visible !important;
+                    transform: none !important;
+                    animation: none !important;
+                    background: #ffffff !important;
+                  }
+                  #payment-voucher-printable-document,
+                  .payment-voucher-print-sheet {
+                    position: static !important;
+                    display: block !important;
+                    width: 100% !important;
+                    max-width: 100% !important;
+                    margin: 0 auto !important;
+                    padding: 0 !important;
+                    border: none !important;
+                    box-shadow: none !important;
+                    -webkit-print-color-adjust: exact !important;
+                    print-color-adjust: exact !important;
+                    page-break-inside: avoid !important;
+                    break-inside: avoid !important;
+                    background: #ffffff !important;
+                    color: #0f172a !important;
+                    overflow: visible !important;
+                  }
+                }
+
+                /* Dark Mode Immunity for the Printable Document Sheet */
+                html.dark #payment-voucher-printable-document,
+                html.dark #payment-voucher-printable-document * {
+                  color-scheme: light !important;
+                }
+                html.dark #payment-voucher-printable-document {
+                  background-color: #ffffff !important;
+                  background: #ffffff !important;
+                  color: #0f172a !important;
+                  border-color: #cbd5e1 !important;
+                }
+                html.dark #payment-voucher-printable-document h1,
+                html.dark #payment-voucher-printable-document h2,
+                html.dark #payment-voucher-printable-document h3,
+                html.dark #payment-voucher-printable-document h4,
+                html.dark #payment-voucher-printable-document p,
+                html.dark #payment-voucher-printable-document span,
+                html.dark #payment-voucher-printable-document td,
+                html.dark #payment-voucher-printable-document th {
+                  color-scheme: light !important;
+                }
+                html.dark #payment-voucher-printable-document h2,
+                html.dark #payment-voucher-printable-document .text-slate-900 {
+                  color: #0f172a !important;
+                }
+                html.dark #payment-voucher-printable-document .text-slate-800 {
+                  color: #1e293b !important;
+                }
+                html.dark #payment-voucher-printable-document .text-slate-700 {
+                  color: #334155 !important;
+                }
+                html.dark #payment-voucher-printable-document .text-slate-600 {
+                  color: #475569 !important;
+                }
+                html.dark #payment-voucher-printable-document .text-slate-500 {
+                  color: #64748b !important;
+                }
+                html.dark #payment-voucher-printable-document .bg-white {
+                  background-color: #ffffff !important;
+                  background: #ffffff !important;
+                }
+                html.dark #payment-voucher-printable-document .bg-slate-50,
+                html.dark #payment-voucher-printable-document .bg-slate-50\/80 {
+                  background-color: #f8fafc !important;
+                  background: #f8fafc !important;
+                  border-color: #e2e8f0 !important;
+                }
+                html.dark #payment-voucher-printable-document .bg-blue-50,
+                html.dark #payment-voucher-printable-document .bg-blue-50\/60 {
+                  background-color: #eff6ff !important;
+                  background: #eff6ff !important;
+                }
+                html.dark #payment-voucher-printable-document .bg-slate-100,
+                html.dark #payment-voucher-printable-document .bg-slate-100\/90 {
+                  background-color: #f1f5f9 !important;
+                  background: #f1f5f9 !important;
+                }
+                html.dark #payment-voucher-printable-document table {
+                  background-color: transparent !important;
+                  background: transparent !important;
+                  color: #0f172a !important;
+                }
+                html.dark #payment-voucher-printable-document table thead th {
+                  background-color: #f1f5f9 !important;
+                  background: #f1f5f9 !important;
+                  color: #334155 !important;
+                  border-color: #e2e8f0 !important;
+                }
+                html.dark #payment-voucher-printable-document table tbody td {
+                  border-color: #f1f5f9 !important;
+                  color: #0f172a !important;
+                  background-color: transparent !important;
+                  background: transparent !important;
+                }
+                html.dark #payment-voucher-printable-document table tbody tr {
+                  background-color: transparent !important;
+                  background: transparent !important;
+                }
+                html.dark #payment-voucher-printable-document table tbody tr:hover {
+                  background-color: #f8fafc !important;
+                  background: #f8fafc !important;
+                }
+                html.dark #payment-voucher-printable-document table tfoot,
+                html.dark #payment-voucher-printable-document table tfoot tr,
+                html.dark #payment-voucher-printable-document table tfoot td {
+                  background-color: #f8fafc !important;
+                  background: #f8fafc !important;
+                  color: #0f172a !important;
+                }
+              `}</style>
+
+              <div className="payment-voucher-container relative bg-white dark:bg-[#111217] text-slate-900 rounded-2xl border border-slate-200 dark:border-[#22232E] shadow-2xl max-w-4xl w-full max-h-[94vh] flex flex-col overflow-hidden z-10 print:h-auto print:max-h-none print:shadow-none print:border-none print:w-full print:m-0 print:p-0 print:overflow-visible print:rounded-none">
+                {/* Modal Controls Bar */}
+                <div className="no-print flex items-center justify-between px-5 py-3 border-b border-slate-200 dark:border-[#22232E] bg-slate-50 dark:bg-[#161722] sticky top-0 z-10 print:hidden shrink-0">
+                  <span className="font-semibold text-sm text-slate-800 dark:text-slate-100 flex items-center gap-2">
+                    <Printer className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                    Print Preview: Payment Voucher
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      size="sm"
+                      onClick={() => window.print()}
+                      className="bg-blue-600 hover:bg-blue-700 text-white font-medium text-xs px-3 h-8 gap-1.5 shadow-xs"
+                    >
+                      <Printer className="h-3.5 w-3.5" />
+                      Print Now
+                    </Button>
+                    <button
+                      type="button"
+                      onClick={() => setIsPrintModalOpen(false)}
+                      className="p-1 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-[#202025] transition-colors"
+                      title="Close"
+                    >
+                      <X className="h-5 w-5" />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Scrollable Document Area in Modal */}
+                <div className="max-h-[80vh] overflow-y-auto p-4 sm:p-6 bg-slate-100 dark:bg-[#0B0B0E] flex justify-center items-start print:p-0 print:bg-white print:overflow-visible print:max-h-none">
+                  {/* Printable Document Sheet */}
+                  <div
+                    id="payment-voucher-printable-document"
+                    className="printable-paper-sheet printable-document-sheet payment-voucher-print-sheet w-full max-w-[210mm] bg-white p-6 sm:p-8 border border-slate-300 shadow-md print:shadow-none print:border-none print:p-0 text-slate-900 font-sans space-y-5 print:space-y-6 h-fit flex flex-col justify-between"
+                    style={{ backgroundColor: "#ffffff", color: "#0f172a" }}
+                  >
+                    {/* Document Header */}
+                    <div className="border-b-2 border-slate-900 pb-3.5 flex justify-between items-start gap-4">
+                      {/* Left: Logo + Company Info */}
+                      <div className="flex items-start gap-3.5 flex-1 min-w-0">
+                        {company?.logo_url ? (
+                          <img
+                            src={company.logo_url}
+                            alt={companyName}
+                            crossOrigin="anonymous"
+                            className="w-12 h-12 object-contain rounded-lg border border-slate-200 bg-white p-0.5 shrink-0"
+                          />
+                        ) : (
+                          <div className="w-12 h-12 rounded-lg bg-blue-700 text-white flex items-center justify-center font-black text-2xl shadow-xs shrink-0">
+                            {companyFirstLetter}
+                          </div>
+                        )}
+                        <div className="min-w-0 flex-1">
+                          <h2 className="text-xl font-bold tracking-tight uppercase text-slate-900 leading-tight">
+                            {companyName}
+                          </h2>
+                          {fullAddressLine ? (
+                            <p className="text-xs text-slate-600 mt-1 leading-normal">
+                              {fullAddressLine}
+                            </p>
+                          ) : (
+                            <p className="text-xs text-slate-500 mt-0.5">Enterprise Transport Management System</p>
+                          )}
+                          {(companyPhone || companyEmail || companyWebsite) && (
+                            <p className="text-xs text-slate-600 leading-normal mt-0.5">
+                              {companyPhone && <span>Phone: {companyPhone}</span>}
+                              {companyPhone && companyEmail && <span> &nbsp;|&nbsp; </span>}
+                              {companyEmail && <span>Email: {companyEmail}</span>}
+                              {(companyPhone || companyEmail) && companyWebsite && <span> &nbsp;|&nbsp; </span>}
+                              {companyWebsite && <span>Web: {companyWebsite}</span>}
+                            </p>
+                          )}
+                          <div className="flex flex-wrap items-center gap-x-3 text-xs text-slate-700 mt-1">
+                            {companyGstin && (
+                              <span className="font-mono text-[11px]">
+                                <strong className="font-sans font-semibold text-slate-500">GSTIN: </strong>
+                                {companyGstin}
+                              </span>
+                            )}
+                            {companyPan && (
+                              <span className="font-mono text-[11px]">
+                                <strong className="font-sans font-semibold text-slate-500">PAN: </strong>
+                                {companyPan}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Right: Payment Voucher Badge + Metadata */}
+                      <div className="text-right shrink-0">
+                        <span className="inline-block px-3 py-1 bg-blue-600 text-white text-xs font-bold uppercase rounded-md shadow-xs">
+                          {voucherBadgeLabel}
+                        </span>
+                        <p className="text-sm font-mono font-bold mt-1 text-slate-900">{printVoucher.voucher_number}</p>
+                        <p className="text-xs text-slate-600">{formatDate(printVoucher.voucher_date)}</p>
+                        <p className="text-[11px] font-semibold text-blue-700 mt-0.5">
+                          {printVoucher.is_void ? "STATUS: VOIDED" : `STATUS: ${printVoucher.payment_status || "CLEARED"}`}
+                        </p>
+                        <p className="text-[11px] text-slate-600 mt-0.5">
+                          <span className="text-slate-500">Issuing Office: </span>
+                          <span className="font-bold text-slate-800 uppercase">{officeName}</span>
+                          {officeCode ? ` (${officeCode})` : ""}
+                        </p>
+                        {officeGstin && officeGstin !== companyGstin && (
+                          <p className="text-[10px] font-mono text-slate-500 mt-0.5">
+                            Office GSTIN: {officeGstin}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Payment Summary Grid */}
+                    <div className="grid grid-cols-2 gap-4 text-xs bg-slate-50/80 p-3.5 rounded-xl border border-slate-200">
+                      <div className="space-y-1">
+                        <p className="text-slate-500 uppercase text-[10px] font-semibold tracking-wider">Paid with thanks to (Beneficiary):</p>
+                        <p className="font-bold text-sm text-slate-900">{printVoucher.party_name || "Beneficiary"}</p>
+                        {printVoucher.party_gstin && (
+                          <p className="text-slate-600 font-mono text-[11px]">GSTIN: {printVoucher.party_gstin}</p>
+                        )}
+                        <div className="pt-1 text-slate-700 space-y-0.5">
+                          <p>
+                            <span className="text-slate-500 font-medium">Payment Mode:</span>{" "}
+                            <span className="uppercase font-semibold text-slate-900">{printVoucher.tax_breakup?.payment_mode || "BANK"}</span>
+                          </p>
+                          {printVoucher.reference_number && (
+                            <p>
+                              <span className="text-slate-500 font-medium">Ref / Cheque #:</span>{" "}
+                              <span className="font-mono font-semibold text-slate-900">{printVoucher.reference_number}</span>
+                            </p>
+                          )}
+                          {printVoucher.reference_date && (
+                            <p>
+                              <span className="text-slate-500 font-medium">Ref Date:</span>{" "}
+                              <span className="text-slate-800">{formatDate(printVoucher.reference_date)}</span>
+                            </p>
+                          )}
+                          {(printVoucher.tax_breakup?.challan_number || printVoucher.hire_challan_id) && (
+                            <p>
+                              <span className="text-slate-500 font-medium">Hire Challan:</span>{" "}
+                              <span className="font-mono font-semibold text-blue-700">
+                                {printVoucher.tax_breakup?.challan_number || `#${printVoucher.hire_challan_id}`}
+                              </span>
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                      <div className="space-y-1 flex flex-col justify-between">
+                        <div>
+                          <p className="text-slate-500 uppercase text-[10px] font-semibold tracking-wider">Debited From (Payment Account Head):</p>
+                          <p className="font-bold text-sm text-slate-900">{paymentAccount}</p>
+                        </div>
+                        <div className="mt-2 pt-2 border-t border-slate-200 flex justify-between items-baseline">
+                          <span className="text-slate-600 font-semibold uppercase text-[11px]">Net Amount Disbursed:</span>
+                          <span className="text-xl font-bold font-mono text-blue-700">
+                            {formatCurrency(parseFloat(String(printVoucher.net_amount)) || 0)}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Amount in Words */}
+                    <div className="text-xs border-l-4 border-blue-600 pl-3 py-2 bg-blue-50/60 rounded-r-lg italic text-slate-800">
+                      <span className="font-semibold text-slate-700 not-italic">Amount in Words: </span>
+                      {numberToWords(parseFloat(String(printVoucher.net_amount)) || 0)}
+                    </div>
+
+                    {/* Bill Allocation Breakdown Table */}
+                    {printVoucher.bill_allocations && printVoucher.bill_allocations.length > 0 && (
+                      <div className="space-y-1.5">
+                        <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-700">
+                          Settlement Breakdown Against Supplier Bills ({printVoucher.bill_allocations.length}):
+                        </h4>
+                        <div className="border border-slate-200 rounded-lg overflow-hidden">
+                          <table className="w-full text-xs border-collapse">
+                            <thead className="bg-slate-100/90 text-slate-700 uppercase text-[10px] font-bold tracking-wider border-b border-slate-200">
+                              <tr>
+                                <th className="py-2 px-3 text-left">Bill / Invoice #</th>
+                                <th className="py-2 px-3 text-right">Bank/Cash Disbursed (₹)</th>
+                                <th className="py-2 px-3 text-right">TDS Retained (₹)</th>
+                                <th className="py-2 px-3 text-right">Discount (₹)</th>
+                                <th className="py-2 px-3 text-right">Total Settled (₹)</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100 font-mono text-[11px]">
+                              {printVoucher.bill_allocations.map((ba) => (
+                                <tr key={ba.id} className="hover:bg-slate-50/80">
+                                  <td className="py-2 px-3 font-semibold text-slate-900 text-left">
+                                    {ba.invoice_number || `Bill #${ba.invoice_id}`}
+                                  </td>
+                                  <td className="py-2 px-3 text-right">
+                                    {formatCurrency(parseFloat(String(ba.allocated_amount)) || 0)}
+                                  </td>
+                                  <td className="py-2 px-3 text-right text-slate-600">
+                                    {parseFloat(String(ba.tds_amount)) > 0
+                                      ? formatCurrency(parseFloat(String(ba.tds_amount)))
+                                      : "₹0.00"}
+                                  </td>
+                                  <td className="py-2 px-3 text-right text-slate-600">
+                                    {parseFloat(String(ba.discount_amount)) > 0
+                                      ? formatCurrency(parseFloat(String(ba.discount_amount)))
+                                      : "₹0.00"}
+                                  </td>
+                                  <td className="py-2 px-3 text-right font-bold text-slate-900">
+                                    {formatCurrency(parseFloat(String(ba.total_settled)) || 0)}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                            <tfoot className="bg-slate-50 font-bold border-t border-slate-200 text-slate-900 font-mono text-[11px]">
+                              <tr>
+                                <td className="py-2 px-3 uppercase font-sans text-[10px] text-slate-600">Total:</td>
+                                <td className="py-2 px-3 text-right">
+                                  {formatCurrency(
+                                    printVoucher.bill_allocations.reduce(
+                                      (acc, ba) => acc + (parseFloat(String(ba.allocated_amount)) || 0),
+                                      0
+                                    )
+                                  )}
+                                </td>
+                                <td className="py-2 px-3 text-right text-slate-600">
+                                  {formatCurrency(
+                                    printVoucher.bill_allocations.reduce(
+                                      (acc, ba) => acc + (parseFloat(String(ba.tds_amount)) || 0),
+                                      0
+                                    )
+                                  )}
+                                </td>
+                                <td className="py-2 px-3 text-right text-slate-600">
+                                  {formatCurrency(
+                                    printVoucher.bill_allocations.reduce(
+                                      (acc, ba) => acc + (parseFloat(String(ba.discount_amount)) || 0),
+                                      0
+                                    )
+                                  )}
+                                </td>
+                                <td className="py-2 px-3 text-right font-bold text-blue-700">
+                                  {formatCurrency(
+                                    printVoucher.bill_allocations.reduce(
+                                      (acc, ba) => acc + (parseFloat(String(ba.total_settled)) || 0),
+                                      0
+                                    )
+                                  )}
+                                </td>
+                              </tr>
+                            </tfoot>
+                          </table>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Double-Entry Balanced Journal Postings Table */}
+                    {printVoucher.ledger_entries && printVoucher.ledger_entries.length > 0 && (
+                      <div className="space-y-1.5">
+                        <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-700">
+                          Double-Entry Balanced Journal Postings:
+                        </h4>
+                        <div className="border border-slate-200 rounded-lg overflow-hidden">
+                          <table className="w-full text-xs border-collapse">
+                            <thead className="bg-slate-100/90 text-slate-700 uppercase text-[10px] font-bold tracking-wider border-b border-slate-200">
+                              <tr>
+                                <th className="py-2 px-3 text-left">Particulars / Account Head</th>
+                                <th className="py-2 px-3 text-right w-36">Debit (Dr) ₹</th>
+                                <th className="py-2 px-3 text-right w-36">Credit (Cr) ₹</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100 font-mono text-[11px]">
+                              {printVoucher.ledger_entries.map((le) => (
+                                <tr key={le.id} className={le.is_reversal ? "opacity-60 italic" : "hover:bg-slate-50/80"}>
+                                  <td className="py-2 px-3 font-sans">
+                                    <div className="font-semibold text-slate-900">
+                                      {parseFloat(String(le.debit_amount)) > 0 ? "Dr. " : "    To "}
+                                      {le.account_name || `Account #${le.account_id}`}
+                                    </div>
+                                    {le.narration && (
+                                      <div className="text-[10px] text-slate-500 pl-4 mt-0.5">
+                                        ({le.narration})
+                                      </div>
+                                    )}
+                                  </td>
+                                  <td className="py-2 px-3 text-right font-semibold text-slate-900">
+                                    {parseFloat(String(le.debit_amount)) > 0
+                                      ? formatCurrency(parseFloat(String(le.debit_amount)))
+                                      : "—"}
+                                  </td>
+                                  <td className="py-2 px-3 text-right font-semibold text-slate-900">
+                                    {parseFloat(String(le.credit_amount)) > 0
+                                      ? formatCurrency(parseFloat(String(le.credit_amount)))
+                                      : "—"}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                            <tfoot className="bg-slate-50 font-bold border-t border-slate-200 text-slate-900 font-mono text-[11px]">
+                              <tr>
+                                <td className="py-2 px-3 text-right uppercase font-sans text-[10px] text-slate-600">Total:</td>
+                                <td className="py-2 px-3 text-right text-slate-900">
+                                  {formatCurrency(
+                                    printVoucher.ledger_entries
+                                      .filter((e) => !e.is_reversal)
+                                      .reduce((acc, e) => acc + (parseFloat(String(e.debit_amount)) || 0), 0)
+                                  )}
+                                </td>
+                                <td className="py-2 px-3 text-right text-slate-900">
+                                  {formatCurrency(
+                                    printVoucher.ledger_entries
+                                      .filter((e) => !e.is_reversal)
+                                      .reduce((acc, e) => acc + (parseFloat(String(e.credit_amount)) || 0), 0)
+                                  )}
+                                </td>
+                              </tr>
+                            </tfoot>
+                          </table>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Narration */}
+                    {printVoucher.narration && (
+                      <div className="text-xs bg-slate-50/80 p-3 rounded-xl border border-slate-200">
+                        <span className="font-semibold text-slate-700 uppercase text-[10px] tracking-wider block">Narration / Remarks:</span>
+                        <span className="text-slate-800 italic mt-0.5 block">&quot;{printVoucher.narration}&quot;</span>
+                      </div>
+                    )}
+
+                    {/* Signatures */}
+                    <div className="pt-6 border-t border-slate-300 grid grid-cols-4 gap-4 text-center text-xs">
+                      <div>
+                        <div className="border-b border-slate-400 mb-1 h-8" />
+                        <span className="text-slate-600 font-medium">Prepared By</span>
+                      </div>
+                      <div>
+                        <div className="border-b border-slate-400 mb-1 h-8" />
+                        <span className="text-slate-600 font-medium">Passed / Accounts Head</span>
+                      </div>
+                      <div className="flex flex-col justify-end">
+                        {company?.signature_url ? (
+                          <div className="flex justify-center mb-1 h-8 items-end">
+                            <img
+                              src={company.signature_url}
+                              alt="Signature"
+                              crossOrigin="anonymous"
+                              className="max-h-8 max-w-[110px] object-contain"
+                            />
+                          </div>
+                        ) : (
+                          <div className="border-b border-slate-400 mb-1 h-8" />
+                        )}
+                        <span className="text-slate-600 font-medium">
+                          {company?.signing_authority_name || "Authorized Signatory"}
+                        </span>
+                        {company?.signing_authority_designation && (
+                          <span className="text-[10px] text-slate-400"> ({company.signing_authority_designation})</span>
+                        )}
+                      </div>
+                      <div>
+                        <div className="border-b border-slate-400 mb-1 h-8" />
+                        <span className="text-slate-600 font-medium">Receiver / Beneficiary</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Modal Actions Footer Bar */}
+                <div className="no-print flex items-center justify-between px-6 py-3 border-t border-slate-200 dark:border-[#2A2B36] bg-slate-50 dark:bg-[#161722] sticky bottom-0 z-10 print:hidden shrink-0">
+                  <span className="text-xs text-slate-500 dark:text-slate-400 font-mono">
+                    {printVoucher.voucher_number} • {formatDate(printVoucher.voucher_date)}
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setIsPrintModalOpen(false)}
+                      className="text-xs h-8 px-3 rounded-lg dark:bg-[#1F202B] dark:border-[#2B2D3D] dark:text-slate-200 dark:hover:bg-[#262837]"
+                    >
+                      Close
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={() => window.print()}
+                      className="bg-blue-600 hover:bg-blue-700 text-white text-xs h-8 px-3.5 rounded-lg font-medium shadow-xs gap-1.5"
+                    >
+                      <Printer className="h-3.5 w-3.5" />
+                      Print Voucher
+                    </Button>
+                  </div>
+                </div>
               </div>
             </div>
-
-            {/* Printable Content */}
-            <div className="space-y-4 font-serif text-sm">
-              {/* Voucher Header */}
-              <div className="text-center border-b pb-3 space-y-1">
-                <h2 className="text-xl font-bold uppercase tracking-wider text-slate-900">
-                  PAYMENT VOUCHER
-                </h2>
-                <p className="text-xs text-slate-600 font-sans">
-                  PantherTMS Transport Logistics Network
-                </p>
-              </div>
-
-              {/* Voucher Meta */}
-              <div className="flex justify-between items-start text-xs border-b pb-2">
-                <div>
-                  <p><strong>Voucher No:</strong> <span className="font-mono">{printVoucher.voucher_number}</span></p>
-                  <p><strong>Payment Mode:</strong> {printVoucher.tax_breakup?.payment_mode || "BANK"}</p>
-                  {printVoucher.reference_number && (
-                    <p><strong>Ref / Cheque #:</strong> {printVoucher.reference_number}</p>
-                  )}
-                </div>
-                <div className="text-right">
-                  <p><strong>Date:</strong> {formatDate(printVoucher.voucher_date)}</p>
-                  <p><strong>Status:</strong> {printVoucher.is_void ? "VOIDED" : (printVoucher.payment_status || "PAID")}</p>
-                </div>
-              </div>
-
-              {/* Paid To */}
-              <div className="border rounded p-3 text-xs space-y-1 bg-slate-50">
-                <p className="text-slate-500 uppercase text-[10px] font-sans">Paid with thanks to:</p>
-                <p className="font-bold text-sm text-slate-900">{printVoucher.party_name || "Beneficiary"}</p>
-                {printVoucher.party_gstin && (
-                  <p className="text-slate-600">GSTIN: {printVoucher.party_gstin}</p>
-                )}
-              </div>
-
-              {/* Amount in Numbers & Words */}
-              <div className="border rounded p-3 space-y-2 bg-blue-50/50 border-blue-200">
-                <div className="flex justify-between items-center">
-                  <span className="text-xs text-slate-600 uppercase font-sans">Amount Disbursed:</span>
-                  <span className="text-xl font-bold font-mono text-blue-800">
-                    {formatCurrency(printVoucher.net_amount)}
-                  </span>
-                </div>
-                <div className="text-xs italic text-slate-700 border-t pt-1 border-blue-200">
-                  <strong>In Words:</strong> {numberToWords(parseFloat(String(printVoucher.net_amount)) || 0)}
-                </div>
-              </div>
-
-              {/* Bill Allocation Table if any */}
-              {printVoucher.bill_allocations && printVoucher.bill_allocations.length > 0 && (
-                <div className="space-y-1">
-                  <span className="text-[11px] font-bold text-slate-700 uppercase font-sans">
-                    Settlement Breakdown Against Supplier Bills:
-                  </span>
-                  <table className="w-full text-left text-xs border">
-                    <thead className="bg-slate-100 text-[10px] uppercase font-sans">
-                      <tr className="border-b">
-                        <th className="p-1.5">Bill #</th>
-                        <th className="p-1.5 text-right">Bank/Cash Disbursed</th>
-                        <th className="p-1.5 text-right">TDS Retained</th>
-                        <th className="p-1.5 text-right">Discount</th>
-                        <th className="p-1.5 text-right">Total Settled</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y text-[11px]">
-                      {printVoucher.bill_allocations.map((ba) => (
-                        <tr key={ba.id}>
-                          <td className="p-1.5 font-mono">{ba.invoice_number || `Bill #${ba.invoice_id}`}</td>
-                          <td className="p-1.5 text-right font-mono">{formatCurrency(ba.allocated_amount)}</td>
-                          <td className="p-1.5 text-right font-mono">{formatCurrency(ba.tds_amount)}</td>
-                          <td className="p-1.5 text-right font-mono">{formatCurrency(ba.discount_amount)}</td>
-                          <td className="p-1.5 text-right font-mono font-bold">{formatCurrency(ba.total_settled)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-
-              {/* Signatures */}
-              <div className="pt-12 grid grid-cols-4 gap-2 text-center text-xs text-slate-700">
-                <div className="border-t border-slate-400 pt-1">
-                  Prepared By
-                </div>
-                <div className="border-t border-slate-400 pt-1">
-                  Passed By
-                </div>
-                <div className="border-t border-slate-400 pt-1">
-                  Authorised Signatory
-                </div>
-                <div className="border-t border-slate-400 pt-1">
-                  Receiver&apos;s Signature
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+          );
+        })(),
+        document.body
       )}
 
       {/* MODAL 4: Void Voucher Dialog */}

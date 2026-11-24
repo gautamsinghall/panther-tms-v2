@@ -13,7 +13,9 @@ from app.modules.settings.schemas import (
     SeriesCategoryCreate, SeriesCategoryUpdate, SeriesCategoryResponse,
     SeriesMasterCreate, SeriesMasterUpdate, SeriesMasterResponse, SeriesCheckResponse,
     AdminSettingItem, AdminSettingsBulkUpdate, AdminSettingResponse, UserActivityResponse,
-    ActivityStatsResponse, ActivityFiltersResponse
+    ActivityStatsResponse, ActivityFiltersResponse,
+    EmailSettingUpdate, EmailSettingResponse, EmailTestRequest, EmailTestResponse,
+    StaffRecipientCreate, StaffRecipientUpdate, StaffRecipientResponse
 )
 from app.modules.settings import service
 from app.auth.navigation import get_permissions_schema
@@ -578,5 +580,107 @@ async def get_activity_filters(
     db: AsyncSession = Depends(get_tenant_db),
 ):
     return await service.get_activity_filters_service(db, current_user=current_user)
+
+
+# ==========================================================================
+# Email Settings & Staff Notification Recipients Endpoints
+# ==========================================================================
+
+@router.get(
+    "/email-settings",
+    response_model=EmailSettingResponse,
+    summary="Get tenant outbound email gateway configuration"
+)
+async def get_email_settings(
+    current_user: User = Depends(require_permission("settings", "email_settings", "view")),
+    db: AsyncSession = Depends(get_tenant_db),
+):
+    row = await service.get_email_setting(db)
+    return EmailSettingResponse.from_orm_model(row)
+
+
+@router.put(
+    "/email-settings",
+    response_model=EmailSettingResponse,
+    summary="Update tenant outbound email gateway configuration"
+)
+async def update_email_settings(
+    data: EmailSettingUpdate,
+    current_user: User = Depends(require_permission("settings", "email_settings", "edit")),
+    db: AsyncSession = Depends(get_tenant_db),
+):
+    row = await service.update_email_setting(db, data)
+    return EmailSettingResponse.from_orm_model(row)
+
+
+@router.post(
+    "/email-settings/test",
+    response_model=EmailTestResponse,
+    summary="Send a test email to verify SMTP gateway connection"
+)
+async def test_email_gateway(
+    data: EmailTestRequest,
+    current_user: User = Depends(require_permission("settings", "email_settings", "edit")),
+    db: AsyncSession = Depends(get_tenant_db),
+):
+    success, message = await service.send_test_email_service(db, data)
+    if not success:
+        return EmailTestResponse(success=False, message=message)
+    return EmailTestResponse(success=True, message=message)
+
+
+@router.get(
+    "/email-recipients",
+    response_model=List[StaffRecipientResponse],
+    summary="List all staff notification recipients"
+)
+async def list_staff_recipients(
+    current_user: User = Depends(require_permission("settings", "email_settings", "view")),
+    db: AsyncSession = Depends(get_tenant_db),
+):
+    return await service.list_staff_recipients(db)
+
+
+@router.post(
+    "/email-recipients",
+    response_model=StaffRecipientResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Add a new staff email recipient for alert routing"
+)
+async def create_staff_recipient(
+    data: StaffRecipientCreate,
+    current_user: User = Depends(require_permission("settings", "email_settings", "create")),
+    db: AsyncSession = Depends(get_tenant_db),
+):
+    return await service.create_staff_recipient(db, data)
+
+
+@router.put(
+    "/email-recipients/{recipient_id}",
+    response_model=StaffRecipientResponse,
+    summary="Update a staff email recipient"
+)
+async def update_staff_recipient(
+    recipient_id: int,
+    data: StaffRecipientUpdate,
+    current_user: User = Depends(require_permission("settings", "email_settings", "edit")),
+    db: AsyncSession = Depends(get_tenant_db),
+):
+    return await service.update_staff_recipient(db, recipient_id, data)
+
+
+@router.delete(
+    "/email-recipients/{recipient_id}",
+    status_code=status.HTTP_200_OK,
+    summary="Delete a staff email recipient"
+)
+async def delete_staff_recipient(
+    recipient_id: int,
+    current_user: User = Depends(require_permission("settings", "email_settings", "delete")),
+    db: AsyncSession = Depends(get_tenant_db),
+):
+    await service.delete_staff_recipient(db, recipient_id)
+    return {"message": "Staff email recipient removed successfully."}
+
 
 
