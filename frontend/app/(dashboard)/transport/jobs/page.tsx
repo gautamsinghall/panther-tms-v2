@@ -222,24 +222,27 @@ export default function JobsPage() {
     });
   }, [data, statusFilter, searchTerm]);
 
+  const normalizePartyName = (name?: string) => name?.trim().toLowerCase().replace(/[^a-z0-9]/g, "") || "";
+
   const columns: ColumnDef<JobRecord>[] = [
     {
       key: "job_number",
       header: "Job Number",
       sortable: true,
+      minWidth: "125px",
       cell: (row) => (
         <div>
-          <span className="font-mono font-bold text-slate-900 block">
+          <button
+            type="button"
+            onClick={() => setViewingJob(row)}
+            className="font-mono font-bold text-slate-900 dark:text-white hover:text-indigo-600 transition-colors text-xs text-left cursor-pointer"
+            title="Click to view Trip Order voucher"
+          >
             {row.job_number}
-          </span>
-          <span className="text-[11px] font-mono text-slate-500">
+          </button>
+          <span className="text-[11px] font-mono text-slate-500 block">
             {formatDate(row.job_date)}
           </span>
-          {row.lr_number && (
-            <span className="text-[11px] font-mono text-indigo-600 block font-semibold mt-0.5">
-              LR #{row.lr_number}
-            </span>
-          )}
         </div>
       ),
     },
@@ -247,9 +250,13 @@ export default function JobsPage() {
       key: "billing_party",
       header: "Billing Client",
       sortable: true,
+      minWidth: "170px",
       cell: (row) => (
-        <div>
-          <span className="font-semibold text-slate-900 block text-xs">
+        <div className="max-w-[210px]">
+          <span
+            className="font-semibold text-slate-900 dark:text-slate-100 block text-xs truncate"
+            title={row.billing_client_name || row.billing_party || "-"}
+          >
             {row.billing_client_name || row.billing_party || "-"}
           </span>
         </div>
@@ -258,43 +265,93 @@ export default function JobsPage() {
     {
       key: "parties",
       header: "Consignor → Consignee",
-      cell: (row) => (
-        <div>
-          <span className="font-semibold text-slate-900 block text-xs">
-            {row.consigner_name || `Consignor #${row.consigner_id}`}
-          </span>
-          <span className="text-[11px] text-slate-500 flex items-center gap-1 mt-0.5">
-            <span className="text-slate-400">To:</span> {row.consignee_name || `Consignee #${row.consignee_id}`}
-          </span>
-        </div>
-      ),
+      minWidth: "190px",
+      cell: (row) => {
+        const client = row.billing_client_name || row.billing_party || "";
+        const consigner = row.consigner_name || "";
+        const consignee = row.consignee_name || "";
+
+        const normClient = normalizePartyName(client);
+        const normConsigner = normalizePartyName(consigner);
+        const normConsignee = normalizePartyName(consignee);
+
+        const isSameConsignerConsignee = Boolean(normConsigner && normConsignee && normConsigner === normConsignee);
+        const isSameAsClient = Boolean(isSameConsignerConsignee && normClient && normConsigner === normClient);
+
+        if (isSameAsClient) {
+          return (
+            <div className="text-xs text-slate-500 dark:text-slate-400 italic">
+              Same as Billing Client
+            </div>
+          );
+        }
+
+        if (isSameConsignerConsignee) {
+          return (
+            <div className="max-w-[220px]">
+              <span className="font-medium text-slate-900 dark:text-slate-100 block text-xs truncate" title={consigner}>
+                {consigner || `Party #${row.consigner_id}`}
+              </span>
+              <span className="text-[11px] text-slate-400 italic block">
+                (Consignor & Consignee same)
+              </span>
+            </div>
+          );
+        }
+
+        return (
+          <div className="max-w-[220px]">
+            <span className="font-medium text-slate-900 dark:text-slate-100 block text-xs truncate" title={consigner}>
+              {consigner || `Consignor #${row.consigner_id}`}
+            </span>
+            <span className="text-[11px] text-slate-500 flex items-center gap-1 mt-0.5 truncate" title={consignee}>
+              <span className="text-slate-400">To:</span> {consignee || `Consignee #${row.consignee_id}`}
+            </span>
+          </div>
+        );
+      },
     },
     {
       key: "route",
       header: "Origin → Destination",
-      cell: (row) => (
-        <div className="flex items-center gap-1.5 text-xs text-slate-800 font-medium">
-          <span className="px-2 py-0.5 rounded bg-slate-50 text-slate-800 border border-slate-200/80 shadow-2xs">
-            {row.origin_city || "Origin"}
-          </span>
-          <ArrowRight className="w-3 h-3 text-slate-400 shrink-0" />
-          <span className="px-2 py-0.5 rounded bg-slate-50 text-slate-800 border border-slate-200/80 shadow-2xs">
-            {row.destination_city || "Destination"}
-          </span>
-        </div>
-      ),
+      minWidth: "160px",
+      cell: (row) => {
+        const origin = row.origin_city?.trim();
+        const dest = row.destination_city?.trim();
+        const isSameCity = Boolean(origin && dest && origin.toLowerCase() === dest.toLowerCase());
+
+        if (isSameCity) {
+          return (
+            <div className="flex items-center gap-1.5 text-xs">
+              <span className="font-medium text-slate-900 dark:text-slate-100">{origin}</span>
+              <span className="text-[10px] font-semibold text-slate-500 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded">
+                Local
+              </span>
+            </div>
+          );
+        }
+
+        return (
+          <div className="flex items-center gap-1.5 text-xs text-slate-800 dark:text-slate-200 font-medium whitespace-nowrap">
+            <span>{origin || "—"}</span>
+            <ArrowRight className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+            <span>{dest || "—"}</span>
+          </div>
+        );
+      },
     },
     {
       key: "vehicle_number",
-      header: "Vehicle / LR",
+      header: "Vehicle",
+      minWidth: "110px",
       cell: (row) => (
         <div>
-          <span className="font-mono font-semibold text-slate-900 block text-xs">
+          <span className="font-mono font-semibold text-slate-900 dark:text-slate-100 block text-xs">
             {row.vehicle_number || "—"}
           </span>
-          {row.lr_number && (
-            <span className="text-[11px] font-mono text-indigo-600 font-semibold block mt-0.5">
-              LR #{row.lr_number}
+          {row.driver_name && (
+            <span className="text-[11px] text-slate-500 block truncate max-w-[120px]" title={row.driver_name}>
+              {row.driver_name}
             </span>
           )}
         </div>
@@ -302,28 +359,38 @@ export default function JobsPage() {
     },
     {
       key: "cargo",
-      header: "Estimated Weight",
+      header: "Est. Weight",
       isNumeric: true,
-      cell: (row) => (
-        <div>
-          <span className="font-mono font-semibold text-slate-900 block text-xs tabular-nums">
-            {row.estimated_weight_mt ? `${parseFloat(String(row.estimated_weight_mt)).toFixed(2)} MT` : "-"}
-          </span>
-          <span className="text-[11px] text-slate-500 font-mono">
-            {row.estimated_packages ? `${row.estimated_packages} pkgs` : "-"}
-          </span>
-        </div>
-      ),
+      minWidth: "105px",
+      cell: (row) => {
+        const wt = row.estimated_weight_mt ? parseFloat(String(row.estimated_weight_mt)) : 0;
+        const pkgs = row.estimated_packages ? Number(row.estimated_packages) : 0;
+
+        return (
+          <div>
+            <span className="font-mono font-semibold text-slate-900 dark:text-slate-100 block text-xs tabular-nums">
+              {wt > 0 ? `${wt.toFixed(2)} MT` : "—"}
+            </span>
+            {pkgs > 0 && (
+              <span className="text-[11px] text-slate-500 font-mono block">
+                {pkgs} pkgs
+              </span>
+            )}
+          </div>
+        );
+      },
     },
     {
       key: "status",
       header: "Trip Status",
       align: "center",
+      minWidth: "110px",
       cell: (row) => <StatusBadge status={row.status} />,
     },
     {
       key: "linkage",
-      header: "Linked Status",
+      header: "Linked Documents",
+      minWidth: "165px",
       cell: (row) => {
         const hasLr = Boolean(row.lr_number || row.lr_id || (row.linked_lrs && row.linked_lrs.length > 0));
         const lrDisplay = row.lr_number || (row.linked_lrs && row.linked_lrs[0]);
@@ -332,7 +399,7 @@ export default function JobsPage() {
 
         return (
           <div className="flex flex-col gap-1 items-start min-w-[145px]">
-            {/* Primary Document: LR */}
+            {/* Primary Document: LR + 360 trace icon */}
             <div className="flex items-center gap-1.5 w-full">
               {hasLr ? (
                 <button
@@ -358,53 +425,12 @@ export default function JobsPage() {
                     e.stopPropagation();
                     router.push(`/transport/lr-booking?job_id=${row.id}`);
                   }}
-                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-medium bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border border-rose-200/80 dark:border-rose-900/40 hover:bg-rose-100 dark:hover:bg-rose-900/40 transition-colors cursor-pointer"
+                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800 hover:bg-amber-100 transition-colors cursor-pointer"
                   title="No LR linked. Click to book LR for this trip"
                 >
-                  <X className="w-3 h-3 text-rose-500 shrink-0" />
-                  <span>No LR</span>
+                  <Plus className="w-3 h-3 text-amber-600 shrink-0" />
+                  <span>Book LR</span>
                 </button>
-              )}
-            </div>
-
-            {/* Downstream Chain: Challan & Invoice & 360 trace */}
-            <div className="flex items-center gap-1 w-full flex-wrap">
-              {/* Challan Badge */}
-              {hasChallan ? (
-                <span
-                  className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-blue-50 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800"
-                  title={row.challan_number ? `Hire Challan #${row.challan_number}` : "Hire Challan Linked"}
-                >
-                  <Check className="w-2.5 h-2.5 text-blue-600 dark:text-blue-400 shrink-0" />
-                  <span>{row.challan_number ? `HC #${row.challan_number}` : "Challan"}</span>
-                </span>
-              ) : (
-                <span
-                  className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] text-slate-400 dark:text-slate-500 bg-slate-50 dark:bg-slate-900/60 border border-slate-200/70 dark:border-slate-800"
-                  title="No Hire Challan Issued"
-                >
-                  <X className="w-2.5 h-2.5 text-rose-400 shrink-0" />
-                  <span>Challan</span>
-                </span>
-              )}
-
-              {/* Invoice Badge */}
-              {hasInvoice ? (
-                <span
-                  className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-purple-50 dark:bg-purple-950/50 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800"
-                  title={row.invoice_number ? `Freight Invoice #${row.invoice_number}` : "Freight Invoiced"}
-                >
-                  <Check className="w-2.5 h-2.5 text-purple-600 dark:text-purple-400 shrink-0" />
-                  <span>{row.invoice_number ? `Inv #${row.invoice_number}` : "Invoiced"}</span>
-                </span>
-              ) : (
-                <span
-                  className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] text-slate-400 dark:text-slate-500 bg-slate-50 dark:bg-slate-900/60 border border-slate-200/70 dark:border-slate-800"
-                  title="Freight Invoice Not Generated"
-                >
-                  <X className="w-2.5 h-2.5 text-rose-400 shrink-0" />
-                  <span>Invoice</span>
-                </span>
               )}
 
               {/* 360 Traceability Shortcut */}
@@ -414,11 +440,40 @@ export default function JobsPage() {
                   e.stopPropagation();
                   router.push(`/transport/consignment-360?q=${encodeURIComponent(row.job_number)}`);
                 }}
-                className="p-0.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/50 rounded transition-colors ml-auto cursor-pointer"
+                className="p-1 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/50 rounded transition-colors ml-auto cursor-pointer"
                 title="Open 360° Traceability Lifecycle"
               >
                 <ScanSearch className="w-3.5 h-3.5" />
               </button>
+            </div>
+
+            {/* Downstream Chain: Challan & Invoice */}
+            <div className="flex items-center gap-1 w-full flex-wrap">
+              {hasChallan && (
+                <span
+                  className="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded text-[10px] font-semibold bg-blue-50 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800"
+                  title={row.challan_number ? `Hire Challan #${row.challan_number}` : "Hire Challan Linked"}
+                >
+                  <Check className="w-2.5 h-2.5 text-blue-600 dark:text-blue-400 shrink-0" />
+                  <span>{row.challan_number ? `HC #${row.challan_number}` : "Challan"}</span>
+                </span>
+              )}
+
+              {hasInvoice && (
+                <span
+                  className="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded text-[10px] font-semibold bg-purple-50 dark:bg-purple-950/50 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800"
+                  title={row.invoice_number ? `Freight Invoice #${row.invoice_number}` : "Freight Invoiced"}
+                >
+                  <Check className="w-2.5 h-2.5 text-purple-600 dark:text-purple-400 shrink-0" />
+                  <span>{row.invoice_number ? `Inv #${row.invoice_number}` : "Invoiced"}</span>
+                </span>
+              )}
+
+              {!hasChallan && !hasInvoice && (
+                <span className="text-[10px] text-slate-400 dark:text-slate-500">
+                  {hasLr ? "Pending dispatch" : "Draft trip"}
+                </span>
+              )}
             </div>
           </div>
         );
@@ -935,6 +990,8 @@ export default function JobsPage() {
         actions={actions}
         actionLayout="dropdown"
         searchable={false}
+        selectable={false}
+        tableId="transport-jobs-table"
         emptyMessage="No jobs found"
         emptySubtext="Create a new transport job order to initiate dispatch and vehicle scheduling."
         emptyAction={{
