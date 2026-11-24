@@ -1769,6 +1769,67 @@ TMS_KNOWLEDGE_CHUNKS = [
         "route": "/transport/lr-booking",
         "keywords": ["freight terms", "paid", "to pay", "to be billed", "tbb", "sac 996511", "gta", "rcm", "fcm", "gst transport"],
     },
+    # ------------------------------------------------------------------
+    # tms-consignment-360 — End-to-end traceability, search, lifecycle & P&L
+    # ------------------------------------------------------------------
+    {
+        "doc_id": "tms-consignment-360",
+        "title": "Consignment 360° Traceability and Search",
+        "category": "general",
+        "min_plan_tier": 1,
+        "source_file": "backend/app/modules/ai/tms_knowledge.py",
+        "version": "2026.1",
+        "content": (
+            "Consignment 360° Traceability (/transport/consignment-360) is Panther TMS's unified "
+            "investigation and audit dashboard. Located under the Home menu and navigation bar, it allows users "
+            "to search any LR number (e.g. LR-26110085), Job Order number (e.g. JOB-0211), or Hire Challan number "
+            "to instantly see the full operational, legal, and financial journey of a consignment. "
+            "Key capabilities include: "
+            "1. Consignment 8-Stage Lifecycle: Visual step-by-step progress tracking across 8 distinct phases: "
+            "(1) Job Order & Cargo Indent, (2) LR Consignment Booking, (3) Lorry Hire Contract (Hire Challan), "
+            "(4) Dispatch & Transit Movement, (5) Destination Hub Unloading, (6) Proof of Delivery (POD), "
+            "(7) Customer Freight Invoicing, and (8) Payment & Margin Settlement. "
+            "2. Operational Document Details: Displays shipper/consignor, consignee, billing client, cargo details, "
+            "weight/packages, assigned vehicle, driver, and e-way bill number. "
+            "3. Instant Print Previews: Direct action buttons allow operators to open official print previews for "
+            "the Lorry Receipt (Open LR), Job Order (Open Job), Hire Challan (Open Hire Challan), and GST Transport Invoice (Open Invoice) "
+            "without having to navigate across multiple screens. "
+            "4. Gross Profit Margin & P&L: Automatically reconciles customer freight revenue against vehicle hiring costs "
+            "(base hire, diesel advance, cash advance, balance payable) and direct trip expenses to calculate exact gross profit and profit margin percentage. "
+            "5. Ledger Account Audit: Shows linked accounting vouchers including customer freight sales bills, incoming receipts, "
+            "vendor lorry hire purchase vouchers, and supplier payment settlements."
+        ),
+        "route": "/transport/consignment-360",
+        "keywords": [
+            "consignment 360", "traceability", "trace 360", "search lr", "search job", "consignment lifecycle",
+            "lr search", "job search", "gross profit", "profit margin", "print preview lr", "print preview job",
+            "print preview hire challan", "pnl", "360", "trace", "life cycle",
+        ],
+    },
+    {
+        "doc_id": "tms-consignment-lifecycle-stages",
+        "title": "Consignment 8-Stage Lifecycle in Panther TMS",
+        "category": "general",
+        "min_plan_tier": 1,
+        "source_file": "backend/app/modules/ai/tms_knowledge.py",
+        "version": "2026.1",
+        "content": (
+            "Every road consignment in Panther TMS transitions through 8 operational and financial lifecycle stages: "
+            "Stage 1 - Job Order & Cargo Indent: Pre-booking customer requirement capturing shipper, consignee, cargo particulars, and scheduled date. "
+            "Stage 2 - LR Consignment Booking: Issuance of legal Lorry Receipt (LR/GR) allocating series number, vehicle plate, packages, and freight terms. "
+            "Stage 3 - Lorry Hire Contract: Issuing Hire Challan (Lorry Hire Memo) for third-party market trucks with agreed freight, diesel/cash advances, and unloading balance. "
+            "Stage 4 - Dispatch & Transit Movement: Vehicle dispatch on road with e-way bill compliance and telematics tracking (GPS, FASTag, or SIM). "
+            "Stage 5 - Destination Hub Unloading: Vehicle arrival logged at destination terminal, verifying cargo seals and package integrity against arrival report. "
+            "Stage 6 - Proof of Delivery (POD): Physical consignee acknowledgement stamped and signed; verified POD unlocks customer invoicing. "
+            "Stage 7 - Customer Freight Invoicing: GST Transport Sales Invoice generated with SAC 996511 and IRN e-invoicing. "
+            "Stage 8 - Payment & Margin Settlement: Final customer payment collection and vendor balance payout, closing the financial file."
+        ),
+        "route": "/transport/consignment-360",
+        "keywords": [
+            "consignment lifecycle", "8 stages", "lifecycle stages", "consignment 360 stages", "job to invoice",
+            "transport workflow", "indent to payment",
+        ],
+    },
 ]
 
 

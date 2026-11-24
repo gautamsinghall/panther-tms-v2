@@ -113,6 +113,17 @@ TMS_CORE_KNOWLEDGE = """
 - User Management: /company/users, Roles & Permissions: /company/roles.
 - Series Master: /settings/series-master, Admin Setting: /settings/admin, Activity Log: /settings/activity.
 - User Profile: /profile/account, Change Password: /profile/change-password, Monthly P&L: /profile/monthly-pnl.
+
+16. CONSIGNMENT 360° TRACEABILITY:
+- Path: /transport/consignment-360 (accessible under Home menu and navigation bar shortcut)
+- Purpose: Unified end-to-end consignment investigation and audit by searching any LR number, Job number, or Hire Challan number.
+- What it displays:
+  * Summary Cards: Customer Freight Revenue, Lorry Hire & Expenses, Gross Margin (P&L) with profit margin %, and Pending Settlements.
+  * 8-Stage Consignment Lifecycle: (1) Job Order & Cargo Indent, (2) LR Consignment Booking, (3) Lorry Hire Contract, (4) Dispatch & Transit Movement, (5) Destination Hub Unloading, (6) Proof of Delivery (POD), (7) Customer Freight Invoicing, (8) Payment & Margin Settlement.
+  * Operational Links: Connected Job Indent, LR Note, Hire Challan (LHM), and Hub Arrival / POD details.
+  * Financial Profitability Breakdown: Freight Revenue vs Lorry Hire & Trip Costs with Net Gross Margin.
+  * Linked Ledger Accounts: Freight invoices, incoming receipts, hire purchase bills, and supplier payments.
+  * Direct Print Previews: Open LR, Open Job, Open Hire Challan, and Open Invoice modal print previews.
 """
 
 # Contextual suggestions per route
@@ -122,6 +133,12 @@ ROUTE_SUGGESTIONS: Dict[str, List[str]] = {
         "Mujhe Market Vehicle add karna hai",
         "Explain how FASTag tracking works",
         "Check Master Ledger balance",
+    ],
+    "/transport/consignment-360": [
+        "How do I trace an LR or Job number in Consignment 360?",
+        "Consignment 360 mein profit margin kaise calculate hota hai?",
+        "How to open print preview for LR, Job, or Hire Challan?",
+        "Consignment ke 8 lifecycle stages kya hain?",
     ],
     "/transport/lr-booking": [
         "What are the mandatory fields to book an LR?",
@@ -198,6 +215,32 @@ ROUTE_SUGGESTIONS: Dict[str, List[str]] = {
 # /transport/tracking vs /tracking/fastag|sim|gps.
 # ==========================================================================
 PAGE_REGISTRY: Dict[str, Dict[str, Any]] = {
+    "/transport/consignment-360": {
+        "title": "Consignment 360° Traceability",
+        "purpose": "Unified end-to-end investigation and audit screen: search any LR number, Job number, or Hire Challan number to view complete 8-stage lifecycle, operational links, customer freight billing, vendor hire payouts, gross margin (P&L), and direct print previews for LR, Job, Hire Challan, and Invoice.",
+        "key_fields": [
+            ("Search Query (LR Number, Job Number, or Challan Number)", True),
+        ],
+        "common_errors": [
+            "Entering an invalid or nonexistent LR/Job number will return 'No record found' — check the number format (e.g. LR-26110085 or JOB-0211).",
+            "Searching a job that has not been converted into an LR will show stage 1 completed but subsequent LR/transit stages as pending.",
+        ],
+        "next_steps": [
+            "Trace LR or Job to check live lifecycle status",
+            "Open print preview for LR, Job, Hire Challan, or Invoice using the action buttons",
+            "Verify gross profit margin (freight revenue minus hire expenses)",
+            "Review customer and vendor ledger settlements",
+        ],
+        "save": "Enter an LR or Job number and click \"Trace 360°\" or press Enter.",
+        "verified": True,
+        "bullets": [
+            "Search any LR, Job, or Hire Challan number for 360° consignment visibility",
+            "Track 8-stage consignment lifecycle: Job -> LR -> Hire Challan -> Transit -> Hub Arrival -> POD -> Invoicing -> Settlement",
+            "Inspect gross margin (P&L): customer freight revenue vs lorry hire and operational costs",
+            "Open instant print preview modals for Lorry Receipt, Job Order, Hire Challan, and Transport Invoice",
+            "Audit linked financial ledger vouchers (invoices, receipts, purchase bills, and vendor payments)",
+        ],
+    },
     "/transport/lr-booking": {
         "title": "LR Booking",
         "purpose": "Create and view Lorry Receipts (LRs): the consignment note for every road shipment, with status BOOKED -> IN_TRANSIT -> DELIVERED.",
@@ -812,6 +855,28 @@ def get_page_registry_entry(page_context: Optional[str]) -> Tuple[str, Optional[
         if route != "/dashboard" and (path.endswith(route) or route in path):
             return route, entry
 
+    # Universal dynamic navigation discovery for all current and future registered pages
+    for mod in ALL_NAVIGATION_MODULES:
+        mod_title = mod.get("title", "Operations")
+        for item in mod.get("items", []):
+            item_href = item.get("href", "")
+            if item_href and (item_href == path or path.endswith(item_href)):
+                title = item.get("title", "TMS Screen")
+                return path, {
+                    "title": title,
+                    "purpose": f"Manage and review operations for {title} in the {mod_title} module.",
+                    "key_fields": [],
+                    "common_errors": [],
+                    "next_steps": [f"Review active {title} records", f"Navigate to {item_href}"],
+                    "save": f"Review or manage records on the {title} screen.",
+                    "verified": True,
+                    "bullets": [
+                        f"Access {title} under the {mod_title} menu",
+                        f"Direct URL path: {item_href}",
+                        f"Managed under {mod_title} module",
+                    ],
+                }
+
     # Universal dynamic fallback for unmapped or newly added routes
     clean_path = path.strip().strip("/")
     if clean_path:
@@ -972,7 +1037,11 @@ def resolve_navigation_suggestions(
         ("bilty", ["/transport/lr-booking"]),
         ("invoice", ["/accounts/transport-invoice", "/transport-reports/invoice-register"]),
         ("transport invoice", ["/accounts/transport-invoice"]),
-        ("consignment", ["/transport/lr-booking"]),
+        ("consignment 360", ["/transport/consignment-360"]),
+        ("360", ["/transport/consignment-360"]),
+        ("traceability", ["/transport/consignment-360"]),
+        ("trace", ["/transport/consignment-360"]),
+        ("consignment", ["/transport/consignment-360", "/transport/lr-booking"]),
         ("hire challan", ["/transport/hire-challan", "/transport-reports/hc-register"]),
         ("challan", ["/transport/hire-challan"]),
         ("job", ["/transport/job-orders"]),

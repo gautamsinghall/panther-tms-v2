@@ -267,6 +267,33 @@ The home or dashboard page is the overview of the transport business for the day
 ### Common mistakes
 - The dashboard is an overview, not a working page. The work itself happens on the detail pages: LR Booking for consignments, Job Orders for customer orders, the Master Ledger for balances, and the tracking pages for live positions.
 
+## Consignment 360° Traceability page
+- **Document ID**: `page-consignment-360`
+- **Category**: `general`
+- **Minimum Plan Tier**: `1`
+- **Route**: `/transport/consignment-360`
+- **Keywords**: `consignment 360, 360, traceability, trace lr, trace job, trace challan, lr search, job search, profit margin, gross margin, print preview lr, print preview job, print preview hire challan, consignment lifecycle, 8 stages`
+
+### What it is
+The Consignment 360° Traceability page is the unified end-to-end investigation and audit screen for road transport shipments. It is accessible under the Home menu and navigation bar. Users can enter any LR number (e.g. `LR-26110085`), Job Order number (e.g. `JOB-0211`), or Hire Challan number to view the complete operational, legal, and financial journey of a consignment.
+
+### Consignment 8-Stage Lifecycle Progress
+1. Job Order & Cargo Indent: Pre-booking customer requirement with shipper, consignee, cargo particulars, and scheduled date.
+2. LR Consignment Booking: Legal consignment note issued with vehicle, packages, and payment terms (Paid, To Pay, To Be Billed).
+3. Lorry Hire Contract (Hire Challan): Issued for market trucks with agreed freight, diesel/cash advances, and balance payable at unloading.
+4. Dispatch & Transit Movement: Road transit with e-way bill compliance and telematics tracking (GPS, FASTag, SIM).
+5. Destination Hub Unloading: Arrival logged at destination terminal, verifying seals and packages.
+6. Proof of Delivery (POD): Physical receipt stamped and signed; verified POD unlocks customer invoicing.
+7. Customer Freight Invoicing: GST transport sales invoice raised under SAC 996511 with IRN e-invoicing.
+8. Payment & Margin Settlement: Customer payment received and vendor balance settled.
+
+### Key Capabilities
+- Single-input search for LR, Job, or Hire Challan numbers with instant retrieval.
+- Live Financial Summary Cards: Customer Freight Revenue, Lorry Hire & Expenses, Gross Margin (P&L) with profit percentage, and Pending Settlements.
+- Instant Print Previews: Direct action modals to open official printable documents for Lorry Receipt (Open LR), Job Order (Open Job), Hire Challan (Open Hire Challan), and GST Transport Invoice (Open Invoice).
+- Linked Ledger Audit: Complete visibility into client freight sales bills, incoming customer receipts, vendor hire purchase vouchers, and supplier payment vouchers.
+- Gross Margin & P&L Calculation: Reconciles billed freight revenue against hire costs and direct trip expenses.
+
 ## What Parth AI can do on any page
 - **Document ID**: `page-panther-ai-help`
 - **Category**: `general`

@@ -58,6 +58,61 @@ def _tms_knowledge_chunks() -> List["KnowledgeChunk"]:
     return out
 
 
+def _dynamic_navigation_chunks() -> List["KnowledgeChunk"]:
+    """Dynamically generates knowledge chunks for all registered navigation modules and routes.
+    Ensures that any new feature, page, or section added to ALL_NAVIGATION_MODULES
+    in app.auth.navigation is automatically indexed into Parth AI's knowledge base
+    without manual hardcoding.
+    """
+    try:
+        from app.auth.navigation import ALL_NAVIGATION_MODULES, MODULE_MIN_TIERS
+    except Exception:
+        return []
+
+    chunks: List[KnowledgeChunk] = []
+    for mod in ALL_NAVIGATION_MODULES:
+        mod_id = mod.get("id", "general")
+        mod_title = mod.get("title", mod_id.title())
+        min_tier = MODULE_MIN_TIERS.get(mod_id, 1)
+        for item in mod.get("items", []):
+            route = item.get("href", "")
+            title = item.get("title", "")
+            feature = item.get("feature", "")
+            if not route or not title:
+                continue
+            doc_id = f"nav-auto-{feature or route.strip('/').replace('/', '-')}"
+            keywords = [
+                title.lower(),
+                feature.lower().replace("_", " "),
+                mod_title.lower(),
+                route.lower(),
+                f"{title.lower()} page",
+                f"{title.lower()} route",
+                f"{title.lower()} module",
+            ]
+            content = (
+                f"PantherTMS {mod_title} Module — {title} Screen (Route: {route}). "
+                f"This section is part of the {mod_title} workspace (Feature key: {feature}). "
+                f"Users can navigate directly to {route} to access {title} features, view operational records, "
+                f"manage workflows, and run reports associated with {title} in Panther TMS."
+            )
+            chunks.append(
+                KnowledgeChunk(
+                    doc_id=doc_id,
+                    title=f"{title} ({mod_title} Module)",
+                    category="general",
+                    min_plan_tier=min_tier,
+                    source_file="app/auth/navigation.py",
+                    version="2026.1",
+                    content=content,
+                    route=route,
+                    permissions=[],
+                    keywords=keywords,
+                )
+            )
+    return chunks
+
+
 @dataclass
 class KnowledgeChunk:
     doc_id: str
@@ -83,6 +138,9 @@ TOKEN_PATTERN = re.compile(r"[^\s\.,!?;:()\[\]\"\'\\/<>|+=*&^%$#@~`]+")
 # Synonyms for transport logistics domain in English, Hindi, and Hinglish
 SYNONYM_MAP: Dict[str, List[str]] = {
     # Transport & Bookings
+    "360": ["consignment 360", "traceability", "lifecycle", "trace", "360 trace", "ट्रेस", "ट्रैसेबिलिटी"],
+    "traceability": ["360", "consignment 360", "track consignment", "lifecycle", "history", "ट्रैसेबिलिटी"],
+    "trace": ["360", "consignment 360", "search lr", "search job", "traceability", "track"],
     "lr": ["bilty", "gr", "consignment", "lorry", "goods", "booking", "receipt", "एलआर", "बिल्टी"],
     "bilty": ["lr", "gr", "consignment", "lorry", "receipt", "एलआर", "बिल्टी"],
     "gr": ["lr", "bilty", "consignment", "goods", "receipt"],
@@ -224,7 +282,10 @@ class PantherKnowledgeEngine:
         tms_chunks = _tms_knowledge_chunks()
         if not os.path.exists(self.doc_path):
             if not self.chunks:
-                self.chunks = tms_chunks
+                _seen = {c.doc_id for c in tms_chunks}
+                _routes = {c.route for c in tms_chunks if c.route}
+                dyn_chunks = [c for c in _dynamic_navigation_chunks() if c.doc_id not in _seen and c.route not in _routes]
+                self.chunks = tms_chunks + dyn_chunks
                 self._build_bm25_stats()
             return len(self.chunks)
 
@@ -301,10 +362,21 @@ class PantherKnowledgeEngine:
                 )
             )
 
-        # v3: extend with the TMS expert KB BEFORE building BM25 stats, so the
-        # new chunks are indexed and retrievable. MD chunks win on doc_id clash.
+        # v3: extend with the TMS expert KB and dynamic navigation chunks BEFORE building BM25 stats, so the
+        # new chunks are indexed and retrievable. MD chunks win on doc_id clash, then static TMS chunks, then dynamic nav chunks.
         _seen = {c.doc_id for c in new_chunks}
-        self.chunks = new_chunks + [c for c in tms_chunks if c.doc_id not in _seen]
+        _routes_covered = {c.route for c in new_chunks if c.route}
+        for c in tms_chunks:
+            if c.doc_id not in _seen:
+                new_chunks.append(c)
+                _seen.add(c.doc_id)
+                if c.route:
+                    _routes_covered.add(c.route)
+        for c in _dynamic_navigation_chunks():
+            if c.doc_id not in _seen and c.route not in _routes_covered:
+                new_chunks.append(c)
+                _seen.add(c.doc_id)
+        self.chunks = new_chunks
         self._build_bm25_stats()
         self._last_mtime = os.path.getmtime(self.doc_path)
         self._last_hash = current_hash
