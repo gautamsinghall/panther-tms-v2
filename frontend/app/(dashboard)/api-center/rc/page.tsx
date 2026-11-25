@@ -20,7 +20,6 @@ import { PageHeader } from "@/components/ui/page-header";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { apiClient } from "@/lib/api-client";
-import { ApiCenterNavTabs } from "@/components/api-center/api-center-nav-tabs";
 
 interface ApiCenterData {
   id?: number;
@@ -234,8 +233,6 @@ export default function RCApiPage() {
           </Button>
         </div>
       </PageHeader>
-
-      <ApiCenterNavTabs />
 
       {/* Alert / Feedback message */}
       {feedback && (

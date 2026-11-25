@@ -28,7 +28,6 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { apiClient } from "@/lib/api-client";
-import { ApiCenterNavTabs } from "@/components/api-center/api-center-nav-tabs";
 
 interface ApiCenterData {
   id?: number;
@@ -213,8 +212,6 @@ export default function PANApiPage() {
           </Button>
         </div>
       </PageHeader>
-
-      <ApiCenterNavTabs />
 
       {/* Alert / Feedback message */}
       {feedback && (
