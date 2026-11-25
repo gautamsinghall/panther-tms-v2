@@ -130,7 +130,7 @@ export default function ProfitLossPage() {
 
       {/* KPI Cards */}
       {pnlData && (
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
           <Card className="p-4 bg-white border border-[#E4E7EC]">
             <span className="text-xs font-semibold text-[#667085] uppercase tracking-wider">Total Revenue</span>
             <div className="text-xl font-bold font-mono text-[#172033] mt-1">

@@ -707,7 +707,7 @@ export default function LRClientWisePage() {
       {/* ---------------------------------------------------------------------- */}
       {/* 2. KPI Summary Cards                                                   */}
       {/* ---------------------------------------------------------------------- */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 print:hidden">
+      <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-3 print:hidden">
         <div className="p-3.5 bg-white dark:bg-[#121319] border border-slate-200 dark:border-[#22232E] rounded-xl shadow-xs">
           <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400 text-xs font-medium">
             <Building2 className="w-3.5 h-3.5 text-[#635BFF]" />

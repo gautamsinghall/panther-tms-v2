@@ -921,19 +921,19 @@ export function PantherAIPanel() {
     <div
       role="dialog"
       aria-label="Parth AI Copilot"
-      className={`fixed bottom-18 sm:bottom-[88px] right-3 left-3 sm:left-auto sm:right-6 z-50 rounded-2xl sm:rounded-3xl flex flex-col bg-white dark:bg-[#0F111D] border border-slate-200/90 dark:border-[#1E2235] shadow-[0_20px_60px_-15px_rgba(79,70,229,0.15)] dark:shadow-[0_25px_65px_-15px_rgba(0,0,0,0.85)] overflow-hidden transition-all duration-300 ease-in-out animate-in fade-in slide-in-from-bottom-4 motion-reduce:animate-none ${
+      className={`fixed bottom-[76px] sm:bottom-[88px] right-2.5 left-2.5 sm:left-auto sm:right-6 z-50 rounded-2xl sm:rounded-3xl flex flex-col bg-white dark:bg-[#0F111D] border border-slate-200/90 dark:border-[#1E2235] shadow-[0_20px_60px_-15px_rgba(79,70,229,0.15)] dark:shadow-[0_25px_65px_-15px_rgba(0,0,0,0.85)] overflow-hidden transition-all duration-300 ease-in-out animate-in fade-in slide-in-from-bottom-4 motion-reduce:animate-none ${
         isExpanded
-          ? "sm:w-[780px] md:w-[860px] lg:w-[940px] max-w-[calc(100vw-1.5rem)] sm:max-w-[calc(100vw-3rem)] h-[calc(100dvh-5.5rem)] sm:h-[calc(100dvh-7.5rem)] max-h-[calc(100dvh-5.5rem)] sm:max-h-[calc(100dvh-7.5rem)]"
-          : "sm:w-[440px] max-w-[calc(100vw-1.5rem)] h-[calc(100dvh-5.5rem)] sm:h-[620px] max-h-[calc(100dvh-5.5rem)] sm:max-h-[calc(100dvh-7rem)]"
+          ? "sm:w-[780px] md:w-[860px] lg:w-[940px] max-w-[calc(100vw-1.25rem)] sm:max-w-[calc(100vw-3rem)] h-[calc(100dvh-6rem)] sm:h-[calc(100dvh-7.5rem)] max-h-[calc(100dvh-6rem)] sm:max-h-[calc(100dvh-7.5rem)]"
+          : "sm:w-[440px] max-w-[calc(100vw-1.25rem)] h-[calc(100dvh-6rem)] sm:h-[620px] max-h-[calc(100dvh-6rem)] sm:max-h-[calc(100dvh-7rem)]"
       }`}
     >
       {/* 1. Header */}
       <div
         onDoubleClick={toggleSize}
         title="Double click to toggle size"
-        className="flex items-center justify-between px-4 py-3 bg-white dark:bg-[#0F111D] border-b border-slate-100 dark:border-[#1C2033] shrink-0 select-none cursor-default"
+        className="flex items-center justify-between gap-2 px-3 sm:px-4 py-2.5 sm:py-3 bg-white dark:bg-[#0F111D] border-b border-slate-100 dark:border-[#1C2033] shrink-0 select-none cursor-default"
       >
-        <div className="flex items-center gap-2.5 min-w-0">
+        <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
           <div className="w-8 h-8 rounded-full overflow-hidden bg-[#0B2A5B] flex items-center justify-center shrink-0 shadow-2xs">
             <img src="/panther-ai-icon.png" alt="Parth AI" className="w-full h-full object-cover" />
           </div>
@@ -947,11 +947,11 @@ export function PantherAIPanel() {
           </div>
         </div>
 
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-0.5 sm:gap-1 shrink-0">
           {/* Online Status Pill */}
-          <span className="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-600 dark:text-emerald-400 mr-1.5 select-none">
+          <span className="hidden xs:inline-flex sm:inline-flex items-center gap-1.5 text-xs font-medium text-emerald-600 dark:text-emerald-400 mr-1 sm:mr-1.5 select-none">
             <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block animate-pulse motion-reduce:animate-none" />
-            Online
+            <span className="hidden sm:inline">Online</span>
           </span>
 
           <button
@@ -1453,7 +1453,7 @@ export function PantherAIPanel() {
                               )}
 
                               {/* Card Action Buttons Row */}
-                              <div className="flex items-center gap-2 pt-2 border-t border-slate-100 dark:border-[#252B46]">
+                              <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-100 dark:border-[#252B46]">
                                 <button
                                   type="button"
                                   onClick={handleCancelActiveDraft}

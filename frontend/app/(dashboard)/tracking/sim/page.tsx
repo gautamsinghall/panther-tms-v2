@@ -710,7 +710,7 @@ export default function SIMTrackingPage() {
           { label: "SIM Based Tracking" },
         ]}
         actions={
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             {/* General Refresh Telemetry Button */}
             <Button
               variant="outline"
@@ -742,8 +742,8 @@ export default function SIMTrackingPage() {
       {/* =========================================================================
           MAIN TABS BAR: Open Trips (N) | Closed Trips (N) | Display Options
          ========================================================================= */}
-      <div className="flex items-center justify-between border-b border-slate-200">
-        <div className="flex items-center gap-8 text-sm font-semibold">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200">
+        <div className="flex items-center gap-4 sm:gap-8 text-xs sm:text-sm font-semibold">
           <button
             type="button"
             onClick={() => {
@@ -862,9 +862,9 @@ export default function SIMTrackingPage() {
           METRICS CARDS ROW (5 Cards matching Reference Design)
          ========================================================================= */}
       {activeTab === "open" && (
-        <div className="flex items-center gap-3 w-full overflow-x-auto no-scrollbar pb-1">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 w-full items-stretch">
           {/* Card 1: In Plant */}
-          <div className="flex-1 min-w-[150px] p-3 rounded-lg border border-slate-200 bg-white shadow-2xs">
+          <div className="p-3 rounded-lg border border-slate-200 bg-white shadow-2xs">
             <div className="text-sm font-bold text-slate-900">
               <span className="text-base font-extrabold mr-1">{kpiCounts.inPlant}</span> In Plant
             </div>
@@ -872,7 +872,7 @@ export default function SIMTrackingPage() {
           </div>
 
           {/* Card 2: In Transit */}
-          <div className="flex-[1.5] min-w-[220px] p-3 rounded-lg border border-slate-200 bg-white shadow-2xs">
+          <div className="col-span-2 sm:col-span-2 lg:col-span-1 p-3 rounded-lg border border-slate-200 bg-white shadow-2xs">
             <div className="text-sm font-bold text-slate-900">
               <span className="text-base font-extrabold mr-1">{kpiCounts.inTransit}</span> In Transit
             </div>
@@ -882,7 +882,7 @@ export default function SIMTrackingPage() {
           </div>
 
           {/* Card 3: At Lastmile */}
-          <div className="flex-1 min-w-[140px] p-3 rounded-lg border border-slate-200 bg-white shadow-2xs">
+          <div className="p-3 rounded-lg border border-slate-200 bg-white shadow-2xs">
             <div className="text-sm font-bold text-slate-900">
               <span className="text-base font-extrabold mr-1">{kpiCounts.atLastmile}</span>
             </div>
@@ -890,7 +890,7 @@ export default function SIMTrackingPage() {
           </div>
 
           {/* Card 4: Unloading Point */}
-          <div className="flex-1 min-w-[150px] p-3 rounded-lg border border-slate-200 bg-white shadow-2xs">
+          <div className="p-3 rounded-lg border border-slate-200 bg-white shadow-2xs">
             <div className="text-sm font-bold text-slate-900">
               <span className="text-base font-extrabold mr-1">{kpiCounts.atUnloading}</span> Unloading Point
             </div>
@@ -898,7 +898,7 @@ export default function SIMTrackingPage() {
           </div>
 
           {/* Card 5: Others */}
-          <div className="flex-1 min-w-[120px] p-3 rounded-lg border border-slate-200 bg-white shadow-2xs">
+          <div className="p-3 rounded-lg border border-slate-200 bg-white shadow-2xs">
             <div className="text-sm font-bold text-slate-900">
               <span className="text-base font-extrabold mr-1">{kpiCounts.others}</span>
             </div>
@@ -906,13 +906,15 @@ export default function SIMTrackingPage() {
           </div>
 
           {/* Reset all filter link on far right (Global Indigo Link) */}
-          <button
-            type="button"
-            onClick={resetAllFilters}
-            className="text-xs font-semibold text-indigo-600 hover:text-indigo-800 hover:underline whitespace-nowrap pl-2 cursor-pointer"
-          >
-            Reset all filter
-          </button>
+          <div className="flex items-center justify-end sm:justify-center">
+            <button
+              type="button"
+              onClick={resetAllFilters}
+              className="text-xs font-semibold text-indigo-600 hover:text-indigo-800 hover:underline whitespace-nowrap px-2 py-1 cursor-pointer"
+            >
+              Reset all filter
+            </button>
+          </div>
         </div>
       )}
 
@@ -921,11 +923,11 @@ export default function SIMTrackingPage() {
          ========================================================================= */}
       <div className="flex flex-wrap items-center gap-2.5 pt-1">
         {/* All Trips Dropdown + Search input */}
-        <div className="flex items-center rounded-lg border border-slate-200 bg-white shadow-2xs overflow-hidden h-9">
+        <div className="flex items-center rounded-lg border border-slate-200 bg-white shadow-2xs overflow-hidden h-9 w-full sm:w-auto max-w-full">
           <select
             value={tripTypeFilter}
             onChange={(e) => setTripTypeFilter(e.target.value)}
-            className="text-xs font-semibold text-slate-700 bg-transparent px-3 py-1.5 border-r border-slate-200 focus:outline-hidden cursor-pointer"
+            className="text-xs font-semibold text-slate-700 bg-transparent px-3 py-1.5 border-r border-slate-200 focus:outline-hidden cursor-pointer shrink-0"
           >
             <option value="All Trips">All Trips</option>
             <option value="In Transit">In Transit</option>
@@ -933,14 +935,14 @@ export default function SIMTrackingPage() {
             <option value="Plant">In Plant</option>
             <option value="Lastmile">At Lastmile</option>
           </select>
-          <div className="flex items-center px-2.5 gap-1.5">
+          <div className="flex items-center px-2.5 gap-1.5 flex-1 min-w-0">
             <Search className="w-3.5 h-3.5 text-slate-400 shrink-0" />
             <input
               type="text"
               placeholder="Search"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="text-xs text-slate-800 placeholder-slate-400 bg-transparent border-none focus:outline-hidden w-36 sm:w-44"
+              className="text-xs text-slate-800 placeholder-slate-400 bg-transparent border-none focus:outline-hidden w-full sm:w-44 min-w-0"
             />
           </div>
         </div>
@@ -974,12 +976,12 @@ export default function SIMTrackingPage() {
         </select>
 
         {/* Start Time -> End Time */}
-        <div className="flex items-center h-9 px-2.5 rounded-lg border border-slate-200 bg-white text-xs font-medium text-slate-600 gap-1.5 shadow-2xs">
+        <div className="flex flex-wrap sm:flex-nowrap items-center min-h-9 px-2.5 py-1 sm:py-0 rounded-lg border border-slate-200 bg-white text-xs font-medium text-slate-600 gap-1.5 shadow-2xs max-w-full">
           <input
             type="date"
             value={startDateFilter}
             onChange={(e) => setStartDateFilter(e.target.value)}
-            className="text-xs bg-transparent focus:outline-hidden text-slate-700"
+            className="text-xs bg-transparent focus:outline-hidden text-slate-700 min-w-0"
             placeholder="Start Time"
           />
           <span className="text-slate-400">➔</span>
@@ -987,7 +989,7 @@ export default function SIMTrackingPage() {
             type="date"
             value={endDateFilter}
             onChange={(e) => setEndDateFilter(e.target.value)}
-            className="text-xs bg-transparent focus:outline-hidden text-slate-700"
+            className="text-xs bg-transparent focus:outline-hidden text-slate-700 min-w-0"
             placeholder="End Time"
           />
         </div>
@@ -1016,17 +1018,17 @@ export default function SIMTrackingPage() {
       {/* =========================================================================
           META HEADER & SORT
          ========================================================================= */}
-      <div className="flex items-center justify-between text-xs pt-1 pb-1">
+      <div className="flex flex-wrap items-center justify-between gap-2 text-xs pt-1 pb-1">
         <div className="font-semibold text-slate-700">
           {filteredTrips.length} Trips Available (Last 30 Days)
         </div>
 
-        <div className="flex items-center gap-2">
-          <span className="text-slate-500 font-medium">Sort By:</span>
+        <div className="flex items-center gap-2 max-w-full min-w-0">
+          <span className="text-slate-500 font-medium shrink-0">Sort By:</span>
           <select
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value as any)}
-            className="h-8 px-2.5 text-xs font-medium text-slate-700 bg-white border border-slate-200 rounded-lg shadow-2xs focus:outline-hidden cursor-pointer"
+            className="h-8 px-2.5 text-xs font-medium text-slate-700 bg-white border border-slate-200 rounded-lg shadow-2xs focus:outline-hidden cursor-pointer max-w-full min-w-0"
           >
             <option value="recent">Trip Creation Time - Recent First</option>
             <option value="oldest">Trip Creation Time - Oldest First</option>
@@ -1037,9 +1039,10 @@ export default function SIMTrackingPage() {
       </div>
 
       {/* =========================================================================
-          TRIPS TABLE (overflow-visible to fix 3-dot dropdown clipping!)
+          TRIPS TABLE (overflow-x-auto on mobile/small laptops, min-w-[900px])
          ========================================================================= */}
-      <div className="bg-white rounded-xl border border-slate-200 shadow-2xs overflow-visible relative">
+      <div className="bg-white rounded-xl border border-slate-200 shadow-2xs overflow-x-auto show-scrollbar relative">
+        <div className="min-w-[920px]">
         {/* Table Header */}
         <div className="grid grid-cols-12 gap-3 px-4 py-3 bg-slate-50/90 border-b border-slate-200 text-xs font-bold text-slate-600 select-none rounded-t-xl">
           <div className="col-span-1 flex items-center gap-2">
@@ -1585,7 +1588,7 @@ export default function SIMTrackingPage() {
 
                           {/* Driver's Phone with Consent check and Auto Carrier */}
                           <div className="border-t border-slate-100 pt-3">
-                            <div className="flex items-center gap-2">
+                            <div className="flex flex-wrap items-center gap-2">
                               <span className="text-slate-500 text-[11px] font-semibold">Driver's Phone</span>
                               {trip.is_consent_done ? (
                                 <span className="text-emerald-600 font-bold text-xs flex items-center gap-0.5">
@@ -1741,6 +1744,7 @@ export default function SIMTrackingPage() {
             );
           })
         )}
+        </div>
       </div>
 
       {/* =========================================================================
@@ -1785,7 +1789,7 @@ export default function SIMTrackingPage() {
                 </select>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block font-semibold text-slate-700 mb-1">Vehicle Registration Number *</label>
                   <input
@@ -1811,7 +1815,7 @@ export default function SIMTrackingPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {/* SIM service provider */}
                 <div>
                   <label className="block font-semibold text-slate-700 mb-1">
@@ -1843,7 +1847,7 @@ export default function SIMTrackingPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block font-semibold text-slate-700 mb-1">Origin City / Hub</label>
                   <input

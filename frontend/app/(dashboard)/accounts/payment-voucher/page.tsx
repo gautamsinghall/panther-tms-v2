@@ -1141,7 +1141,7 @@ export default function PaymentVoucherPage() {
       />
 
       {/* KPI Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         <KpiCard
           title="Total Disbursed"
           value={formatCurrency(kpis.totalPayments)}
@@ -1443,7 +1443,7 @@ export default function PaymentVoucherPage() {
                     <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 tracking-tight mb-1 font-semibold">
                       Challan Payment Stage
                     </label>
-                    <div className="grid grid-cols-3 gap-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                       <button
                         type="button"
                         onClick={() => setChallanPaymentType("ATH")}
@@ -1927,7 +1927,7 @@ export default function PaymentVoucherPage() {
                 Statutory TDS Deduction on Payment
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
                 <div>
                   <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 tracking-tight mb-1 font-semibold">
                     TDS Section
@@ -2629,7 +2629,7 @@ export default function PaymentVoucherPage() {
                     </div>
 
                     {/* Payment Summary Grid */}
-                    <div className="grid grid-cols-2 gap-4 text-xs bg-slate-50/80 p-3.5 rounded-xl border border-slate-200">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs bg-slate-50/80 p-3.5 rounded-xl border border-slate-200">
                       <div className="space-y-1">
                         <p className="text-slate-500 uppercase text-[10px] font-semibold tracking-wider">Paid with thanks to (Beneficiary):</p>
                         <p className="font-bold text-sm text-slate-900">{printVoucher.party_name || "Beneficiary"}</p>
@@ -2689,7 +2689,7 @@ export default function PaymentVoucherPage() {
                         <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-700">
                           Settlement Breakdown Against Supplier Bills ({printVoucher.bill_allocations.length}):
                         </h4>
-                        <div className="border border-slate-200 rounded-lg overflow-hidden">
+                        <div className="border border-slate-200 rounded-lg overflow-x-auto">
                           <table className="w-full text-xs border-collapse">
                             <thead className="bg-slate-100/90 text-slate-700 uppercase text-[10px] font-bold tracking-wider border-b border-slate-200">
                               <tr>
@@ -2773,7 +2773,7 @@ export default function PaymentVoucherPage() {
                         <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-700">
                           Double-Entry Balanced Journal Postings:
                         </h4>
-                        <div className="border border-slate-200 rounded-lg overflow-hidden">
+                        <div className="border border-slate-200 rounded-lg overflow-x-auto">
                           <table className="w-full text-xs border-collapse">
                             <thead className="bg-slate-100/90 text-slate-700 uppercase text-[10px] font-bold tracking-wider border-b border-slate-200">
                               <tr>
@@ -2842,7 +2842,7 @@ export default function PaymentVoucherPage() {
                     )}
 
                     {/* Signatures */}
-                    <div className="pt-6 border-t border-slate-300 grid grid-cols-4 gap-4 text-center text-xs">
+                    <div className="pt-6 border-t border-slate-300 grid grid-cols-2 sm:grid-cols-4 gap-4 text-center text-xs">
                       <div>
                         <div className="border-b border-slate-400 mb-1 h-8" />
                         <span className="text-slate-600 font-medium">Prepared By</span>

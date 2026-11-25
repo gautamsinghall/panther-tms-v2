@@ -1700,7 +1700,8 @@ export default function TransportInvoicePage() {
                     )}
                   </span>
                 </div>
-                <table className="w-full text-left border-collapse text-xs">
+                <div className="overflow-x-auto">
+                <table className="w-full min-w-[560px] text-left border-collapse text-xs">
                   <thead className="bg-slate-50 dark:bg-[#17171B] border-b border-slate-200/90 dark:border-[#22232E] text-[11px] font-semibold uppercase text-slate-500 dark:text-slate-400">
                     <tr>
                       <th className="py-2 px-3">Receipt Ref</th>
@@ -1732,11 +1733,12 @@ export default function TransportInvoicePage() {
                     ))}
                   </tbody>
                 </table>
+                </div>
               </div>
             )}
 
             {/* Double-Entry General Ledger Postings */}
-            <div className="bg-white rounded-xl border border-slate-200/90 dark:border-[#22232E] overflow-hidden">
+            <div className="bg-white rounded-xl border border-slate-200/90 dark:border-[#22232E] overflow-x-auto">
               <div className="p-4 bg-slate-50 dark:bg-[#17171B] border-b border-slate-200/90 dark:border-[#22232E]">
                 <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
                   Balanced Double-Entry Journal Postings

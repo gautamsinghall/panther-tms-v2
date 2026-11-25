@@ -772,7 +772,7 @@ export default function JournalVouchersPage() {
       />
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         <KpiCard
           title="Total Journal Vouchers"
           value={totalCount}
@@ -1303,8 +1303,8 @@ export default function JournalVouchersPage() {
             </div>
 
             {/* Entry Table */}
-            <div className="border border-slate-200/90 dark:border-[#22232E] rounded-lg overflow-hidden">
-              <table className="w-full text-left text-sm">
+            <div className="border border-slate-200/90 dark:border-[#22232E] rounded-lg overflow-x-auto">
+              <table className="w-full min-w-[640px] text-left text-sm">
                 <thead className="bg-slate-50 dark:bg-[#101013] text-xs uppercase font-semibold text-slate-600 dark:text-slate-400 border-b border-slate-200 dark:border-[#303036]">
                   <tr>
                     <th className="py-2.5 px-3 w-10 text-center">#</th>
@@ -1727,7 +1727,7 @@ export default function JournalVouchersPage() {
               </div>
 
               {/* Double-Entry Table */}
-              <div className="border border-slate-200/90 dark:border-[#303036] rounded-xl overflow-hidden">
+              <div className="border border-slate-200/90 dark:border-[#303036] rounded-xl overflow-x-auto">
                 <table className="w-full text-left text-xs border-collapse">
                   <thead className="bg-slate-50 dark:bg-[#101013] font-bold uppercase text-slate-700 dark:text-slate-300 border-b border-slate-200/90 dark:border-[#303036]">
                     <tr>
@@ -1799,7 +1799,7 @@ export default function JournalVouchersPage() {
               )}
 
               {/* Signature Blocks */}
-              <div className="grid grid-cols-3 gap-6 pt-10 text-center text-xs text-gray-500">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 pt-10 text-center text-xs text-gray-500">
                 <div className="border-t border-slate-300 dark:border-slate-700 pt-2 font-medium">
                   Prepared By
                 </div>

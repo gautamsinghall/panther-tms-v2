@@ -771,6 +771,12 @@ export function Sidebar() {
     }
     return false;
   });
+  const [isCompactDesktop, setIsCompactDesktop] = useState<boolean>(() => {
+    if (typeof window !== "undefined") {
+      return window.innerWidth >= 1024 && window.innerWidth < 1366;
+    }
+    return false;
+  });
   const [planGate, setPlanGate] = useState<{ featureName: string; requiredPlan: string } | null>(null);
 
   // Motion accessibility & session-based entrance sequence (runs once per session / login)
@@ -805,12 +811,13 @@ export function Sidebar() {
   };
 
   useEffect(() => {
-    const collapseForNarrowViewport = () => {
+    const updateSidebarViewport = () => {
       if (window.innerWidth < 768) setIsCollapsed(true);
+      setIsCompactDesktop(window.innerWidth >= 1024 && window.innerWidth < 1366);
     };
-    collapseForNarrowViewport();
-    window.addEventListener("resize", collapseForNarrowViewport);
-    return () => window.removeEventListener("resize", collapseForNarrowViewport);
+    updateSidebarViewport();
+    window.addEventListener("resize", updateSidebarViewport);
+    return () => window.removeEventListener("resize", updateSidebarViewport);
   }, []);
 
   useEffect(() => {
@@ -918,7 +925,7 @@ export function Sidebar() {
       animate={{
         x: 0,
         opacity: 1,
-        width: isCollapsed ? 68 : 288,
+        width: isCollapsed ? 68 : isCompactDesktop ? 240 : 276,
       }}
       variants={sidebarVariants}
       transition={{
@@ -927,12 +934,12 @@ export function Sidebar() {
         width: { duration: shouldReduceMotion ? 0 : 0.24, ease: EASE_CUBIC },
       }}
       className={cn(
-        "hidden lg:flex relative flex-col border-r border-slate-200/80 dark:border-[#22232E] bg-white dark:bg-[#101013] select-none z-30 shrink-0 h-screen overflow-hidden",
+        "hidden lg:flex relative flex-col border-r border-slate-200/80 dark:border-[#22232E] bg-white dark:bg-[#101013] select-none z-30 shrink-0 h-screen h-[100dvh] overflow-hidden",
         "will-change-[width]"
       )}
     >
       {/* Brand Header — Clean Transparent Enterprise Logo & Workspace Identity */}
-      <div className="flex h-16 items-center justify-between px-3 border-b border-slate-200/80 dark:border-[#22232E] bg-white dark:bg-[#101013] shrink-0">
+      <div className="flex h-14 sm:h-16 items-center justify-between px-3 border-b border-slate-200/80 dark:border-[#22232E] bg-white dark:bg-[#101013] shrink-0">
         <AnimatePresence mode="wait" initial={false}>
           {!isCollapsed ? (
             <motion.div

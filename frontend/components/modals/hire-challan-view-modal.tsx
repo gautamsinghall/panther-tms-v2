@@ -478,7 +478,7 @@ export function HireChallanViewModal({
       `}</style>
 
       {/* Modal Dialog Container */}
-      <div className="hc-modal-container relative w-full max-w-4xl h-[96vh] sm:h-[88vh] bg-white dark:bg-[#12131A] rounded-2xl shadow-2xl border border-slate-200 dark:border-[#22232E] overflow-hidden z-10 animate-in zoom-in-95 duration-150 flex flex-col print:h-auto print:max-h-none print:shadow-none print:border-none print:w-full print:rounded-none">
+      <div className="hc-modal-container relative w-full max-w-4xl h-[94dvh] sm:h-[88dvh] bg-white dark:bg-[#12131A] rounded-2xl shadow-2xl border border-slate-200 dark:border-[#22232E] overflow-hidden z-10 animate-in zoom-in-95 duration-150 flex flex-col print:h-auto print:max-h-none print:shadow-none print:border-none print:w-full print:rounded-none">
         {/* Top Control Bar (Hidden in Print) */}
         <div className="px-6 py-3 border-b border-slate-200 dark:border-[#22232E] bg-slate-50 dark:bg-[#161722] flex items-center justify-between shrink-0 no-print flex-wrap gap-2">
           <div className="flex items-center gap-2">
@@ -539,16 +539,16 @@ export function HireChallanViewModal({
         </div>
 
         {/* Modal Body */}
-        <div ref={modalBodyRef} className="hc-modal-body p-2 sm:p-6 overflow-y-auto overflow-x-auto flex-1 bg-slate-100 dark:bg-[#0B0B0E] flex justify-center [webkit-overflow-scrolling:touch]">
+        <div ref={modalBodyRef} className="hc-modal-body p-2 sm:p-6 overflow-y-auto overflow-x-auto flex-1 bg-slate-100 dark:bg-[#0B0B0E] [webkit-overflow-scrolling:touch]">
           {/* PRINTABLE VOUCHER WRAPPER */}
           <div
             id="hc-voucher-wrapper"
-            className="flex justify-center w-full"
+            className="w-full min-w-fit"
           >
             <div
               id="hire-challan-printable-document"
               ref={printRef}
-              className="w-full max-w-[780px] bg-white border border-slate-300 text-slate-900 font-sans select-text shadow-sm printable-paper-sheet printable-document-sheet"
+              className="min-w-[660px] md:min-w-0 w-full max-w-[780px] mx-auto bg-white border border-slate-300 text-slate-900 font-sans select-text shadow-sm printable-paper-sheet printable-document-sheet print:min-w-0"
               style={{
                 fontFamily: "Arial, Helvetica, sans-serif",
                 backgroundColor: "#ffffff",

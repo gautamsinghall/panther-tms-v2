@@ -717,7 +717,7 @@ export default function LRRegisterPage() {
       {/* ---------------------------------------------------------------------- */}
       {/* 3. Summary KPI Cards (Matching Reference Dimensions & Icons)           */}
       {/* ---------------------------------------------------------------------- */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5 print:grid-cols-5 print:gap-2">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3.5 print:grid-cols-5 print:gap-2">
         {/* 1. Total Bookings */}
         <div className="bg-white dark:bg-[#121319] rounded-xl border border-slate-200 dark:border-[#22232E] p-3 sm:p-3.5 flex items-center gap-3 shadow-sm min-w-0">
           <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-purple-50 dark:bg-[#241A3A] border border-purple-200 dark:border-[#3B2B5F] flex items-center justify-center shrink-0 text-[#7F56D9] dark:text-[#9D7CF7]">

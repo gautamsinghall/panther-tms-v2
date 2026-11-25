@@ -177,30 +177,30 @@ export function OfficeSwitcher() {
 
   // Multi-office, Single-office, or Admin: Interactive Switcher Dropdown
   return (
-    <div className="relative inline-block text-left" ref={dropdownRef}>
+    <div className="relative inline-block max-w-full text-left" ref={dropdownRef}>
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
         className={cn(
-          "flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1.5 rounded-lg border transition-all duration-150 shadow-2xs cursor-pointer select-none text-xs",
+          "flex items-center gap-1 sm:gap-2 px-1.5 sm:px-2.5 py-1 sm:py-1.5 rounded-lg border transition-all duration-150 shadow-2xs cursor-pointer select-none text-xs max-w-full min-w-0",
           isOpen
             ? "bg-indigo-50 dark:bg-indigo-950/40 border-indigo-300 dark:border-indigo-700 text-indigo-900 dark:text-indigo-200 ring-2 ring-indigo-500/20"
             : "bg-white dark:bg-[#17171B] border-slate-200/90 dark:border-[#303036] text-slate-800 dark:text-[#F5F5F7] hover:bg-slate-50 dark:hover:bg-[#1E1E24] hover:border-slate-300"
         )}
       >
         <div className="w-2 h-2 rounded-full bg-emerald-500 shrink-0 animate-pulse" />
-        <Building2 className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+        <Building2 className="w-3.5 h-3.5 text-slate-500 shrink-0 hidden sm:block" />
         
-        <div className="flex items-center gap-1.5 text-left truncate">
-          <span className="text-slate-400 font-normal hidden sm:inline">Office:</span>
+        <div className="flex items-center gap-1.5 text-left truncate min-w-0">
+          <span className="text-slate-400 font-normal hidden xl:inline">Office:</span>
           {activeOffice?.id === 0 ? (
-            <span className="font-semibold text-indigo-700 dark:text-indigo-400 flex items-center gap-1">
-              <Globe className="w-3 h-3 inline" /> All Offices
+            <span className="font-semibold text-indigo-700 dark:text-indigo-400 flex items-center gap-1 truncate">
+              <Globe className="w-3 h-3 inline shrink-0" /> <span className="truncate">All Offices</span>
             </span>
           ) : (
             <>
-              <span className="font-bold text-slate-900 dark:text-white">{activeOffice?.code || "HQ"}</span>
-              <span className="font-medium text-slate-600 dark:text-slate-300 truncate max-w-[110px] hidden sm:inline">
+              <span className="font-bold text-slate-900 dark:text-white truncate max-w-[68px] sm:max-w-[90px]">{activeOffice?.code || "HQ"}</span>
+              <span className="font-medium text-slate-600 dark:text-slate-300 truncate max-w-[110px] hidden xl:inline">
                 {activeOffice?.name || "Corporate Office"}
               </span>
             </>

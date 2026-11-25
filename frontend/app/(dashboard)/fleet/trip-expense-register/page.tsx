@@ -217,7 +217,7 @@ export default function TripExpenseRegisterPage() {
         ]}
       />
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
         <KpiCard title="Total Register Outlay" value={formatCurrency(data?.total_amount || 0)} subtext={`${data?.total_records || 0} vouchers`} />
         <KpiCard title="Fuel / Diesel Total" value={formatCurrency(data?.fuel_total || 0)} subtext="Petrocard & cash diesel" />
         <KpiCard title="Tolls & FASTag Total" value={formatCurrency(data?.toll_total || 0)} subtext="Highway plaza debits" />

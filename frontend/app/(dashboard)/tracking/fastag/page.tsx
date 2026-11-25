@@ -1095,7 +1095,7 @@ export default function FastagTrackingPage() {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-slate-700 font-bold uppercase text-[10px] mb-1">
                     Origin (From) *

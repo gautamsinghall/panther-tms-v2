@@ -126,12 +126,14 @@ export default function MonthlyPnLPage() {
 
       {/* Month Selector Bar */}
       <div className="flex flex-wrap items-center justify-between gap-4 bg-white p-4 rounded-xl border border-slate-200/90 shadow-card">
-        <div className="flex items-center gap-3">
-          <Calendar className="w-4 h-4 text-indigo-600" />
-          <span className="text-xs font-semibold text-slate-700">
-            Reporting Accounting Month:
-          </span>
-          <div className="min-w-[220px]">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3 w-full sm:w-auto">
+          <div className="flex items-center gap-2">
+            <Calendar className="w-4 h-4 text-indigo-600 shrink-0" />
+            <span className="text-xs font-semibold text-slate-700">
+              Reporting Accounting Month:
+            </span>
+          </div>
+          <div className="w-full sm:w-auto sm:min-w-[220px]">
             <SearchableSelect
               size="sm"
               value={selectedMonth}
@@ -175,7 +177,7 @@ export default function MonthlyPnLPage() {
       ) : pnlData ? (
         <div className="space-y-6">
           {/* Key Metric KPI Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
             {/* Total Revenue */}
             <Card className="p-5 border border-slate-200/90 space-y-2">
               <div className="flex items-center justify-between text-xs text-slate-500">

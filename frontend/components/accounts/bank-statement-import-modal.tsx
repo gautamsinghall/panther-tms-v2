@@ -183,12 +183,12 @@ export function BankStatementImportModal({
       <div
         className={`relative w-full bg-white dark:bg-[#17171B] rounded-2xl border border-slate-200 dark:border-[#303036] shadow-2xl flex flex-col overflow-hidden transition-all duration-200 ${
           view === "review"
-            ? "max-w-6xl max-h-[92vh] h-[92vh]"
-            : "max-w-xl max-h-[90vh]"
+            ? "max-w-6xl max-h-[94dvh] sm:max-h-[92dvh] h-[94dvh] sm:h-[92dvh]"
+            : "max-w-xl max-h-[94dvh] sm:max-h-[90dvh]"
         }`}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-[#26262B] shrink-0 bg-slate-50/60 dark:bg-[#141417]">
+        <div className="flex flex-wrap items-center justify-between gap-2 px-4 sm:px-6 py-3 sm:py-4 border-b border-slate-100 dark:border-[#26262B] shrink-0 bg-slate-50/60 dark:bg-[#141417]">
           <div className="flex items-center gap-3">
             {view === "review" ? (
               <Button

@@ -656,7 +656,7 @@ export default function UserActivityLogPage() {
       )}
 
       {/* 4. Executive KPI Cards Grid */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3.5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3.5">
         <KpiCard
           title="Total Audited Events"
           value={stats.total_activities.toLocaleString()}
@@ -786,7 +786,7 @@ export default function UserActivityLogPage() {
         </div>
 
         {/* Row 2: Operator, Action, Date From, Date To, Clear */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3 items-end">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3 items-end">
           {/* User selector */}
           <div className="lg:col-span-1">
             <FormFieldLabel htmlFor="activity-user">Operator</FormFieldLabel>

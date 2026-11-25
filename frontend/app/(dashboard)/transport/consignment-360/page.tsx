@@ -631,7 +631,7 @@ function Consignment360Content() {
           </div>
 
           {/* Standard KPI Cards Strip (4 columns) */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
             <KpiCard
               title="Customer Freight Revenue"
               value={formatCurrency(data.financial_summary.customer_revenue)}
@@ -680,7 +680,7 @@ function Consignment360Content() {
               <span>Consignment 8-Stage Lifecycle Progress</span>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-2.5">
               {data.lifecycle_stages.map((stg) => {
                 const isDone = stg.status === "completed";
                 const isCurrent = stg.status === "in_progress";
@@ -788,7 +788,7 @@ function Consignment360Content() {
               </div>
 
               {data.job ? (
-                <div className="grid grid-cols-2 gap-2.5 text-xs">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs">
                   <div>
                     <span className="text-slate-400 text-[11px] block">Job Number</span>
                     <span className="font-medium text-slate-800 dark:text-slate-200">
@@ -900,7 +900,7 @@ function Consignment360Content() {
               </div>
 
               {data.lr ? (
-                <div className="grid grid-cols-2 gap-2.5 text-xs">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs">
                   <div>
                     <span className="text-slate-400 text-[11px] block">LR Number</span>
                     <span className="font-medium text-slate-800 dark:text-slate-200">
@@ -984,7 +984,7 @@ function Consignment360Content() {
               </div>
 
               {data.hire_challan ? (
-                <div className="grid grid-cols-2 gap-2.5 text-xs">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs">
                   <div>
                     <span className="text-slate-400 text-[11px] block">Challan Number</span>
                     <span className="font-medium text-slate-800 dark:text-slate-200">
@@ -1063,7 +1063,7 @@ function Consignment360Content() {
                 )}
               </div>
 
-              <div className="grid grid-cols-2 gap-2.5 text-xs">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs">
                 {/* Arrival Section */}
                 {data.arrival_report ? (
                   <>

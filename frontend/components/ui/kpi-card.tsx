@@ -58,8 +58,8 @@ export function KpiCard({
       </div>
 
       {/* Metric Value & Trend Context */}
-      <div className="mt-3">
-        <div className="text-xl sm:text-[22px] 2xl:text-2xl leading-tight font-bold text-slate-900 dark:text-white tabular-nums tracking-tight font-sans break-normal whitespace-nowrap overflow-visible">
+      <div className="mt-3 min-w-0">
+        <div className="text-lg sm:text-xl xl:text-[22px] 2xl:text-2xl leading-tight font-bold text-slate-900 dark:text-white tabular-nums tracking-tight font-sans break-words">
           {value}
         </div>
 

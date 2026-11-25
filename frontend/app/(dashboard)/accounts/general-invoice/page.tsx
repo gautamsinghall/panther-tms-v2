@@ -1168,7 +1168,7 @@ export default function GeneralInvoicePage() {
             submitDisabled={!seriesInfo?.configured && seriesOptions.length === 0}
             summary={
               <div
-                className="grid grid-cols-4 gap-3 rounded-xl border border-slate-200/90 dark:border-[#22232E] bg-slate-50 dark:bg-[#12131A] px-4 py-3 text-xs"
+                className="grid grid-cols-2 sm:grid-cols-4 gap-3 rounded-xl border border-slate-200/90 dark:border-[#22232E] bg-slate-50 dark:bg-[#12131A] px-4 py-3 text-xs"
                 aria-label="Invoice summary"
               >
                 <div>
@@ -1588,8 +1588,8 @@ export default function GeneralInvoicePage() {
               </span>
             </h4>
 
-            <div className="border border-slate-200/90 dark:border-[#22232E] rounded-xl overflow-hidden bg-white dark:bg-[#12131A]">
-              <table className="w-full text-xs text-left">
+            <div className="border border-slate-200/90 dark:border-[#22232E] rounded-xl overflow-x-auto bg-white dark:bg-[#12131A]">
+              <table className="w-full min-w-[560px] text-xs text-left">
                 <thead className="bg-slate-50 dark:bg-[#17171B] text-slate-700 dark:text-slate-300 font-semibold border-b border-slate-200/90 dark:border-[#22232E]">
                   <tr>
                     <th className="px-3 py-2">Ledger Name</th>
@@ -1754,7 +1754,7 @@ export default function GeneralInvoicePage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 dark:text-slate-300 mb-1">
                   Net Amount Received (₹) <span className="text-red-500">*</span>
@@ -1782,7 +1782,7 @@ export default function GeneralInvoicePage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 dark:text-slate-300 mb-1">TDS Deducted (₹)</label>
                 <input
@@ -1807,7 +1807,7 @@ export default function GeneralInvoicePage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 dark:text-slate-300 mb-1">Agreed Discount / Deduction (₹)</label>
                 <input
@@ -1896,7 +1896,7 @@ export default function GeneralInvoicePage() {
               <h5 className="text-xs font-bold uppercase tracking-wider text-slate-900 dark:text-white mb-2">
                 Double-Entry Ledger Entries
               </h5>
-              <div className="border border-slate-200 rounded-lg overflow-hidden">
+              <div className="border border-slate-200 rounded-lg overflow-x-auto">
                 <table className="w-full text-xs text-left">
                   <thead className="bg-slate-50 dark:bg-[#17171B] text-slate-700 dark:text-slate-300 dark:text-slate-300 font-semibold border-b border-slate-200/90 dark:border-[#22232E]">
                     <tr>
@@ -1948,7 +1948,7 @@ export default function GeneralInvoicePage() {
                 <h5 className="text-xs font-bold uppercase tracking-wider text-slate-900 dark:text-white mb-2">
                   Customer Settlement History
                 </h5>
-                <div className="border border-slate-200 rounded-lg overflow-hidden">
+                <div className="border border-slate-200 rounded-lg overflow-x-auto">
                   <table className="w-full text-xs text-left">
                     <thead className="bg-slate-50 dark:bg-[#17171B] text-slate-700 dark:text-slate-300 dark:text-slate-300 font-semibold border-b border-slate-200/90 dark:border-[#22232E]">
                       <tr>

@@ -273,8 +273,8 @@ export default function SimApiPage() {
             </div>
           </div>
 
-          <div className="rounded-xl border border-slate-200 overflow-hidden">
-            <table className="w-full text-left text-xs">
+          <div className="rounded-xl border border-slate-200 overflow-x-auto">
+            <table className="w-full min-w-[740px] text-left text-xs">
               <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold uppercase text-[10px] tracking-wider">
                 <tr>
                   <th className="py-2.5 px-3">Date &amp; Time</th>

@@ -216,7 +216,7 @@ export default function TyreManagementPage() {
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="text-xs font-semibold text-[#344054]">Brand *</label>
                 <Input
@@ -237,7 +237,7 @@ export default function TyreManagementPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="text-xs font-semibold text-[#344054]">Mounted Vehicle</label>
                 <Input
@@ -267,7 +267,7 @@ export default function TyreManagementPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="text-xs font-semibold text-[#344054]">Tread Depth (mm)</label>
                 <Input

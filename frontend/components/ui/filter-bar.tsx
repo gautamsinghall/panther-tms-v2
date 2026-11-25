@@ -83,7 +83,7 @@ export function FilterBar({
         {filters.map((filter) => {
           const isActive = filter.value && filter.value !== "ALL" && filter.value !== "";
           return (
-            <div key={filter.id} className="relative min-w-[140px] sm:w-auto">
+            <div key={filter.id} className="relative min-w-[130px] flex-1 sm:flex-initial sm:w-auto">
               <SearchableSelect
                 size="sm"
                 value={filter.value}

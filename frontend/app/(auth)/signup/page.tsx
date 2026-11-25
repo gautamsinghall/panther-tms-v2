@@ -465,7 +465,7 @@ export default function SignupPage() {
 
         {/* STEP 1: PLAN SELECTION (EXACT REPLICATION OF REFERENCE IMAGE) */}
         {step === 1 && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 xl:gap-5 my-auto items-stretch w-full py-1">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 xl:gap-5 my-auto items-stretch w-full py-2">
             {/* 1. FREE STARTER CARD */}
             <div
               onClick={() => setSelectedPlan("FREE")}
@@ -1248,13 +1248,13 @@ export default function SignupPage() {
                       <span className="font-semibold text-violet-300">Contact authority for feature activation</span>
                     </div>
                   )}
-                  <div className="flex justify-between items-center">
+                  <div className="flex flex-wrap justify-between items-center gap-1">
                     <span className="text-white/60 font-sans">Admin Email:</span>
-                    <span className="font-semibold text-white">{adminEmail}</span>
+                    <span className="font-semibold text-white break-all">{adminEmail}</span>
                   </div>
-                  <div className="flex justify-between items-center">
+                  <div className="flex flex-wrap justify-between items-center gap-1">
                     <span className="text-white/60 font-sans">Workspace Schema:</span>
-                    <span className="text-emerald-400 font-semibold">panther_tenant_{companyCode ? companyCode.toLowerCase() : "companycode"}</span>
+                    <span className="text-emerald-400 font-semibold break-all">panther_tenant_{companyCode ? companyCode.toLowerCase() : "companycode"}</span>
                   </div>
                 </div>
 

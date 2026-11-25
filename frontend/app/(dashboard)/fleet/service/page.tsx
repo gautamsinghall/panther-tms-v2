@@ -201,7 +201,7 @@ export default function RepairServicePage() {
       >
         <div className="bg-white rounded-2xl border border-slate-200/90 p-5 sm:p-6 lg:p-7 shadow-2xs">
           <form onSubmit={handleCreate} className="space-y-4">
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="text-xs font-semibold text-[#344054]">Vehicle Number *</label>
                 <Input
@@ -231,7 +231,7 @@ export default function RepairServicePage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="text-xs font-semibold text-[#344054]">Workshop Hub *</label>
                 <Input
@@ -261,7 +261,7 @@ export default function RepairServicePage() {
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="text-xs font-semibold text-[#344054]">Parts Cost (₹)</label>
                 <Input
@@ -284,7 +284,7 @@ export default function RepairServicePage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="text-xs font-semibold text-[#344054]">Workshop Invoice #</label>
                 <Input

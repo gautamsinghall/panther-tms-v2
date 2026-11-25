@@ -1154,7 +1154,7 @@ export default function NormalPurchasePage() {
       />
 
       {/* KPI Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         <KpiCard
           title="Total Fleet Purchases"
           value={formatCurrency(kpis.totalPurchases)}
@@ -1654,7 +1654,7 @@ export default function NormalPurchasePage() {
                 <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
                   GST Treatment
                 </label>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                   {[
                     { id: "FCM", label: "Forward Charge (FCM)" },
                     { id: "RCM", label: "Reverse Charge (RCM)" },
@@ -1681,7 +1681,7 @@ export default function NormalPurchasePage() {
                 <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
                   ITC Eligibility
                 </label>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   {[
                     { id: "ELIGIBLE", label: "Eligible for ITC" },
                     { id: "INELIGIBLE", label: "Ineligible / Blocked" },
@@ -1878,7 +1878,7 @@ export default function NormalPurchasePage() {
         size="lg"
       >
         <div className="space-y-4 pb-20">
-          <div className="rounded-xl border border-slate-200 dark:border-[#303036] overflow-hidden">
+          <div className="rounded-xl border border-slate-200 dark:border-[#303036] overflow-x-auto">
             <table className="w-full text-xs text-left">
               <thead className="bg-slate-50 dark:bg-[#101013] text-slate-500 border-b border-slate-200 dark:border-[#303036]">
                 <tr>
@@ -2287,7 +2287,7 @@ export default function NormalPurchasePage() {
                     </div>
 
                     {/* Vendor / Supplier Grid */}
-                    <div className="grid grid-cols-2 gap-4 text-xs bg-slate-50/80 p-3.5 rounded-xl border border-slate-200">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs bg-slate-50/80 p-3.5 rounded-xl border border-slate-200">
                       <div className="space-y-1">
                         <p className="text-slate-500 uppercase text-[10px] font-semibold tracking-wider">Vendor / Supplier (Billed By):</p>
                         <p className="font-bold text-sm text-slate-900">{printVoucher.party_name || printVoucher.vendor_name || "Fleet Vendor"}</p>
@@ -2354,8 +2354,8 @@ export default function NormalPurchasePage() {
                         <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-700">
                           Fleet Purchase Items ({printVoucher.items.length}):
                         </h4>
-                        <div className="border border-slate-200 rounded-lg overflow-hidden">
-                          <table className="w-full text-xs border-collapse">
+                        <div className="border border-slate-200 rounded-lg overflow-x-auto">
+                          <table className="w-full min-w-[520px] text-xs border-collapse">
                             <thead className="bg-slate-100/90 text-slate-700 uppercase text-[10px] font-bold tracking-wider border-b border-slate-200">
                               <tr>
                                 <th className="py-2 px-3 text-left">#</th>
@@ -2409,8 +2409,8 @@ export default function NormalPurchasePage() {
                         <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-700">
                           Double-Entry Balanced Journal Postings:
                         </h4>
-                        <div className="border border-slate-200 rounded-lg overflow-hidden">
-                          <table className="w-full text-xs border-collapse">
+                        <div className="border border-slate-200 rounded-lg overflow-x-auto">
+                          <table className="w-full min-w-[520px] text-xs border-collapse">
                             <thead className="bg-slate-100/90 text-slate-700 uppercase text-[10px] font-bold tracking-wider border-b border-slate-200">
                               <tr>
                                 <th className="py-2 px-3 text-left">Particulars / Account Head</th>
@@ -2478,7 +2478,7 @@ export default function NormalPurchasePage() {
                     )}
 
                     {/* Signatures */}
-                    <div className="pt-6 border-t border-slate-300 grid grid-cols-4 gap-4 text-center text-xs">
+                    <div className="pt-6 border-t border-slate-300 grid grid-cols-2 sm:grid-cols-4 gap-4 text-center text-xs">
                       <div>
                         <div className="border-b border-slate-400 mb-1 h-8" />
                         <span className="text-slate-600 font-medium">Prepared By</span>

@@ -111,27 +111,27 @@ export function Header() {
       : authData?.role || "User");
 
   return (
-    <header className="h-16 border-b border-slate-200/80 dark:border-[#22232E] bg-white/95 dark:bg-[#101013]/95 backdrop-blur-md px-3 sm:px-5 flex items-center justify-between gap-2 z-20 shrink-0 select-none">
+    <header className="h-14 sm:h-16 border-b border-slate-200/80 dark:border-[#22232E] bg-white/95 dark:bg-[#101013]/95 backdrop-blur-md px-2.5 sm:px-4 xl:px-5 flex items-center justify-between gap-1.5 sm:gap-2 z-20 shrink-0 select-none overflow-hidden">
       {/* Zone 1: Left - Mobile Menu Trigger + Organization + Branch Switcher */}
-      <div className="flex items-center gap-1.5 sm:gap-2.5 min-w-0 shrink-0">
+      <div className="flex items-center gap-1 sm:gap-2 min-w-0 shrink">
         {/* Mobile Sidebar Hamburger Trigger (Hidden on Desktop >= 1024px) */}
         <button
           type="button"
           onClick={toggleMobileNav}
           aria-label="Toggle navigation menu"
-          className="lg:hidden p-2 -ml-1 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/10 rounded-xl transition-colors cursor-pointer shrink-0"
+          className="lg:hidden p-1.5 sm:p-2 -ml-0.5 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/10 rounded-xl transition-colors cursor-pointer shrink-0"
         >
           <Menu className="w-5 h-5" />
         </button>
 
         {authData && (
-          <div className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-[#17171B] border border-slate-200/80 dark:border-[#303036] hover:border-slate-300 hover:bg-slate-100/60 transition-all duration-150 shadow-2xs cursor-pointer group shrink-0">
-            <Building2 className="w-3.5 h-3.5 text-slate-500 group-hover:text-indigo-600 transition-colors shrink-0" />
-            <span className="text-xs font-semibold text-slate-800 dark:text-[#F5F5F7] group-hover:text-slate-900 transition-colors truncate hidden sm:inline max-w-[110px] xl:max-w-[150px]">
+          <div className="flex items-center gap-1 sm:gap-2 px-1.5 sm:px-2.5 py-1 sm:py-1.5 rounded-lg bg-slate-50 dark:bg-[#17171B] border border-slate-200/80 dark:border-[#303036] hover:border-slate-300 hover:bg-slate-100/60 transition-all duration-150 shadow-2xs cursor-pointer group min-w-0 shrink">
+            <Building2 className="w-3.5 h-3.5 text-slate-500 group-hover:text-indigo-600 transition-colors shrink-0 hidden xs:block sm:block" />
+            <span className="text-xs font-semibold text-slate-800 dark:text-[#F5F5F7] group-hover:text-slate-900 transition-colors truncate hidden 2xl:inline max-w-[150px]">
               {authData.companyName}
             </span>
             {authData.companyCode ? (
-              <span className="text-[10px] sm:text-xs font-mono font-bold text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/60 px-1.5 py-0.5 rounded border border-indigo-200/70 dark:border-indigo-800/60 group-hover:border-indigo-300 uppercase tracking-wider shrink-0">
+              <span className="text-[10px] sm:text-xs font-mono font-bold text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/60 px-1.5 py-0.5 rounded border border-indigo-200/70 dark:border-indigo-800/60 group-hover:border-indigo-300 uppercase tracking-wider truncate max-w-[72px] sm:max-w-[110px]">
                 {authData.companyCode}
               </span>
             ) : null}
@@ -140,27 +140,26 @@ export function Header() {
 
         <div className="h-4 w-[1px] bg-slate-200 dark:bg-white/10 hidden sm:block shrink-0" />
 
-        <div className="shrink-0">
+        <div className="min-w-0 shrink">
           <OfficeSwitcher />
         </div>
 
         {/* Current Date & Financial Year Badge */}
         {dateInfo && (
           <>
-            <div className="h-4 w-[1px] bg-slate-200 dark:bg-white/10 hidden sm:block shrink-0" />
+            <div className="h-4 w-[1px] bg-slate-200 dark:bg-white/10 hidden md:block shrink-0" />
             <div
-              className="hidden sm:flex items-center gap-1.5 sm:gap-2 px-2 sm:px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-[#17171B] border border-slate-200/80 dark:border-[#303036] hover:border-slate-300 dark:hover:border-slate-600 transition-all duration-150 shadow-2xs shrink-0 select-none cursor-default group"
+              className="hidden md:flex items-center gap-1.5 px-2 py-1 sm:py-1.5 rounded-lg bg-slate-50 dark:bg-[#17171B] border border-slate-200/80 dark:border-[#303036] hover:border-slate-300 dark:hover:border-slate-600 transition-all duration-150 shadow-2xs shrink-0 select-none cursor-default group"
               title={dateInfo.fullTitle}
             >
-              <div className="hidden lg:flex items-center gap-1.5 text-xs font-medium text-slate-700 dark:text-slate-200 whitespace-nowrap">
+              <div className="hidden xl:flex items-center gap-1.5 text-xs font-medium text-slate-700 dark:text-slate-200 whitespace-nowrap">
                 <Calendar className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500 group-hover:text-indigo-600 transition-colors shrink-0" />
-                <span className="hidden xl:inline">{dateInfo.dayOfWeek}, </span>
+                <span className="hidden 2xl:inline">{dateInfo.dayOfWeek}, </span>
                 <span>{dateInfo.formattedDate}</span>
               </div>
-              <div className="h-3.5 w-[1px] bg-slate-200 dark:bg-white/10 hidden lg:block shrink-0" />
+              <div className="h-3.5 w-[1px] bg-slate-200 dark:bg-white/10 hidden xl:block shrink-0" />
               <div className="flex items-center gap-1 shrink-0">
-                <span className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider hidden sm:inline lg:hidden">FY</span>
-                <span className="text-[10px] sm:text-xs font-mono font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-1.5 py-0.5 rounded border border-emerald-200/70 dark:border-emerald-800/60 tracking-tight shrink-0">
+                <span className="text-[10px] sm:text-xs font-mono font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-1.5 py-0.5 rounded border border-emerald-200/70 dark:border-emerald-800/60 tracking-tight shrink-0 whitespace-nowrap">
                   {dateInfo.financialYear}
                 </span>
               </div>
@@ -170,11 +169,11 @@ export function Header() {
       </div>
 
       {/* Zone 2: Center - Global Search Command Palette (Shrinks dynamically, never overlaps) */}
-      <div className="hidden md:flex flex-1 min-w-[200px] max-w-[380px] mx-2 items-center">
+      <div className="hidden md:flex flex-1 min-w-[120px] max-w-[360px] mx-1 xl:mx-2 items-center">
         <button
           type="button"
           onClick={() => setIsCommandPaletteOpen(true)}
-          className="w-full flex items-center gap-2.5 px-3 h-9 rounded-xl border border-slate-200/90 dark:border-[#303036] bg-slate-50/70 dark:bg-[#17171B] hover:bg-white dark:hover:bg-[#1E1E24] hover:border-slate-300 hover:shadow-xs text-xs text-slate-400 transition-all text-left cursor-pointer group select-none ring-0 outline-none focus:outline-none focus:ring-0 focus-visible:outline-none"
+          className="w-full flex items-center gap-2 px-2.5 xl:px-3 h-9 rounded-xl border border-slate-200/90 dark:border-[#303036] bg-slate-50/70 dark:bg-[#17171B] hover:bg-white dark:hover:bg-[#1E1E24] hover:border-slate-300 hover:shadow-xs text-xs text-slate-400 transition-all text-left cursor-pointer group select-none ring-0 outline-none focus:outline-none focus:ring-0 focus-visible:outline-none min-w-0"
           style={{ outline: "none" }}
           title="Search records (Ctrl + K)"
         >
@@ -182,19 +181,19 @@ export function Header() {
           <span className="flex-1 text-xs text-slate-400 group-hover:text-slate-600 transition-colors truncate">
             Search commands, LRs, invoices...
           </span>
-          <kbd className="px-1.5 py-0.5 text-[10px] font-mono bg-white dark:bg-[#101013] border border-slate-200/90 dark:border-[#303036] rounded text-slate-400 group-hover:text-slate-600 shadow-2xs transition-colors shrink-0">
+          <kbd className="hidden xl:inline-flex px-1.5 py-0.5 text-[10px] font-mono bg-white dark:bg-[#101013] border border-slate-200/90 dark:border-[#303036] rounded text-slate-400 group-hover:text-slate-600 shadow-2xs transition-colors shrink-0">
             Ctrl K
           </kbd>
         </button>
       </div>
 
       {/* Zone 3: Right - Search trigger for mobile, AI, Controls, Profile */}
-      <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
+      <div className="flex items-center gap-1 sm:gap-2 shrink-0">
         {/* Mobile Search Icon Trigger */}
         <button
           type="button"
           onClick={() => setIsCommandPaletteOpen(true)}
-          className="md:hidden w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/10 rounded-xl transition-colors cursor-pointer"
+          className="md:hidden w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/10 rounded-xl transition-colors cursor-pointer shrink-0"
           title="Search records"
           aria-label="Search records"
         >
@@ -207,22 +206,22 @@ export function Header() {
             href="/transport/consignment-360"
             aria-label="Consignment 360° Traceability"
             title="Consignment 360° Traceability (Search any LR / Job)"
-            className="hidden sm:flex items-center gap-1.5 px-2 sm:px-2.5 py-1.5 rounded-xl text-xs font-semibold text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/50 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 border border-indigo-200/80 dark:border-indigo-800/60 transition-colors cursor-pointer select-none shrink-0"
+            className="hidden sm:flex items-center gap-1.5 px-2 py-1.5 rounded-xl text-xs font-semibold text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/50 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 border border-indigo-200/80 dark:border-indigo-800/60 transition-colors cursor-pointer select-none shrink-0"
           >
             <ScanSearch className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400 shrink-0" />
-            <span className="hidden xl:inline">360° Trace</span>
+            <span className="hidden 2xl:inline">360° Trace</span>
           </Link>
           <button
             type="button"
             onClick={toggleAI}
             aria-label="Open Parth AI (Ctrl+/)"
             title="Open Parth AI Copilot (Ctrl+/)"
-            className="hidden sm:flex items-center gap-1.5 px-2 sm:px-2.5 py-1.5 rounded-xl text-xs font-semibold text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/50 hover:bg-blue-100 dark:hover:bg-blue-900/60 border border-blue-200/80 dark:border-blue-800/60 transition-colors cursor-pointer select-none shrink-0"
+            className="hidden sm:flex items-center gap-1.5 px-2 py-1.5 rounded-xl text-xs font-semibold text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/50 hover:bg-blue-100 dark:hover:bg-blue-900/60 border border-blue-200/80 dark:border-blue-800/60 transition-colors cursor-pointer select-none shrink-0"
           >
             <div className="w-4 h-4 rounded-full overflow-hidden bg-[#0B2A5B] shrink-0 flex items-center justify-center">
               <img src="/panther-ai-icon.png" alt="Parth AI" className="w-full h-full object-cover" />
             </div>
-            <span className="hidden sm:inline">Parth AI</span>
+            <span className="hidden xl:inline">Parth AI</span>
           </button>
           <NotificationsPopover />
           <div className="hidden sm:block shrink-0">
@@ -247,16 +246,16 @@ export function Header() {
               >
                 {authData?.userName ? authData.userName[0].toUpperCase() : "U"}
               </div>
-              <div className="text-left hidden md:block">
-                <p className="text-xs font-semibold text-slate-900 dark:text-[#F5F5F7] leading-tight">
+              <div className="text-left hidden xl:block max-w-[130px]">
+                <p className="text-xs font-semibold text-slate-900 dark:text-[#F5F5F7] leading-tight truncate">
                   {authData?.userName || "User"}
                 </p>
-                <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-tight flex items-center gap-1.5 font-mono mt-0.5">
-                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 shrink-0 inline-block align-middle mr-0.5" aria-hidden="true" />
-                  <span className="whitespace-nowrap">{displayRole}</span>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-tight flex items-center gap-1 font-mono mt-0.5 truncate">
+                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 shrink-0 inline-block align-middle" aria-hidden="true" />
+                  <span className="truncate">{displayRole}</span>
                 </p>
               </div>
-              <ChevronDown className="w-3.5 h-3.5 text-slate-400 hidden md:block shrink-0" aria-hidden="true" />
+              <ChevronDown className="w-3.5 h-3.5 text-slate-400 hidden xl:block shrink-0" aria-hidden="true" />
             </button>
           }
           items={[

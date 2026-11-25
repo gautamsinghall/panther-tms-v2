@@ -2601,7 +2601,7 @@ export default function LRBookingPage() {
             <p className="text-sm text-slate-600 dark:text-slate-300">
               Is this truck a <strong>Company Truck</strong> (own fleet) or a <strong>Market Truck</strong> (hired / broker)?
             </p>
-            <div className="mt-5 grid grid-cols-2 gap-3">
+            <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-3">
               <button
                 type="button"
                 onClick={() => openVehicleMaster("company")}
@@ -2674,7 +2674,7 @@ export default function LRBookingPage() {
       )}
 
       {/* Operational KPI Summary */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         <KpiCard
           title="Total Consignments"
           value={stats.total.toLocaleString()}

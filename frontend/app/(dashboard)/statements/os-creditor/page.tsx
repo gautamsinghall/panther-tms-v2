@@ -203,7 +203,7 @@ export default function OutstandingCreditorsPage() {
       )}
 
       {data && (
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3">
           <Card className="p-4 bg-white border border-slate-200">
             <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Total Payable</span>
             <div className="text-lg font-bold font-mono text-slate-900 mt-1">

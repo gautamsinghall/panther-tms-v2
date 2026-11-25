@@ -280,22 +280,32 @@ export default function GPSTrackingPage() {
     }
   };
 
-  // Prevent canvas scrollbar on GPS tracking page so full interface fits viewport
+  // Prevent canvas scrollbar on GPS tracking desktop layout (>= 1024px) so full interface fits viewport
   useEffect(() => {
     const mainCanvas = document.getElementById("workspace-main-canvas");
     if (!mainCanvas) return;
     const origOverflow = mainCanvas.style.overflow;
     const origPadding = mainCanvas.style.padding;
-    mainCanvas.style.overflow = "hidden";
-    mainCanvas.style.padding = "0.75rem 1rem";
+    const applyLayout = () => {
+      if (window.innerWidth >= 1024) {
+        mainCanvas.style.overflow = "hidden";
+        mainCanvas.style.padding = "0.75rem 1rem";
+      } else {
+        mainCanvas.style.overflow = origOverflow || "auto";
+        mainCanvas.style.padding = origPadding;
+      }
+    };
+    applyLayout();
+    window.addEventListener("resize", applyLayout);
     return () => {
+      window.removeEventListener("resize", applyLayout);
       mainCanvas.style.overflow = origOverflow;
       mainCanvas.style.padding = origPadding;
     };
   }, []);
 
   return (
-    <div className="h-[calc(100vh-130px)] sm:h-[calc(100vh-140px)] flex flex-col gap-2 font-sans overflow-hidden">
+    <div className="min-h-[calc(100dvh-120px)] lg:h-[calc(100dvh-130px)] flex flex-col gap-2 font-sans lg:overflow-hidden">
       {/* ---------------------------------------------------------------------- */}
       {/* 1. Header Section (Matching reference UI)                              */}
       {/* ---------------------------------------------------------------------- */}
@@ -326,7 +336,7 @@ export default function GPSTrackingPage() {
           </div>
 
           {/* Right Header Actions */}
-          <div className="flex items-center gap-2.5 self-end sm:self-center shrink-0">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-2.5 sm:self-center shrink-0">
             {/* Live Connection / Sync Status */}
             <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white dark:bg-[#171922] border border-slate-200 dark:border-[#2B303C] text-xs text-slate-700 dark:text-slate-300 font-medium shadow-xs">
               <span className="w-2 h-2 rounded-full bg-[#20B889] animate-pulse" />
@@ -441,12 +451,12 @@ export default function GPSTrackingPage() {
       {/* ---------------------------------------------------------------------- */}
       <div className="bg-white dark:bg-[#171922] border border-slate-200 dark:border-[#2B303C] rounded-xl p-2 flex flex-wrap items-center justify-between gap-2.5 shadow-xs shrink-0">
         {/* Left: Segmented Tabs */}
-        <div className="inline-flex items-center bg-slate-100 dark:bg-[#11131A] p-1 rounded-lg border border-slate-200/80 dark:border-[#252936]">
+        <div className="inline-flex items-center bg-slate-100 dark:bg-[#11131A] p-1 rounded-lg border border-slate-200/80 dark:border-[#252936] overflow-x-auto max-w-full no-scrollbar">
           <button
             type="button"
             onClick={() => setFleetTypeFilter("all")}
             className={cn(
-              "px-3 py-1 rounded-md text-xs font-semibold transition-all cursor-pointer",
+              "px-2.5 sm:px-3 py-1 rounded-md text-xs font-semibold transition-all cursor-pointer whitespace-nowrap",
               fleetTypeFilter === "all"
                 ? "bg-gradient-to-b from-indigo-500 to-indigo-600 border border-indigo-700/40 text-white shadow-xs"
                 : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200"
@@ -458,7 +468,7 @@ export default function GPSTrackingPage() {
             type="button"
             onClick={() => setFleetTypeFilter("company")}
             className={cn(
-              "px-3 py-1 rounded-md text-xs font-semibold transition-all cursor-pointer",
+              "px-2.5 sm:px-3 py-1 rounded-md text-xs font-semibold transition-all cursor-pointer whitespace-nowrap",
               fleetTypeFilter === "company"
                 ? "bg-gradient-to-b from-indigo-500 to-indigo-600 border border-indigo-700/40 text-white shadow-xs"
                 : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200"
@@ -470,7 +480,7 @@ export default function GPSTrackingPage() {
             type="button"
             onClick={() => setFleetTypeFilter("market")}
             className={cn(
-              "px-3 py-1 rounded-md text-xs font-semibold transition-all cursor-pointer",
+              "px-2.5 sm:px-3 py-1 rounded-md text-xs font-semibold transition-all cursor-pointer whitespace-nowrap",
               fleetTypeFilter === "market"
                 ? "bg-gradient-to-b from-indigo-500 to-indigo-600 border border-indigo-700/40 text-white shadow-xs"
                 : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200"
@@ -481,7 +491,7 @@ export default function GPSTrackingPage() {
         </div>
 
         {/* Center: Search Input */}
-        <div className="relative flex items-center flex-1 min-w-[200px] max-w-md">
+        <div className="relative flex items-center flex-1 min-w-[160px] w-full sm:w-auto max-w-md">
           <Search className="w-4 h-4 text-slate-400 dark:text-slate-500 absolute left-3 pointer-events-none" />
           <input
             type="text"
@@ -502,7 +512,7 @@ export default function GPSTrackingPage() {
         </div>
 
         {/* Right: Dropdowns & Controls */}
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {/* Status Filter */}
           <div className="relative">
             <select
@@ -543,13 +553,13 @@ export default function GPSTrackingPage() {
       {/* ---------------------------------------------------------------------- */}
       {/* 4. Main Two-Panel Tracking Workspace                                   */}
       {/* ---------------------------------------------------------------------- */}
-      <div className="flex-1 min-h-0 h-full flex flex-col lg:flex-row gap-2.5 relative overflow-hidden">
+      <div className="flex-1 min-h-0 flex flex-col lg:flex-row gap-2.5 relative lg:overflow-hidden">
         {/* =================================================================== */}
         {/* LEFT PANEL: Vehicle List                                            */}
         {/* =================================================================== */}
         <aside
           className={cn(
-            "w-full lg:w-[350px] xl:w-[370px] bg-white dark:bg-[#171922] border border-slate-200 dark:border-[#2B303C] rounded-xl flex flex-col shrink-0 h-[280px] sm:h-[320px] lg:h-full min-h-0 overflow-hidden transition-all duration-300 shadow-xs",
+            "w-full lg:w-[290px] xl:w-[350px] bg-white dark:bg-[#171922] border border-slate-200 dark:border-[#2B303C] rounded-xl flex flex-col shrink-0 h-[260px] sm:h-[300px] lg:h-full min-h-0 overflow-hidden transition-all duration-300 shadow-xs",
             isLeftPanelCollapsed && "lg:w-16"
           )}
         >
@@ -697,7 +707,7 @@ export default function GPSTrackingPage() {
         {/* =================================================================== */}
         {/* RIGHT PANEL: Dominant GPS Map Workspace                             */}
         {/* =================================================================== */}
-        <section className="flex-1 bg-white dark:bg-[#171922] border border-slate-200 dark:border-[#2B303C] rounded-xl overflow-hidden relative flex flex-col shadow-xs h-full min-h-0">
+        <section className="flex-1 bg-white dark:bg-[#171922] border border-slate-200 dark:border-[#2B303C] rounded-xl overflow-hidden relative flex flex-col shadow-xs h-[380px] sm:h-[440px] lg:h-full min-h-[340px] lg:min-h-0">
           {/* Real Map Component */}
           <GPSTrackingMap
             vehicle={selectedVehicleData}

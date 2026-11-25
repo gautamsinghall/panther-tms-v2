@@ -375,7 +375,7 @@ export function LRExcelImportModal({
   };
 
   const modalNode = (
-    <div className="fixed inset-0 z-[85] flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
+    <div className="fixed inset-0 z-[85] flex items-center justify-center p-2.5 sm:p-6 overflow-y-auto">
       {/* Backdrop */}
       <div
         className="absolute inset-0 bg-slate-900/60 backdrop-blur-xs transition-opacity animate-in fade-in"
@@ -383,15 +383,15 @@ export function LRExcelImportModal({
       />
 
       {/* Modal Content */}
-      <div className="relative w-full max-w-3xl bg-white dark:bg-[#161218] rounded-2xl shadow-2xl border border-slate-200 dark:border-[#382638] overflow-hidden z-10 animate-in zoom-in-95 duration-150 flex flex-col max-h-[92vh]">
+      <div className="relative w-full max-w-3xl bg-white dark:bg-[#161218] rounded-2xl shadow-2xl border border-slate-200 dark:border-[#382638] overflow-hidden z-10 animate-in zoom-in-95 duration-150 flex flex-col max-h-[94dvh] sm:max-h-[92dvh]">
         {/* Header */}
-        <div className="px-6 py-4 border-b border-slate-100 dark:border-[#2E1D2E] flex items-center justify-between bg-slate-50/70 dark:bg-[#1C1622]/90">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-indigo-100 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-400 flex items-center justify-center shadow-xs">
+        <div className="px-4 sm:px-6 py-3 sm:py-4 border-b border-slate-100 dark:border-[#2E1D2E] flex items-center justify-between gap-2 bg-slate-50/70 dark:bg-[#1C1622]/90">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-indigo-100 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-400 flex items-center justify-center shadow-xs shrink-0">
               <FileSpreadsheet className="w-5 h-5" />
             </div>
-            <div>
-              <h3 className="text-base font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+            <div className="min-w-0">
+              <h3 className="text-sm sm:text-base font-semibold text-slate-900 dark:text-white flex flex-wrap items-center gap-2">
                 Import Lorry Receipts from Excel
                 <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-950/80 text-indigo-800 dark:text-indigo-300">
                   Auto-Creates Linked Jobs
@@ -405,14 +405,14 @@ export function LRExcelImportModal({
           <button
             type="button"
             onClick={handleCloseAndFinish}
-            className="p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-200/60 dark:hover:bg-[#2A1B2A] rounded-lg transition-colors cursor-pointer"
+            className="p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-200/60 dark:hover:bg-[#2A1B2A] rounded-lg transition-colors cursor-pointer shrink-0"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Body */}
-        <div className="p-6 overflow-y-auto space-y-6 flex-1">
+        <div className="p-4 sm:p-6 overflow-y-auto space-y-5 sm:space-y-6 flex-1">
           {!importResult ? (
             <>
               {/* Target Office Notice */}

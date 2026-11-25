@@ -268,7 +268,7 @@ export function MasterTabsContainer() {
             key={tab.id}
             id={`workspace-master-canvas-${tab.id}`}
             className={cn(
-              "flex-1 overflow-y-auto [scrollbar-gutter:stable] p-3 pb-28 sm:p-6 sm:pb-32 lg:p-7 lg:pb-36 bg-[#F3F5FC] dark:bg-[#0B0B0D] relative",
+              "flex-1 overflow-y-auto overflow-x-hidden [scrollbar-gutter:stable] p-3 pb-24 sm:p-5 sm:pb-28 lg:p-6 lg:pb-32 xl:p-7 xl:pb-36 bg-[#F3F5FC] dark:bg-[#0B0B0D] relative",
               isActive ? "block" : "hidden"
             )}
           >

@@ -229,11 +229,11 @@ export default function LedgerReportPage() {
 
       {/* Account Selector Bar */}
       <Card className="p-4 flex flex-wrap items-center justify-between gap-4 bg-white border border-[#E4E7EC]">
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
           <label htmlFor="ledger-account" className="text-xs font-bold text-[#344054] uppercase tracking-wider">
             Select Account Head:
           </label>
-          <div className="min-w-[280px]">
+          <div className="w-full sm:w-auto sm:min-w-[260px]">
             <SearchableSelect
               id="ledger-account"
               size="sm"

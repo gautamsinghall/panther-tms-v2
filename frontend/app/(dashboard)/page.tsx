@@ -109,7 +109,7 @@ function MetricKpiCard({
           <div className="text-xs font-semibold text-slate-500 dark:text-[#898991] tracking-tight leading-snug line-clamp-2">
             {title}
           </div>
-          <div className="text-xl 2xl:text-2xl font-bold text-slate-900 dark:text-white mt-1 tracking-tight font-sans whitespace-nowrap overflow-visible">
+          <div className="text-lg sm:text-xl 2xl:text-2xl font-bold text-slate-900 dark:text-white mt-1 tracking-tight font-sans break-words tabular-nums">
             {value}
           </div>
         </div>
@@ -151,10 +151,10 @@ function FunnelRow({
   pct: number;
 }) {
   return (
-    <div className="flex items-center justify-between gap-3 text-xs group cursor-pointer hover:bg-slate-50/70 dark:hover:bg-[#222228] p-2 rounded-xl transition-colors">
-      <div className="flex items-center gap-2.5 w-28 shrink-0">
+    <div className="flex items-center justify-between gap-2 sm:gap-3 text-xs group cursor-pointer hover:bg-slate-50/70 dark:hover:bg-[#222228] p-2 rounded-xl transition-colors">
+      <div className="flex items-center gap-2 w-24 sm:w-28 shrink-0">
         <span className="shrink-0">{icon}</span>
-        <span className="font-semibold text-slate-800 dark:text-[#F5F5F7]">{label}</span>
+        <span className="font-semibold text-slate-800 dark:text-[#F5F5F7] truncate">{label}</span>
       </div>
 
       <div className={cn("flex-1 h-2 rounded-full overflow-hidden mx-2", barBg)}>
@@ -440,11 +440,11 @@ export default function DashboardPage() {
       </div>
 
       {/* 2. Top Header Title & Actions */}
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+      <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4">
         {/* Title and Telemetry Badge */}
-        <div className="space-y-1">
-          <div className="flex items-center gap-3">
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 font-heading">
+        <div className="space-y-1 min-w-0">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+            <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold tracking-tight text-slate-900 font-heading">
               Command Cockpit
             </h1>
             <div className={cn(
@@ -591,7 +591,7 @@ export default function DashboardPage() {
       {!isLoading && activeTab === "overview" && (
         <div className="space-y-6">
           {/* Row 1: 4 High-Impact KPI Metric Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
             <MetricKpiCard
               icon={<Package className="w-5 h-5 text-blue-600" />}
               iconBg="bg-blue-50 border border-blue-100/90 text-blue-600"
@@ -659,7 +659,7 @@ export default function DashboardPage() {
                 </div>
 
                 {/* Right controls: Daily/Weekly/Monthly + Freight Revenue Dropdown */}
-                <div className="flex items-center gap-2.5 shrink-0">
+                <div className="flex flex-wrap items-center gap-2 sm:gap-2.5 shrink-0">
                   <div className="bg-slate-100/90 border border-slate-200/60 p-1 rounded-xl flex items-center gap-1">
                     {(["Daily", "Weekly", "Monthly"] as const).map((p) => (
                       <button
@@ -1018,7 +1018,7 @@ export default function DashboardPage() {
 
         return (
           <div className="space-y-6">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
               <KpiCard
                 title="Billed Freight Revenue"
                 value={formatCurrency(billedRevFin)}
@@ -1130,7 +1130,7 @@ export default function DashboardPage() {
       {/* ========================================================================= */}
       {!isLoading && activeTab === "operations" && (
         <div className="space-y-6">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
             <KpiCard
               title="Total Active Fleet"
               value={operationsData?.total_fleet_count?.toLocaleString() || "0"}
@@ -1192,7 +1192,7 @@ export default function DashboardPage() {
             </Card>
 
             <Card className="lg:col-span-2">
-              <CardHeader className="flex flex-row items-center justify-between pb-3">
+              <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3">
                 <div>
                   <CardTitle>Compliance & Expiry Radar</CardTitle>
                   <CardDescription>
@@ -1268,7 +1268,7 @@ export default function DashboardPage() {
       {/* ========================================================================= */}
       {!isLoading && activeTab === "own_fleet" && (
         <div className="space-y-6">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
             <KpiCard
               title="Company Owned Fleet"
               value={ownFleetData?.company_vehicles_count?.toLocaleString() || "0"}
@@ -1296,7 +1296,7 @@ export default function DashboardPage() {
           </div>
 
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-3">
+            <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3">
               <div>
                 <CardTitle>Company Fleet Asset & Health Matrix</CardTitle>
                 <CardDescription>

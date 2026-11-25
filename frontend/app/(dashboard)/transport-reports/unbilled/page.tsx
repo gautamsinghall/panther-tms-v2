@@ -210,7 +210,7 @@ export default function UnbilledReportsPage() {
       />
 
       {/* KPI Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         <div className="bg-white dark:bg-[#121217] p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-2xs">
           <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Unbilled Consignments</p>
           <p className="text-2xl font-bold text-slate-900 dark:text-white mt-1">{metrics.totalCount}</p>

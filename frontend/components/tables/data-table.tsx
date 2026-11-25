@@ -486,7 +486,7 @@ export function DataTable<T extends Record<string, any>>({
             )}
 
             {/* Right Tools: Extra Controls + Columns Toggle + Density Toggle */}
-            <div className="flex items-center gap-2 justify-between sm:justify-end shrink-0 w-full sm:w-auto ml-auto">
+            <div className="flex flex-wrap items-center gap-2 justify-between sm:justify-end shrink-0 w-full sm:w-auto sm:ml-auto">
               {toolbarExtra}
 
               {/* Columns Visibility Dropdown */}
@@ -503,7 +503,7 @@ export function DataTable<T extends Record<string, any>>({
                   </button>
 
                   {isColMenuOpen && (
-                    <div className="absolute right-0 mt-1.5 w-64 bg-white dark:bg-[#181922] border border-slate-200 dark:border-[#2D2E3A] rounded-xl shadow-xl p-3 z-50 text-xs animate-in fade-in zoom-in-95 duration-100">
+                    <div className="absolute right-0 mt-1.5 w-64 max-w-[calc(100vw-2rem)] bg-white dark:bg-[#181922] border border-slate-200 dark:border-[#2D2E3A] rounded-xl shadow-xl p-3 z-50 text-xs animate-in fade-in zoom-in-95 duration-100">
                       <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-100 dark:border-[#272835] font-semibold text-slate-900 dark:text-slate-200">
                         <span>Columns Visibility</span>
                         <div className="flex items-center gap-2 text-[11px]">
@@ -597,7 +597,7 @@ export function DataTable<T extends Record<string, any>>({
                   max={maxScrollLeft}
                   value={scrollPosition}
                   onChange={(e) => handleSliderChange(Number(e.target.value))}
-                  className="w-36 sm:w-64 h-2 bg-slate-200 dark:bg-[#1A1B24] border border-slate-300 dark:border-[#2B2C37] rounded-lg appearance-none cursor-pointer accent-indigo-600 transition-all"
+                  className="w-28 sm:w-56 md:w-64 h-2 bg-slate-200 dark:bg-[#1A1B24] border border-slate-300 dark:border-[#2B2C37] rounded-lg appearance-none cursor-pointer accent-indigo-600 transition-all"
                 />
               </div>
 
@@ -650,7 +650,7 @@ export function DataTable<T extends Record<string, any>>({
                         col.align === "right" || col.isNumeric ? "text-right" : "",
                         col.align === "center" ? "text-center" : "",
                         col.sortable ? "cursor-pointer hover:text-slate-900 dark:hover:text-white" : "",
-                        isActionsCol && "sticky right-0 z-20 bg-slate-50 dark:bg-[#17171B]"
+                        isActionsCol && "sm:sticky sm:right-0 sm:z-20 bg-slate-50 dark:bg-[#17171B]"
                       )}
                       onClick={() => col.sortable && handleSort(colKey)}
                     >
@@ -682,7 +682,7 @@ export function DataTable<T extends Record<string, any>>({
                 {actions.length > 0 && (
                   <th
                     className={cn(
-                      "text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 sticky right-0 bg-slate-50 dark:bg-[#17171B] z-20 border-b border-slate-200/80 dark:border-[#2B2C37]",
+                      "text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 sm:sticky sm:right-0 bg-slate-50 dark:bg-[#17171B] sm:z-20 border-b border-slate-200/80 dark:border-[#2B2C37]",
                       cellPaddingClass,
                       actionLayout === "inline" ? "w-28 text-center" : "w-20 min-w-[80px] text-right"
                     )}
@@ -716,7 +716,7 @@ export function DataTable<T extends Record<string, any>>({
                           className={cn(
                             cellPaddingClass,
                             "border-b border-slate-100 dark:border-[#22232E]",
-                            isActionsCol && "sticky right-0 bg-white dark:bg-[#17171B] z-10"
+                            isActionsCol && "sm:sticky sm:right-0 bg-white dark:bg-[#17171B] sm:z-10"
                           )}
                         >
                           <Skeleton className="h-4 w-3/4 rounded" />
@@ -724,7 +724,7 @@ export function DataTable<T extends Record<string, any>>({
                       );
                     })}
                     {actions.length > 0 && (
-                      <td className={cn(cellPaddingClass, "sticky right-0 bg-white dark:bg-[#17171B] z-10 border-b border-slate-100 dark:border-[#22232E]", actionLayout === "inline" ? "w-28 text-center" : "w-20 min-w-[80px] text-right")}>
+                      <td className={cn(cellPaddingClass, "sm:sticky sm:right-0 bg-white dark:bg-[#17171B] sm:z-10 border-b border-slate-100 dark:border-[#22232E]", actionLayout === "inline" ? "w-28 text-center" : "w-20 min-w-[80px] text-right")}>
                         <Skeleton className={cn("h-4 rounded", actionLayout === "inline" ? "w-16 mx-auto" : "w-6 ml-auto")} />
                       </td>
                     )}
@@ -834,7 +834,7 @@ export function DataTable<T extends Record<string, any>>({
                               col.align === "right" || col.isNumeric ? "text-right tabular-nums" : "",
                               col.align === "center" ? "text-center" : "",
                               isActionsCol &&
-                                "sticky right-0 z-10 bg-white dark:bg-[#17171B] group-hover:bg-slate-50/90 dark:group-hover:bg-[#20222E]"
+                                "sm:sticky sm:right-0 sm:z-10 bg-white dark:bg-[#17171B] group-hover:bg-slate-50/90 dark:group-hover:bg-[#20222E]"
                             )}
                           >
                             {col.cell ? col.cell(row, rIndex) : col.render ? col.render(row, rIndex) : (row[colKey] ?? "-")}
@@ -847,7 +847,7 @@ export function DataTable<T extends Record<string, any>>({
                         <td
                           className={cn(
                             cellPaddingClass,
-                            "sticky right-0 bg-white dark:bg-[#17171B] group-hover:bg-slate-50/90 dark:group-hover:bg-[#20222E] z-10 border-b border-slate-100 dark:border-[#22232E]",
+                            "sm:sticky sm:right-0 bg-white dark:bg-[#17171B] group-hover:bg-slate-50/90 dark:group-hover:bg-[#20222E] sm:z-10 border-b border-slate-100 dark:border-[#22232E]",
                             actionLayout === "inline" ? "w-28 text-center" : "w-20 min-w-[80px] text-right"
                           )}
                         >

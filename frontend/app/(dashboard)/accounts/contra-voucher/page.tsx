@@ -681,7 +681,7 @@ export default function ContraVoucherPage() {
       />
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         <KpiCard
           title="Total Fund Transfers"
           value={formatCurrency(kpis.totalTransfers)}
@@ -816,7 +816,7 @@ export default function ContraVoucherPage() {
               What Kind of Fund Transfer Is This?
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
               {/* Option 1: Cash to Bank */}
               <button
                 type="button"
@@ -1352,7 +1352,7 @@ export default function ContraVoucherPage() {
             </div>
 
             {/* Transfer Summary */}
-            <div className="grid grid-cols-2 gap-4 text-xs bg-slate-50 p-4 rounded-xl border border-slate-200">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs bg-slate-50 p-4 rounded-xl border border-slate-200">
               <div>
                 <p><strong>Transfer Nature:</strong> {printVoucher.party_name || "Internal Fund Movement"}</p>
                 <p><strong>Instrument / Mode:</strong> {printVoucher.tax_breakup?.transfer_mode || "BANK_TRANSFER"}</p>
@@ -1376,9 +1376,9 @@ export default function ContraVoucherPage() {
             </div>
 
             {/* Ledger Postings Table */}
-            <div>
+            <div className="overflow-x-auto">
               <h4 className="text-xs font-bold uppercase mb-1">Double-Entry Journal Postings</h4>
-              <table className="w-full text-xs border border-slate-300 rounded-lg overflow-hidden">
+              <table className="w-full min-w-[440px] text-xs border border-slate-300 rounded-lg overflow-hidden">
                 <thead className="bg-slate-100 border-b border-slate-300 font-bold">
                   <tr>
                     <th className="p-2 text-left">Particulars</th>
@@ -1406,7 +1406,7 @@ export default function ContraVoucherPage() {
             </div>
 
             {/* Signatures */}
-            <div className="pt-8 border-t border-slate-300 grid grid-cols-4 gap-4 text-center text-xs">
+            <div className="pt-8 border-t border-slate-300 grid grid-cols-2 sm:grid-cols-4 gap-4 text-center text-xs">
               <div>
                 <div className="border-b border-slate-400 mb-1 h-10" />
                 <span className="text-slate-600 font-medium">Prepared By</span>

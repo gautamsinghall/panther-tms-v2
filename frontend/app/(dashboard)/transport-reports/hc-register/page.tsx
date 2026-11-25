@@ -725,7 +725,7 @@ export default function HCRegisterPage() {
       {/* ---------------------------------------------------------------------- */}
       {/* 3. Summary KPI Cards                                                   */}
       {/* ---------------------------------------------------------------------- */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5 print:grid-cols-5 print:gap-2">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3.5 print:grid-cols-5 print:gap-2">
         {/* 1. Total Challans */}
         <div className="bg-white dark:bg-[#121319] rounded-xl border border-slate-200 dark:border-[#22232E] p-3 sm:p-3.5 2xl:p-4 flex flex-col justify-between shadow-sm">
           <div className="flex items-center justify-between gap-2">
@@ -1009,9 +1009,9 @@ export default function HCRegisterPage() {
                         "py-3 px-3.5 font-medium tracking-normal transition-colors whitespace-nowrap border-b border-slate-200 dark:border-[#22232E]",
                         !isActions && "cursor-pointer hover:text-slate-900 dark:hover:text-white",
                         col.align === "right" ? "text-right" : col.align === "center" ? "text-center" : "text-left",
-                        isFirstSticky && "sticky left-0 z-20 bg-slate-100 dark:bg-[#101116]",
-                        isFirstSticky && canScrollHorizontally && scrollPosition > 10 && "shadow-[3px_0_6px_-2px_rgba(0,0,0,0.35)]",
-                        isActions && "sticky right-0 z-20 bg-slate-100 dark:bg-[#101116] text-center print:hidden"
+                        isFirstSticky && "sm:sticky sm:left-0 z-20 bg-slate-100 dark:bg-[#101116]",
+                        isFirstSticky && canScrollHorizontally && scrollPosition > 10 && "sm:shadow-[3px_0_6px_-2px_rgba(0,0,0,0.35)]",
+                        isActions && "sm:sticky sm:right-0 z-20 bg-slate-100 dark:bg-[#101116] text-center print:hidden"
                       )}
                     >
                       <div className={cn("inline-flex items-center gap-1", col.align === "right" && "justify-end", isActions && "justify-center")}>
@@ -1044,7 +1044,7 @@ export default function HCRegisterPage() {
                       if (!visibleColumns[col.key]) return null;
                       if (col.key === "actions") {
                         return (
-                          <td key={col.key} className="py-3 px-3.5 sticky right-0 z-10 bg-white dark:bg-[#121319] text-center border-b border-slate-200 dark:border-[#1C1D26] print:hidden">
+                          <td key={col.key} className="py-3 px-3.5 sm:sticky sm:right-0 z-10 bg-white dark:bg-[#121319] text-center border-b border-slate-200 dark:border-[#1C1D26] print:hidden">
                             <div className="h-6 bg-slate-200 dark:bg-slate-800 rounded w-14 mx-auto" />
                           </td>
                         );
@@ -1302,7 +1302,7 @@ export default function HCRegisterPage() {
                     {visibleColumns["actions"] && (
                       <td
                         className={cn(
-                          "py-3 px-3.5 text-center whitespace-nowrap sticky right-0 z-10 transition-colors bg-white dark:bg-[#121319] group-hover:bg-slate-50/90 dark:group-hover:bg-[#161720]",
+                          "py-3 px-3.5 text-center whitespace-nowrap sm:sticky sm:right-0 z-10 transition-colors bg-white dark:bg-[#121319] group-hover:bg-slate-50/90 dark:group-hover:bg-[#161720]",
                           "border-b border-slate-200/60 dark:border-[#1C1D26] print:hidden"
                         )}
                       >

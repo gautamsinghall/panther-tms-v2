@@ -792,7 +792,7 @@ export default function CreditDebitNotesPage() {
       )}
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         <KpiCard
           title="CUSTOMER CREDIT NOTES"
           value={formatCurrency(kpis.salesCn)}
@@ -820,7 +820,7 @@ export default function CreditDebitNotesPage() {
       </div>
 
       {/* 4 Category Action Triggers */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
         <button
           type="button"
           onClick={() => openCreateDrawer("SALES_CREDIT_NOTE")}
@@ -1258,7 +1258,7 @@ export default function CreditDebitNotesPage() {
                 <Calculator className="w-4 h-4" />
                 Before &amp; After Bill Settlement Preview
               </div>
-              <div className="grid grid-cols-3 gap-2 text-center text-xs mt-1">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-center text-xs mt-1">
                 <div className="p-2 rounded bg-card border border-border">
                   <div className="text-muted-foreground text-[10px]">CURRENT BALANCE</div>
                   <div className="font-semibold text-foreground text-sm mt-0.5">
@@ -1302,7 +1302,8 @@ export default function CreditDebitNotesPage() {
                 <Layers className="w-4 h-4 text-primary" />
                 Tally Prime Balanced Double-Entry Preview
               </span>
-              <div className="bg-background rounded-lg border border-border overflow-hidden text-xs">
+              <div className="bg-background rounded-lg border border-border overflow-x-auto text-xs">
+                <div className="min-w-[460px]">
                 <div className="grid grid-cols-12 bg-muted/50 p-2 font-medium text-muted-foreground border-b border-border">
                   <span className="col-span-8">PARTICULARS (LEDGER ACCOUNT)</span>
                   <span className="col-span-2 text-right">DEBIT (DR)</span>
@@ -1396,6 +1397,7 @@ export default function CreditDebitNotesPage() {
                     </div>
                   </>
                 )}
+                </div>
               </div>
             </div>
           )}
@@ -1477,7 +1479,7 @@ export default function CreditDebitNotesPage() {
               </div>
 
               {/* Document Meta Table */}
-              <div className="grid grid-cols-2 gap-4 text-xs border border-gray-300 p-3 rounded">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs border border-gray-300 p-3 rounded">
                 <div>
                   <div><span className="font-semibold">Voucher Number:</span> {printVoucher.voucher_number}</div>
                   <div><span className="font-semibold">Voucher Date:</span> {formatDate(printVoucher.voucher_date)}</div>
@@ -1491,29 +1493,31 @@ export default function CreditDebitNotesPage() {
               </div>
 
               {/* Item Details */}
-              <table className="w-full text-xs border-collapse border border-gray-300">
-                <thead>
-                  <tr className="bg-gray-100">
-                    <th className="border border-gray-300 p-2 text-left">Description of Adjustment</th>
-                    <th className="border border-gray-300 p-2 text-right">Taxable Value</th>
-                    <th className="border border-gray-300 p-2 text-right">GST Rate</th>
-                    <th className="border border-gray-300 p-2 text-right">Tax Amount</th>
-                    <th className="border border-gray-300 p-2 text-right">Total Net (₹)</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td className="border border-gray-300 p-2">
-                      <div className="font-semibold">{printVoucher.tax_breakup?.reason_description || `Reason Code ${printVoucher.reason_code || "04"}`}</div>
-                      <div className="text-gray-500 text-[10px]">{printVoucher.narration || "Operational freight adjustment"}</div>
-                    </td>
-                    <td className="border border-gray-300 p-2 text-right font-mono">{formatCurrency(parseFloat(String(printVoucher.total_amount || 0)))}</td>
-                    <td className="border border-gray-300 p-2 text-right font-mono">{printVoucher.tax_breakup?.tax_rate || 0}%</td>
-                    <td className="border border-gray-300 p-2 text-right font-mono">{formatCurrency(parseFloat(String(printVoucher.tax_amount || 0)))}</td>
-                    <td className="border border-gray-300 p-2 text-right font-mono font-bold">{formatCurrency(parseFloat(String(printVoucher.net_amount || 0)))}</td>
-                  </tr>
-                </tbody>
-              </table>
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[500px] text-xs border-collapse border border-gray-300">
+                  <thead>
+                    <tr className="bg-gray-100">
+                      <th className="border border-gray-300 p-2 text-left">Description of Adjustment</th>
+                      <th className="border border-gray-300 p-2 text-right">Taxable Value</th>
+                      <th className="border border-gray-300 p-2 text-right">GST Rate</th>
+                      <th className="border border-gray-300 p-2 text-right">Tax Amount</th>
+                      <th className="border border-gray-300 p-2 text-right">Total Net (₹)</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td className="border border-gray-300 p-2">
+                        <div className="font-semibold">{printVoucher.tax_breakup?.reason_description || `Reason Code ${printVoucher.reason_code || "04"}`}</div>
+                        <div className="text-gray-500 text-[10px]">{printVoucher.narration || "Operational freight adjustment"}</div>
+                      </td>
+                      <td className="border border-gray-300 p-2 text-right font-mono">{formatCurrency(parseFloat(String(printVoucher.total_amount || 0)))}</td>
+                      <td className="border border-gray-300 p-2 text-right font-mono">{printVoucher.tax_breakup?.tax_rate || 0}%</td>
+                      <td className="border border-gray-300 p-2 text-right font-mono">{formatCurrency(parseFloat(String(printVoucher.tax_amount || 0)))}</td>
+                      <td className="border border-gray-300 p-2 text-right font-mono font-bold">{formatCurrency(parseFloat(String(printVoucher.net_amount || 0)))}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
 
               {/* Amount in Words */}
               <div className="border border-gray-300 p-3 rounded text-xs bg-gray-50">
@@ -1549,7 +1553,7 @@ export default function CreditDebitNotesPage() {
       >
         {viewVoucher && (
           <div className="flex flex-col gap-4 text-xs">
-            <div className="grid grid-cols-2 gap-2 p-3 bg-muted/40 rounded-lg border border-border">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 p-3 bg-muted/40 rounded-lg border border-border">
               <div>
                 <span className="text-muted-foreground block text-[10px]">PARTY NAME</span>
                 <span className="font-semibold text-foreground">{viewVoucher.party_name}</span>
@@ -1561,7 +1565,7 @@ export default function CreditDebitNotesPage() {
             </div>
 
             <span className="font-semibold text-foreground">General Ledger Postings</span>
-            <div className="rounded-lg border border-border overflow-hidden">
+            <div className="rounded-lg border border-border overflow-x-auto">
               <table className="w-full text-xs">
                 <thead>
                   <tr className="bg-muted/50 border-b border-border">

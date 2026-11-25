@@ -201,7 +201,7 @@ export default function TripExpensePage() {
         ]}
       />
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         <KpiCard title="Total Operating Expenses" value={formatCurrency(totalAmount)} subtext={`${data.length} total vouchers`} />
         <KpiCard title="Fuel / Diesel Cost" value={formatCurrency(dieselAmount)} subtext="High-speed diesel fill-ups" />
         <KpiCard title="FASTag & Tolls" value={formatCurrency(tollAmount)} subtext="Highway toll plazas" />
@@ -209,7 +209,7 @@ export default function TripExpensePage() {
       </div>
 
       {/* Filter Tabs */}
-      <div className="flex items-center gap-2 border-b border-[#E4E7EC] pb-2">
+      <div className="flex flex-wrap items-center gap-2 border-b border-[#E4E7EC] pb-2">
         <button
           onClick={() => setActiveFilter("ALL")}
           className={`px-3 py-1.5 rounded-control text-xs font-semibold transition-colors ${
@@ -251,7 +251,7 @@ export default function TripExpensePage() {
       >
         <div className="bg-white rounded-2xl border border-slate-200/90 p-5 sm:p-6 lg:p-7 shadow-2xs">
           <form onSubmit={handleCreate} className="space-y-4">
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="text-xs font-semibold text-[#344054]">Vehicle Number *</label>
                 <Input
@@ -271,7 +271,7 @@ export default function TripExpensePage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="text-xs font-semibold text-[#344054]">Category *</label>
                 <SearchableSelect
@@ -305,7 +305,7 @@ export default function TripExpensePage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="text-xs font-semibold text-[#344054]">Payment Mode</label>
                 <SearchableSelect
@@ -333,7 +333,7 @@ export default function TripExpensePage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="text-xs font-semibold text-[#344054]">Receipt / Bill #</label>
                 <Input

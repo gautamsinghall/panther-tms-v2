@@ -1429,7 +1429,7 @@ function MarketVehiclesPageImpl({ embedded = false, onCreated, onCancel }: Marke
                 </p>
               </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
                   {/* Jack */}
                   <div className="flex items-center justify-between p-3.5 rounded-xl border border-slate-200 bg-slate-50/50">
                     <div>
