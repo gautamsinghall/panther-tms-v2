@@ -167,6 +167,62 @@ html {
   padding: 0;
   overflow-x: clip;
   overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(100, 116, 139, 0.45) #F8FAFC;
+}
+
+html::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+html::-webkit-scrollbar-button {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+html::-webkit-scrollbar-track {
+  background: #F8FAFC;
+}
+
+html::-webkit-scrollbar-thumb {
+  background: rgba(100, 116, 139, 0.42);
+  border-radius: 9999px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+  transition: background 0.15s ease;
+}
+
+html::-webkit-scrollbar-thumb:hover {
+  background: rgba(99, 102, 241, 0.72);
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+html.dark,
+html:has([data-theme-surface="midnight"]) {
+  scrollbar-color: rgba(129, 140, 248, 0.45) #060813;
+}
+
+html.dark::-webkit-scrollbar-track,
+html:has([data-theme-surface="midnight"])::-webkit-scrollbar-track {
+  background: #060813;
+}
+
+html.dark::-webkit-scrollbar-thumb,
+html:has([data-theme-surface="midnight"])::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.35);
+  border-radius: 9999px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+html.dark::-webkit-scrollbar-thumb:hover,
+html:has([data-theme-surface="midnight"])::-webkit-scrollbar-thumb:hover {
+  background: rgba(129, 140, 248, 0.75);
+  border: 2px solid transparent;
+  background-clip: content-box;
 }
 
 body {

@@ -142,7 +142,7 @@ export default function LoginPage() {
       {/* Inspired by reference: Deep midnight-navy, top cinematic truck video/hero, */}
       {/* glassmorphic card, gradient button, and bottom trust indicators.          */}
       {/* ========================================================================= */}
-      <div className="lg:hidden min-h-[100dvh] w-full flex flex-col justify-between bg-[#060813] text-white relative overflow-x-clip selection:bg-indigo-500/30 selection:text-white">
+      <div data-theme-surface="midnight" className="lg:hidden min-h-[100dvh] w-full flex flex-col justify-between bg-[#060813] text-white relative overflow-x-clip selection:bg-indigo-500/30 selection:text-white">
         {/* Top Truck Hero with Autoplaying Video & Scrim Gradients */}
         <div className="absolute top-0 inset-x-0 h-[36vh] min-h-[250px] max-h-[340px] overflow-hidden pointer-events-none select-none z-0">
           <video
@@ -401,7 +401,7 @@ export default function LoginPage() {
       {/* ========================================================================= */}
       {/* 2. DESKTOP & LAPTOP VIEWPORT (>= 1024px)                                  */}
       {/* ========================================================================= */}
-      <div className="hidden lg:flex min-h-[100dvh] w-full flex-col justify-between bg-transparent text-white font-sans selection:bg-indigo-500/30 selection:text-white relative overflow-x-clip">
+      <div data-theme-surface="midnight" className="hidden lg:flex min-h-[100dvh] w-full flex-col justify-between bg-transparent text-white font-sans selection:bg-indigo-500/30 selection:text-white relative overflow-x-clip">
         {/* Full-screen fixed video backdrop with poster frame and dark gradient scrim */}
         <VideoBackdrop />
 

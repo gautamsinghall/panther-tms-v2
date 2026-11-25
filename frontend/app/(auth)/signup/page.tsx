@@ -350,7 +350,7 @@ export default function SignupPage() {
   };
 
   return (
-    <div className="min-h-screen w-full flex flex-col justify-between bg-[#060813] text-white font-sans selection:bg-indigo-500/30 selection:text-white relative overflow-x-clip">
+    <div data-theme-surface="midnight" className="min-h-screen w-full flex flex-col justify-between bg-[#060813] text-white font-sans selection:bg-indigo-500/30 selection:text-white relative overflow-x-clip">
       {/* Full-screen fixed video backdrop with dark tint overlays */}
       <VideoBackdrop />
 
