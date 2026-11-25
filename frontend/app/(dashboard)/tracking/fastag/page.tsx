@@ -829,7 +829,7 @@ export default function FastagTrackingPage() {
         </div>
 
         {/* CENTER COLUMN: Full Interactive Map Engine (Cols 6) */}
-        <div className="lg:col-span-6 h-[380px] sm:h-[480px] lg:h-[580px] flex flex-col">
+        <div className="lg:col-span-6 h-[360px] sm:h-[440px] xl:h-[560px] flex flex-col">
           <FastagMap
             route={currentRoute}
             trip={currentTrip}
@@ -840,7 +840,7 @@ export default function FastagTrackingPage() {
         </div>
 
         {/* RIGHT COLUMN: Chronological Toll Timeline (Latest on Top!) (Cols 3) */}
-        <div className="lg:col-span-3 bg-white rounded-xl border border-slate-200 p-4 shadow-sm flex flex-col h-[580px]">
+        <div className="lg:col-span-3 bg-white rounded-xl border border-slate-200 p-4 shadow-sm flex flex-col h-[360px] sm:h-[440px] xl:h-[560px]">
           <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-2 shrink-0">
             <div className="flex items-center gap-1.5">
               <Clock className="w-4 h-4 text-indigo-600" />

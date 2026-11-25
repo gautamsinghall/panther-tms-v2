@@ -280,19 +280,19 @@ export default function GPSTrackingPage() {
     }
   };
 
-  // Prevent canvas scrollbar on GPS tracking desktop layout (>= 1024px) so full interface fits viewport
+  // Prevent canvas scrollbar on tall desktop viewports (>= 1024px wide and >= 800px tall) so full interface fits cleanly
   useEffect(() => {
     const mainCanvas = document.getElementById("workspace-main-canvas");
     if (!mainCanvas) return;
     const origOverflow = mainCanvas.style.overflow;
     const origPadding = mainCanvas.style.padding;
     const applyLayout = () => {
-      if (window.innerWidth >= 1024) {
+      if (window.innerWidth >= 1024 && window.innerHeight >= 800) {
         mainCanvas.style.overflow = "hidden";
         mainCanvas.style.padding = "0.75rem 1rem";
       } else {
         mainCanvas.style.overflow = origOverflow || "auto";
-        mainCanvas.style.padding = origPadding;
+        mainCanvas.style.padding = window.innerWidth >= 1024 ? "0.75rem 1rem" : origPadding;
       }
     };
     applyLayout();
@@ -305,7 +305,7 @@ export default function GPSTrackingPage() {
   }, []);
 
   return (
-    <div className="min-h-[calc(100dvh-120px)] lg:h-[calc(100dvh-130px)] flex flex-col gap-2 font-sans lg:overflow-hidden">
+    <div className="min-h-[calc(100dvh-120px)] [@media(min-width:1024px)_and_(min-height:800px)]:h-[calc(100dvh-130px)] flex flex-col gap-2 font-sans [@media(min-width:1024px)_and_(min-height:800px)]:overflow-hidden">
       {/* ---------------------------------------------------------------------- */}
       {/* 1. Header Section (Matching reference UI)                              */}
       {/* ---------------------------------------------------------------------- */}
@@ -553,13 +553,13 @@ export default function GPSTrackingPage() {
       {/* ---------------------------------------------------------------------- */}
       {/* 4. Main Two-Panel Tracking Workspace                                   */}
       {/* ---------------------------------------------------------------------- */}
-      <div className="flex-1 min-h-0 flex flex-col lg:flex-row gap-2.5 relative lg:overflow-hidden">
+      <div className="flex-1 min-h-0 flex flex-col lg:flex-row gap-2.5 relative [@media(min-width:1024px)_and_(min-height:800px)]:overflow-hidden">
         {/* =================================================================== */}
         {/* LEFT PANEL: Vehicle List                                            */}
         {/* =================================================================== */}
         <aside
           className={cn(
-            "w-full lg:w-[290px] xl:w-[350px] bg-white dark:bg-[#171922] border border-slate-200 dark:border-[#2B303C] rounded-xl flex flex-col shrink-0 h-[260px] sm:h-[300px] lg:h-full min-h-0 overflow-hidden transition-all duration-300 shadow-xs",
+            "w-full lg:w-[290px] xl:w-[350px] bg-white dark:bg-[#171922] border border-slate-200 dark:border-[#2B303C] rounded-xl flex flex-col shrink-0 h-[260px] sm:h-[300px] lg:h-[460px] [@media(min-width:1024px)_and_(min-height:800px)]:h-full min-h-0 overflow-hidden transition-all duration-300 shadow-xs",
             isLeftPanelCollapsed && "lg:w-16"
           )}
         >
@@ -707,7 +707,7 @@ export default function GPSTrackingPage() {
         {/* =================================================================== */}
         {/* RIGHT PANEL: Dominant GPS Map Workspace                             */}
         {/* =================================================================== */}
-        <section className="flex-1 bg-white dark:bg-[#171922] border border-slate-200 dark:border-[#2B303C] rounded-xl overflow-hidden relative flex flex-col shadow-xs h-[380px] sm:h-[440px] lg:h-full min-h-[340px] lg:min-h-0">
+        <section className="flex-1 bg-white dark:bg-[#171922] border border-slate-200 dark:border-[#2B303C] rounded-xl overflow-hidden relative flex flex-col shadow-xs h-[380px] sm:h-[440px] lg:h-[460px] [@media(min-width:1024px)_and_(min-height:800px)]:h-full min-h-[320px] [@media(min-width:1024px)_and_(min-height:800px)]:min-h-0">
           {/* Real Map Component */}
           <GPSTrackingMap
             vehicle={selectedVehicleData}

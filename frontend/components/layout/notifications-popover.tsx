@@ -186,7 +186,7 @@ export function NotificationsPopover() {
           </div>
 
           {/* Notifications List */}
-          <div className="max-h-[360px] overflow-y-auto divide-y divide-slate-100 dark:divide-[#26262D]">
+          <div className="max-h-[min(360px,calc(100dvh-8.5rem))] overflow-y-auto divide-y divide-slate-100 dark:divide-[#26262D]">
             {isLoading && notifications.length === 0 ? (
               <div className="py-10 flex flex-col items-center justify-center text-center">
                 <Loader2 className="w-5 h-5 text-indigo-600 dark:text-[#7C6FF7] animate-spin mb-2" />

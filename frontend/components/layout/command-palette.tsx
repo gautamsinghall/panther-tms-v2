@@ -465,12 +465,12 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
       />
 
       {/* Spotlight Dialog */}
-      <div className="flex min-h-full items-start justify-center p-4 pt-16 sm:pt-24 text-center">
+      <div className="flex min-h-full items-start justify-center p-4 pt-8 sm:pt-14 [@media(min-height:760px)]:pt-24 text-center">
         <div
           role="dialog"
           aria-modal="true"
           aria-labelledby="command-palette-title"
-          className="relative w-full max-w-2xl transform overflow-hidden rounded-2xl bg-white dark:bg-[#12131A] text-left shadow-2xl border border-slate-200 dark:border-[#28293D] transition-all animate-in zoom-in-95 duration-150 flex flex-col max-h-[75vh] z-10"
+          className="relative w-full max-w-2xl transform overflow-hidden rounded-2xl bg-white dark:bg-[#12131A] text-left shadow-2xl border border-slate-200 dark:border-[#28293D] transition-all animate-in zoom-in-95 duration-150 flex flex-col max-h-[min(560px,84dvh)] z-10"
           onKeyDown={handleKeyDown}
         >
           {/* Top Search Input Bar */}

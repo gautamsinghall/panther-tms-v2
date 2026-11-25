@@ -843,7 +843,7 @@ export function GPSTrackingMap({
   };
 
   return (
-    <div className={`relative w-full h-full min-h-[450px] bg-slate-100 dark:bg-[#121319] overflow-hidden ${className}`}>
+    <div className={`relative w-full h-full min-h-[300px] bg-slate-100 dark:bg-[#121319] overflow-hidden ${className}`}>
       {/* Map DOM Container */}
       <div
         ref={mapContainerRef}

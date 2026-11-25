@@ -142,7 +142,7 @@ export default function LoginPage() {
       {/* Inspired by reference: Deep midnight-navy, top cinematic truck video/hero, */}
       {/* glassmorphic card, gradient button, and bottom trust indicators.          */}
       {/* ========================================================================= */}
-      <div className="lg:hidden h-[100dvh] min-h-[100dvh] w-full flex flex-col justify-between bg-[#060813] text-white relative overflow-x-hidden overflow-y-auto selection:bg-indigo-500/30 selection:text-white">
+      <div className="lg:hidden min-h-[100dvh] w-full flex flex-col justify-between bg-[#060813] text-white relative overflow-x-hidden selection:bg-indigo-500/30 selection:text-white">
         {/* Top Truck Hero with Autoplaying Video & Scrim Gradients */}
         <div className="absolute top-0 inset-x-0 h-[36vh] min-h-[250px] max-h-[340px] overflow-hidden pointer-events-none select-none z-0">
           <video
@@ -401,7 +401,7 @@ export default function LoginPage() {
       {/* ========================================================================= */}
       {/* 2. DESKTOP & LAPTOP VIEWPORT (>= 1024px)                                  */}
       {/* ========================================================================= */}
-      <div className="hidden lg:flex min-h-[100dvh] w-full flex-col justify-between bg-transparent text-white font-sans selection:bg-indigo-500/30 selection:text-white relative overflow-x-hidden overflow-y-auto">
+      <div className="hidden lg:flex min-h-[100dvh] w-full flex-col justify-between bg-transparent text-white font-sans selection:bg-indigo-500/30 selection:text-white relative overflow-x-hidden">
         {/* Full-screen fixed video backdrop with poster frame and dark gradient scrim */}
         <VideoBackdrop />
 
@@ -409,7 +409,7 @@ export default function LoginPage() {
         <AuthNavbar mode="login" />
 
         {/* Main Split Layout: (~58% Left / ~42% Right) */}
-        <main className="flex-1 w-full max-w-[1580px] mx-auto px-6 lg:px-10 xl:px-14 py-3 xl:py-4 relative flex items-center justify-between min-h-0 gap-6 lg:gap-8 xl:gap-12">
+        <main className="flex-1 w-full max-w-[1580px] mx-auto px-6 lg:px-10 xl:px-14 py-2 xl:py-3 [@media(min-height:820px)]:py-5 relative flex items-center justify-between min-h-0 gap-6 lg:gap-8 xl:gap-12">
           {/* Left Product Area: Brand Hero, Feature Highlights & Security Trust */}
           <div className="w-full lg:w-[55%] xl:w-[58%] flex flex-col justify-center py-2 relative z-10 min-w-0">
             <div className="space-y-4 xl:space-y-5 max-w-[580px]">
@@ -507,7 +507,7 @@ export default function LoginPage() {
                 onMouseMove={handleMouseMove}
                 onMouseEnter={() => setIsHovered(true)}
                 onMouseLeave={() => setIsHovered(false)}
-                className="liquid-glass-panel rounded-[28px] xl:rounded-[32px] p-5 lg:p-6 xl:p-8 relative"
+                className="liquid-glass-panel rounded-[28px] xl:rounded-[32px] p-5 lg:p-6 [@media(min-height:820px)]:p-8 relative"
               >
                 {/* Dynamic neutral reflection / subtle glint */}
                 <div
@@ -519,7 +519,7 @@ export default function LoginPage() {
                   aria-hidden="true"
                 />
 
-                <div className="relative z-10 space-y-5 max-[800px]:space-y-3">
+                <div className="relative z-10 space-y-3.5 [@media(min-height:820px)]:space-y-5">
                   {/* Header */}
                   <div className="space-y-1.5">
                     <div className="flex items-center gap-2">
