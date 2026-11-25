@@ -35,7 +35,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className="min-h-full overflow-x-hidden" suppressHydrationWarning>
+    <html lang="en" className="h-full overflow-x-clip" suppressHydrationWarning>
       <head>
         <link rel="icon" href="/panther-logo-transparent.png" type="image/png" />
         <link rel="shortcut icon" href="/panther-logo-transparent.png" type="image/png" />
@@ -65,7 +65,7 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className="min-h-full overflow-x-hidden bg-[var(--color-bg)] text-slate-900 antialiased font-sans select-none sm:select-auto" suppressHydrationWarning>
+      <body className="min-h-full bg-[var(--color-bg)] text-slate-900 antialiased font-sans select-none sm:select-auto" suppressHydrationWarning>
         <ThemeProvider>
           <ToastProvider />
           {children}

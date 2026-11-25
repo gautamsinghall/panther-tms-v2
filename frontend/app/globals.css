@@ -160,15 +160,20 @@
   --info-bg: rgba(197, 165, 255, 0.12);
 }
 
-html,
+html {
+  height: 100%;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  overflow-x: clip;
+  overflow-y: auto;
+}
+
 body {
   min-height: 100%;
   width: 100%;
   margin: 0;
   padding: 0;
-  overflow-x: hidden;
-  overflow-y: auto;
-  overscroll-behavior: none;
 }
 
 body {
@@ -298,15 +303,15 @@ select:autofill {
   border-radius: inherit !important;
 }
 
-/* Hide all scrollbars globally across all browsers while maintaining smooth scrolling (except for .show-scrollbar) */
-*:not(.show-scrollbar):not(.show-scrollbar *) {
+/* Hide scrollbars on inner app containers while preserving document scrollbars (e.g. /login, /signup) */
+:where(*:not(html):not(body):not(.show-scrollbar):not(.show-scrollbar *)) {
   scrollbar-width: none;
   /* Firefox */
   -ms-overflow-style: none;
   /* IE and Edge */
 }
 
-*:not(.show-scrollbar):not(.show-scrollbar *)::-webkit-scrollbar {
+:where(*:not(html):not(body):not(.show-scrollbar):not(.show-scrollbar *))::-webkit-scrollbar {
   display: none;
   /* Chrome, Safari, Opera */
   width: 0;
@@ -2136,10 +2141,13 @@ html.dark .printable-paper-sheet table tbody tr:hover {
    Strictly preserving desktop/laptop design >= 1024px
    ========================================================================== */
 
-/* Prevent horizontal page overflow across viewports */
-html,
+/* Prevent horizontal page overflow across viewports without creating nested vertical scroll containers */
+html {
+  overflow-x: clip;
+}
+
 body {
-  overflow-x: hidden;
+  overflow-x: clip;
   -webkit-tap-highlight-color: transparent;
 }
 
