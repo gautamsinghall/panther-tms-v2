@@ -12,7 +12,7 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { ColumnDef, RowAction } from "@/types/table";
 import { apiClient } from "@/lib/api-client";
 import { getActiveOffice } from "@/lib/auth";
-import { cn } from "@/lib/utils";
+import { cn, formatCurrency, formatDate } from "@/lib/utils";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { useWorkspaceTabs } from "@/lib/workspace-tabs-context";
 
@@ -31,6 +31,7 @@ interface VoucherRecord {
   voucher_type: string;
   voucher_date: string;
   party_name?: string;
+  party_gstin?: string;
   billing_client_id?: number;
   reference_number?: string;
   total_amount: string | number;
@@ -271,58 +272,105 @@ export default function ProformaInvoicePage() {
   const columns: ColumnDef<VoucherRecord>[] = [
     {
       key: "voucher_number",
-      header: "Proforma No.",
+      header: "Proforma No. & Date",
       sortable: true,
+      minWidth: "175px",
       cell: (row) => (
         <div>
-          <span className="font-mono font-semibold text-slate-900 dark:text-white flex items-center gap-2">
-            {row.voucher_number}
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span className="font-mono font-bold text-slate-900 dark:text-white text-xs sm:text-sm tabular-nums">
+              {row.voucher_number}
+            </span>
+            {row.reference_number && (
+              <span
+                className="text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200/90 dark:border-slate-700 tabular-nums"
+                title={`Ref / PO: ${row.reference_number}`}
+              >
+                Ref: {row.reference_number}
+              </span>
+            )}
+          </div>
+          <span className="text-[11px] font-mono text-slate-500 dark:text-slate-400 block mt-0.5">
+            {formatDate(row.voucher_date)}
           </span>
-          <span className="block text-xs text-slate-500 dark:text-slate-400 mt-0.5">{row.voucher_date}</span>
         </div>
       ),
     },
     {
       key: "party_name",
-      header: "Billing Client",
+      header: "Billing Customer",
       sortable: true,
+      minWidth: "180px",
       cell: (row) => (
-        <div>
-          <span className="font-medium text-slate-900 dark:text-white">
+        <div className="max-w-[220px]">
+          <span
+            className="font-semibold text-slate-900 dark:text-slate-100 block text-xs truncate"
+            title={row.party_name || "—"}
+          >
             {row.party_name || "—"}
           </span>
-          {row.reference_number && (
-            <span className="block font-mono text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-              Ref: {row.reference_number}
+          {row.party_gstin && (
+            <span className="text-[10px] font-mono text-slate-500 dark:text-slate-400 uppercase font-medium tracking-wide block truncate mt-0.5">
+              GST: {row.party_gstin}
             </span>
           )}
         </div>
       ),
     },
     {
-      key: "net_amount",
-      header: "Estimated Total",
-      align: "right",
+      key: "total_amount",
+      header: "Subtotal",
       sortable: true,
+      isNumeric: true,
+      align: "right",
+      minWidth: "115px",
       cell: (row) => (
-        <div className="text-right">
-          <span className="font-mono font-semibold text-slate-900 dark:text-white text-sm tabular-nums">
-            ₹{Number(row.net_amount).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-          </span>
-          <span className="block text-xs text-slate-500 dark:text-slate-400 mt-0.5 tabular-nums">
-            Tax: ₹{Number(row.tax_amount).toFixed(2)}
-          </span>
-        </div>
+        <span className="font-mono font-semibold text-slate-900 dark:text-white block text-xs tabular-nums text-right">
+          {formatCurrency(row.total_amount)}
+        </span>
+      ),
+    },
+    {
+      key: "tax_amount",
+      header: "Total Tax",
+      sortable: true,
+      isNumeric: true,
+      align: "right",
+      minWidth: "105px",
+      cell: (row) => (
+        <span className="font-mono text-xs tabular-nums text-slate-700 dark:text-slate-300 block text-right">
+          {Number(row.tax_amount || 0) > 0 ? formatCurrency(row.tax_amount) : "—"}
+        </span>
+      ),
+    },
+    {
+      key: "net_amount",
+      header: "Grand Total",
+      sortable: true,
+      isNumeric: true,
+      align: "right",
+      minWidth: "120px",
+      cell: (row) => (
+        <span className="font-mono font-bold text-slate-900 dark:text-white block text-xs sm:text-sm tabular-nums text-right">
+          {formatCurrency(row.net_amount)}
+        </span>
       ),
     },
     {
       key: "is_void",
       header: "Status",
+      align: "center",
+      minWidth: "90px",
       cell: (row) => (
-        <StatusBadge
-          status={row.is_void ? "VOIDED" : "ACTIVE"}
-          variant={row.is_void ? "danger" : "warning"}
-        />
+        row.is_void ? (
+          <Badge variant="danger" className="text-[10px] font-semibold py-0.5">
+            VOID
+          </Badge>
+        ) : (
+          <Badge variant="success" className="text-[10px] font-semibold py-0.5">
+            ACTIVE
+          </Badge>
+        )
       ),
     },
   ];
@@ -382,13 +430,14 @@ export default function ProformaInvoicePage() {
       )}
 
       <DataTable
+        tableId="proforma-invoices-v2"
         columns={columns}
         data={data}
         isLoading={isLoading}
         isError={Boolean(errorMessage)}
         errorMessage={errorMessage || undefined}
         onRetry={() => loadData(true)}
-        searchPlaceholder="Search proforma by number or billing client..."
+        searchPlaceholder="Search proforma by number or customer..."
         searchColumn="party_name"
         actions={actions}
         emptyMessage="No proforma invoices created"
