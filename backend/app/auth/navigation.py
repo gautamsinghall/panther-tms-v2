@@ -233,7 +233,6 @@ ALL_NAVIGATION_MODULES = [
         "items": [
             {"feature": "account", "title": "User Account", "href": "/profile/account"},
             {"feature": "change_password", "title": "Change Password", "href": "/profile/change-password"},
-            {"feature": "email", "title": "Email Settings", "href": "/settings/email-settings"},
             {"feature": "monthly_pnl", "title": "Monthly P&L", "href": "/profile/monthly-pnl"},
         ],
     },
