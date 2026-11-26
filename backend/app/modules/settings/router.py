@@ -407,7 +407,7 @@ async def initialize_standard_series(
 
 @router.post(
     "/series/import-template",
-    summary="Import default template for all 16 automatic vouchers for an issuing office"
+    summary="Import default template for all 17 automatic vouchers for an issuing office"
 )
 async def import_default_series_template(
     office_id: Optional[int] = Query(None),

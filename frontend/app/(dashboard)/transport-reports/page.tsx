@@ -43,7 +43,7 @@ export default function TransportReportsHubPage() {
     },
     {
       title: "Hire Challan Register",
-      desc: "Master record of all truck hiring notes, vehicle contracts, agreed hire, and supplier payout balances.",
+      desc: "Master record of all loading slips, hire challan contracts, agreed hire, and supplier payout balances.",
       href: "/transport-reports/hc-register",
       icon: <Truck className="w-5 h-5 text-[#B54708]" />,
       badge: "Fleet & Hire",

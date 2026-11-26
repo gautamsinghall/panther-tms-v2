@@ -199,6 +199,8 @@ export default function RolesPage() {
           mapping[`tracking:sim_tracking:${p.permission}`] = p.is_allowed;
         } else if (normModule === "tracking" && normFeature === "fastag") {
           mapping[`tracking:fastag_tracking:${p.permission}`] = p.is_allowed;
+        } else if (normModule === "transport" && normFeature === "truck_hiring_note") {
+          mapping[`transport:loading_slip:${p.permission}`] = p.is_allowed;
         } else {
           mapping[`${normModule}:${normFeature}:${p.permission}`] = p.is_allowed;
         }

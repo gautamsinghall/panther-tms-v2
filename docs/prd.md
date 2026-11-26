@@ -70,7 +70,7 @@ Designation, Group Company, Unit, Method of Packing.
 ### 7.3 Transport (core operations)
 Vehicle Owner, Market Vehicle, Company Vehicle, Manage Driver, Job Creation
 (precedes LR/GR booking), GR/LR Booking, Hire Challan, FASTag Tracking, GPS Tracking,
-SIM Tracking, Update E-Way, Arrival Report, Truck Hiring Note, POD Records.
+SIM Tracking, Update E-Way, Arrival Report, Loading Slip, POD Records.
 
 ### 7.4 Transport Reports
 Invoice Register, LR Client-Wise, LR Booking Register, Unused GR/LR Series,

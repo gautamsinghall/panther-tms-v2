@@ -78,7 +78,7 @@ ALL_NAVIGATION_MODULES = [
             {"feature": "vehicle_owners", "title": "Vehicle Owner", "href": "/transport/vehicle-owners"},
             {"feature": "arrival_reports", "title": "Arrival Report", "href": "/transport/arrival-reports"},
             {"feature": "pod_records", "title": "POD Records", "href": "/transport/pod-records"},
-            {"feature": "truck_hiring_note", "title": "Truck Hiring Note", "href": "/transport/truck-hiring-note"},
+            {"feature": "loading_slip", "title": "Loading Slip", "href": "/transport/loading-slip"},
             {"feature": "eway_bill", "title": "Update E-Way", "href": "/transport/eway-bill"},
         ],
     },
@@ -333,6 +333,8 @@ def build_user_navigation(current_user: Any, tenant: Any) -> list:
                 if (mod_norm in ("transport", "home") and feat_norm in ("lr_booking", "jobs", "hire_challan", "consignment_360", "overview")) or mod_norm == "home":
                     allowed_features.add(("home", "consignment_360"))
                     allowed_features.add(("transport", "consignment_360"))
+                if mod_norm == "transport" and feat_norm in ("truck_hiring_note", "loading_slip"):
+                    allowed_features.add(("transport", "loading_slip"))
                 if mod_norm in ("tracking", "transport") and feat_norm in ("tracking", "sim_tracking"):
                     allowed_features.add(("tracking", "tracking"))
                     allowed_features.add(("tracking", "sim_tracking"))

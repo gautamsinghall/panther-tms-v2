@@ -79,6 +79,15 @@ const COMMAND_ITEMS: CommandItem[] = [
     keywords: ["hc", "hire", "challan", "lorry", "market"],
   },
   {
+    id: "loading-slip",
+    title: "Loading Slip",
+    description: "Issue loading slips, assign company or market trucks, and calculate freight totals",
+    category: "Transport",
+    href: "/transport/loading-slip",
+    icon: <FileText className="w-4 h-4 text-[#4F46E5]" />,
+    keywords: ["loading slip", "slip", "ls", "truck", "freight", "coordinator"],
+  },
+  {
     id: "eway-bill",
     title: "E-Way Bills Management",
     description: "Update Part-B vehicle numbers and monitor validity",

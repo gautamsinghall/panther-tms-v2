@@ -69,7 +69,7 @@ interface SeriesCategoryItem {
   is_active: boolean;
 }
 
-// 16 Standard Voucher Types Definition (including JOB Trip Order)
+// 17 Standard Voucher Types Definition (including JOB Trip Order & Loading Slip)
 const STANDARD_VOUCHERS = [
   // 1. Transport Operations
   {
@@ -101,6 +101,16 @@ const STANDARD_VOUCHERS = [
     defaultPrefix: "HC-",
     defaultSuffix: "",
     description: "Lorry hire contract slip issued to market truck owner / driver.",
+  },
+  {
+    code: "LOADING_SLIP",
+    name: "Loading Slip (LS)",
+    category: "TRANSPORT",
+    categoryLabel: "Transport Documents",
+    isMandatoryManual: false,
+    defaultPrefix: "LS-",
+    defaultSuffix: "",
+    description: "Vehicle loading slip and freight dispatch agreement issued at loading point.",
   },
   // 2. Billing & Invoicing
   {
@@ -553,13 +563,13 @@ export default function SeriesMasterPage() {
       } else if (filterCategory === "AUTOMATIC") {
         if (item.series_mode !== "AUTOMATIC") return false;
       } else if (filterCategory === "TRANSPORT") {
-        if (!["JOB", "LR", "HIRE_CHALLAN", "HC"].includes(doc)) return false;
+        if (!["JOB", "LR", "HIRE_CHALLAN", "HC", "LOADING_SLIP", "LS"].includes(doc)) return false;
       } else if (filterCategory === "BILLING") {
         if (!["TRANSPORT_INVOICE", "GENERAL_INVOICE", "PROFORMA_INVOICE"].includes(doc))
           return false;
       } else if (filterCategory === "ACCOUNTS") {
         if (
-          ["JOB", "LR", "HIRE_CHALLAN", "HC", "TRANSPORT_INVOICE", "GENERAL_INVOICE", "PROFORMA_INVOICE"].includes(
+          ["JOB", "LR", "HIRE_CHALLAN", "HC", "LOADING_SLIP", "LS", "TRANSPORT_INVOICE", "GENERAL_INVOICE", "PROFORMA_INVOICE"].includes(
             doc
           )
         )
@@ -940,7 +950,7 @@ export default function SeriesMasterPage() {
                   .length
               })`,
             },
-            { id: "TRANSPORT", label: "Transport (JOB, LR, HC)" },
+            { id: "TRANSPORT", label: "Transport (JOB, LR, HC, LS)" },
             { id: "BILLING", label: "Invoicing & Billing" },
             { id: "ACCOUNTS", label: "Accounting Vouchers" },
           ].map((pill) => (
@@ -998,7 +1008,7 @@ export default function SeriesMasterPage() {
             onClick={handleInitializeDefaults}
             disabled={initializingDefaults}
             className="gap-1.5 text-xs shrink-0"
-            title="Import all 16 standard automatic voucher templates for this issuing office"
+            title="Import all 17 standard automatic voucher templates for this issuing office"
           >
             {initializingDefaults ? (
               <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -1025,7 +1035,7 @@ export default function SeriesMasterPage() {
               </h4>
               <p className="text-xs text-amber-800 mt-0.5">
                 Vouchers, LRs, and Challans cannot be booked or saved without an active series.
-                Click <strong>&quot;Import Default Templates&quot;</strong> to set up all 16 standard
+                Click <strong>&quot;Import Default Templates&quot;</strong> to set up all 17 standard
                 automatic series with branch code prefixes.
               </p>
             </div>

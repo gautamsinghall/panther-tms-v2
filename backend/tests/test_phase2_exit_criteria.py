@@ -148,21 +148,32 @@ async def test_phase2_end_to_end_exit_criteria():
         # hire_rate 32000, tds 1% = 320, net 31680, advance 10000 -> balance 21680
         assert float(hc_data["balance_amount"]) == 21680.0
 
-        # 7. Truck Hiring Note
-        thn_res = await client.post(
-            "/api/v1/transport/truck-hiring-notes",
+        # 7. Loading Slip
+        ls_res = await client.post(
+            "/api/v1/transport/loading-slips",
             json={
                 "hire_challan_id": hc_id,
+                "lr_id": lr_id,
                 "vehicle_number": vehicle_number,
-                "owner_name": f"Royal Transport {uid}",
-                "agreed_rate": 32000.0,
-                "advance_cash": 5000.0,
-                "advance_diesel_slip": 5000.0,
-                "terms_and_conditions": "Detention charges Rs 1500/day after 24 hrs loading/unloading.",
+                "consigner_id": consigner_id,
+                "phone": "9876543210",
+                "lorry_coordinator": f"Coordinator {uid}",
+                "lorry_coordinator_phone": "9811122233",
+                "origin_location_id": loc_del_id,
+                "destination_location_id": loc_mum_id,
+                "total_freight": 32000.0,
+                "advance_amount": 10000.0,
+                "detention_charge": 1500.0,
+                "commission_amount": 1000.0,
+                "mamul_hammali": 500.0,
+                "remark": "Detention charges Rs 1500/day after 24 hrs loading/unloading.",
             },
             headers=auth_headers,
         )
-        assert thn_res.status_code == 201
+        assert ls_res.status_code == 201
+        ls_data = ls_res.json()
+        assert ls_data["slip_number"]
+        assert float(ls_data["total_amount"]) == 22000.0
 
         # 8. Manual E-Way Bill Entry
         eway_res = await client.post(

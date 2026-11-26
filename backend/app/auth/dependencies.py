@@ -305,6 +305,11 @@ def _matches_permission(
        (m_p in ("employee_management", "misc") and f_p in ("employee_master", "employee_imprest")):
         return True
 
+    # 10. Loading Slip: loading_slip <-> truck_hiring_note legacy permission compatibility
+    if m_req == "transport" and m_p == "transport" and \
+       f_req in ("loading_slip", "truck_hiring_note") and f_p in ("loading_slip", "truck_hiring_note"):
+        return True
+
     return False
 
 

@@ -143,6 +143,11 @@ async def lifespan(app: FastAPI):
                             # Another worker process is actively running migrations on this tenant database
                             continue
 
+                        has_legacy_thn = (await t_conn.execute(text("SELECT to_regclass('public.transport_truck_hiring_notes');"))).scalar()
+                        has_loading_slips = (await t_conn.execute(text("SELECT to_regclass('public.transport_loading_slips');"))).scalar()
+                        if has_legacy_thn and not has_loading_slips:
+                            await t_conn.execute(text("ALTER TABLE transport_truck_hiring_notes RENAME TO transport_loading_slips;"))
+
                         try:
                             await t_conn.run_sync(TenantBase.metadata.create_all)
                         except Exception as ca_err:
@@ -443,6 +448,84 @@ async def lifespan(app: FastAPI):
                             "unloading_expenses JSONB DEFAULT '[]'::jsonb",
                         ]:
                             await t_conn.execute(text(f"ALTER TABLE transport_hire_challans ADD COLUMN IF NOT EXISTS {hc_col};"))
+
+                        # Loading Slip (formerly Truck Hiring Note) Schema Evolution & Automatic Series
+                        for old_col, new_col in [
+                            ("note_number", "slip_number"),
+                            ("note_date", "slip_date"),
+                            ("agreed_rate", "total_freight"),
+                            ("advance_cash", "advance_amount"),
+                            ("balance_payable", "total_amount"),
+                            ("terms_and_conditions", "remark"),
+                        ]:
+                            await t_conn.execute(text(f"""
+                                DO $$
+                                BEGIN
+                                    IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='transport_loading_slips' AND column_name='{old_col}')
+                                       AND NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='transport_loading_slips' AND column_name='{new_col}') THEN
+                                        ALTER TABLE transport_loading_slips RENAME COLUMN {old_col} TO {new_col};
+                                    END IF;
+                                END $$;
+                            """))
+                        for ls_col in [
+                            "slip_series_id INTEGER REFERENCES settings_series_masters(id)",
+                            "issuing_office_id INTEGER REFERENCES profile_branches(id)",
+                            "consigner_id INTEGER REFERENCES general_consigners(id)",
+                            "consigner_name VARCHAR(255)",
+                            "phone VARCHAR(50) DEFAULT '' NOT NULL",
+                            "email VARCHAR(255)",
+                            "pan VARCHAR(20)",
+                            "lorry_coordinator VARCHAR(150)",
+                            "lorry_coordinator_phone VARCHAR(50)",
+                            "origin_location_id INTEGER REFERENCES general_locations(id)",
+                            "destination_location_id INTEGER REFERENCES general_locations(id)",
+                            "loading_point VARCHAR(150)",
+                            "unloading_point VARCHAR(150)",
+                            "lr_id INTEGER REFERENCES transport_lrs(id)",
+                            "loading_date DATE",
+                            "remark TEXT",
+                            "total_freight NUMERIC(12, 2) DEFAULT 0.00 NOT NULL",
+                            "advance_amount NUMERIC(12, 2) DEFAULT 0.00 NOT NULL",
+                            "detention_charge NUMERIC(12, 2) DEFAULT 0.00 NOT NULL",
+                            "commission_amount NUMERIC(12, 2) DEFAULT 0.00 NOT NULL",
+                            "mamul_hammali NUMERIC(12, 2) DEFAULT 0.00 NOT NULL",
+                            "total_amount NUMERIC(12, 2) DEFAULT 0.00 NOT NULL",
+                            "hire_challan_id INTEGER REFERENCES transport_hire_challans(id)",
+                            "created_by_user_id INTEGER",
+                        ]:
+                            await t_conn.execute(text(f"ALTER TABLE transport_loading_slips ADD COLUMN IF NOT EXISTS {ls_col};"))
+                        await t_conn.execute(text("ALTER TABLE transport_loading_slips ALTER COLUMN vehicle_number TYPE VARCHAR(30);"))
+                        await t_conn.execute(text("CREATE INDEX IF NOT EXISTS ix_transport_loading_slips_slip_number ON transport_loading_slips (slip_number);"))
+                        await t_conn.execute(text("CREATE INDEX IF NOT EXISTS ix_transport_loading_slips_issuing_office_id ON transport_loading_slips (issuing_office_id);"))
+                        await t_conn.execute(text("UPDATE role_permissions SET feature = 'loading_slip' WHERE module = 'transport' AND feature = 'truck_hiring_note';"))
+
+                        has_any_ls_series = (await t_conn.execute(text("SELECT 1 FROM settings_series_masters WHERE document_type = 'LOADING_SLIP' LIMIT 1;"))).scalar()
+                        if not has_any_ls_series:
+                            cat_id_res = (await t_conn.execute(text("SELECT id FROM settings_series_categories WHERE code = 'TRANSPORT' LIMIT 1;"))).scalar()
+                            if not cat_id_res:
+                                await t_conn.execute(text("INSERT INTO settings_series_categories (name, code, description, is_active, created_at, updated_at) VALUES ('Transport Documents', 'TRANSPORT', 'LR, Hire Challan, Loading Slip, POD, Dispatch', TRUE, NOW(), NOW()) ON CONFLICT (code) DO NOTHING;"))
+                                cat_id_res = (await t_conn.execute(text("SELECT id FROM settings_series_categories WHERE code = 'TRANSPORT' LIMIT 1;"))).scalar()
+                            branches_rows = (await t_conn.execute(text("SELECT id, code FROM profile_branches WHERE is_active = TRUE ORDER BY is_head_office DESC, id ASC;"))).fetchall()
+                            if branches_rows:
+                                for br_id, br_code in branches_rows:
+                                    b_code = (br_code or f"OFF{br_id}").upper().strip()
+                                    await t_conn.execute(
+                                        text("""
+                                            INSERT INTO settings_series_masters
+                                            (category_id, issuing_office_id, document_type, series_name, prefix, suffix, starting_number, current_number, financial_year, series_mode, is_default, is_active, created_at, updated_at)
+                                            VALUES (:cat_id, :off_id, 'LOADING_SLIP', :sname, :pref, '', 1, 0, '2026-2027', 'AUTOMATIC', TRUE, TRUE, NOW(), NOW());
+                                        """),
+                                        {"cat_id": cat_id_res, "off_id": br_id, "sname": f"{b_code} LS", "pref": f"{b_code}-LS-"},
+                                    )
+                            else:
+                                await t_conn.execute(
+                                    text("""
+                                        INSERT INTO settings_series_masters
+                                        (category_id, issuing_office_id, document_type, series_name, prefix, suffix, starting_number, current_number, financial_year, series_mode, is_default, is_active, created_at, updated_at)
+                                        VALUES (:cat_id, NULL, 'LOADING_SLIP', 'Standard Loading Slip Series', 'LS-', '', 1, 0, '2026-2027', 'AUTOMATIC', TRUE, TRUE, NOW(), NOW());
+                                    """),
+                                    {"cat_id": cat_id_res},
+                                )
 
                         # Market Vehicle Extended 4-Step Fields Evolution
                         for mv_col in [

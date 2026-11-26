@@ -48,7 +48,7 @@ TMS_CORE_KNOWLEDGE = """
 - Vehicle Owners: /transport/vehicle-owners (Transporters / fleet brokers supplying market trucks).
 - Arrival Reports: /transport/arrival-reports (Inbound vehicle arrival logs and package count verification).
 - POD Records: /transport/pod-records (Proof of delivery verification, signed copy uploads, unlocks billing).
-- Truck Hiring Note: /transport/truck-hiring-note (Contracted loading terms and penalty clauses).
+- Loading Slip: /transport/loading-slip (Vehicle loading slip, consignor & lorry coordinator details, and freight dispatch terms).
 - Update E-Way Bill: /transport/eway-bill (NIC Part-B vehicle updates and validity extension).
 
 5. GENERAL MASTERS:

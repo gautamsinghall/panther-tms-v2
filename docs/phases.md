@@ -28,7 +28,7 @@ its `rules.md` §11 knowledge-base update step is complete for anything it built
 ## Phase 2 — Transport Module (core operations)
 - Vehicle Owner, Market Vehicle, Company Vehicle, Manage Driver.
 - Job Creation → GR/LR Booking → Hire Challan chain with real status transitions.
-- Arrival Report, Truck Hiring Note, POD Records.
+- Arrival Report, Loading Slip, POD Records.
 - FASTag/GPS/SIM tracking: stub/integration-point only if no provider is chosen yet
   (mark `UNKNOWN / NEEDS VERIFICATION` per PRD §11 until resolved).
 - Update E-Way Bill (manual entry first; API integration if/when decided).

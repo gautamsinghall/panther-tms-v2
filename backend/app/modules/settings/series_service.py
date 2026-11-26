@@ -16,6 +16,8 @@ DOC_TYPE_ALIASES = {
     "TRIP_ORDER": "JOB",
     "HC": "HIRE_CHALLAN",
     "HIRE_CHALLAN": "HIRE_CHALLAN",
+    "LS": "LOADING_SLIP",
+    "LOADING_SLIP": "LOADING_SLIP",
     "LR": "LR",
     "INVOICE": "TRANSPORT_INVOICE",
     "TRANSPORT_INVOICE": "TRANSPORT_INVOICE",
@@ -25,7 +27,7 @@ DOC_TYPE_ALIASES = {
     "JV": "GENERAL_VOUCHER",
 }
 
-# Complete catalog of all 16 voucher & document types across Panther TMS
+# Complete catalog of all 17 voucher & document types across Panther TMS
 STANDARD_VOUCHER_METADATA: List[Dict[str, Any]] = [
     # 1. Transport Operations Documents
     {
@@ -69,6 +71,20 @@ STANDARD_VOUCHER_METADATA: List[Dict[str, Any]] = [
         "series_mode": "AUTOMATIC",
         "is_mandatory_manual": False,
         "description": "Lorry hire contract slip issued to market truck owner / driver.",
+    },
+    {
+        "document_type": "LOADING_SLIP",
+        "code": "LS",
+        "name": "Loading Slip (LS)",
+        "category_code": "TRANSPORT",
+        "category_name": "Transport Documents",
+        "prefix": "LS-",
+        "suffix": "",
+        "starting_number": 1,
+        "current_number": 0,
+        "series_mode": "AUTOMATIC",
+        "is_mandatory_manual": False,
+        "description": "Vehicle loading slip and freight dispatch agreement issued at loading point.",
     },
     # 2. Billing & Invoicing
     {
@@ -352,6 +368,18 @@ async def get_real_voucher_usage(db: AsyncSession, document_type: str, prefix: O
             last_voucher_no = res.scalar_one_or_none()
             cnt_res = await db.execute(cnt_stmt)
             real_count = cnt_res.scalar() or 0
+        elif norm in ("LOADING_SLIP", "LS"):
+            from app.tenant_db.models import LoadingSlip
+            stmt = select(LoadingSlip.slip_number)
+            cnt_stmt = select(func.count(LoadingSlip.id))
+            if prefix:
+                stmt = stmt.where(LoadingSlip.slip_number.ilike(f"{prefix}%"))
+                cnt_stmt = cnt_stmt.where(LoadingSlip.slip_number.ilike(f"{prefix}%"))
+            stmt = stmt.order_by(LoadingSlip.id.desc()).limit(1)
+            res = await db.execute(stmt)
+            last_voucher_no = res.scalar_one_or_none()
+            cnt_res = await db.execute(cnt_stmt)
+            real_count = cnt_res.scalar() or 0
         else:
             from app.tenant_db.models import Voucher
             v_types = [norm]
@@ -535,6 +563,12 @@ async def get_all_used_numbers_for_doc(db: AsyncSession, document_type: str) -> 
             for (no,) in res.all():
                 if no:
                     used_numbers.add(str(no).strip())
+        elif norm in ("LOADING_SLIP", "LS"):
+            from app.tenant_db.models import LoadingSlip
+            res = await db.execute(select(LoadingSlip.slip_number))
+            for (no,) in res.all():
+                if no:
+                    used_numbers.add(str(no).strip())
         else:
             from app.tenant_db.models import Voucher
             v_types = [norm]
@@ -699,6 +733,57 @@ async def set_default_series(db: AsyncSession, series_id: int) -> dict:
     return {"message": f"Series '{target.prefix}' set as current active series for {target.document_type}.", "id": target.id, "is_default": True}
 
 
+async def _auto_provision_automatic_series(
+    db: AsyncSession,
+    doc_type: str,
+    issuing_office_id: Optional[int] = None,
+    financial_year: str = "2026-2027",
+) -> SeriesMaster:
+    """Auto-provisions an active automatic SeriesMaster for JOB or LOADING_SLIP when missing."""
+    from app.tenant_db.models import Branch
+    br_code = ""
+    if issuing_office_id:
+        br_obj = await db.get(Branch, issuing_office_id)
+        if br_obj and br_obj.code:
+            br_code = f"{br_obj.code.upper().strip()}-"
+
+    cat = (await db.execute(select(SeriesCategory).where(SeriesCategory.code == "TRANSPORT"))).scalar_one_or_none()
+    if not cat:
+        cat = SeriesCategory(
+            name="Transport Documents",
+            code="TRANSPORT",
+            description="LR, Hire Challan, Loading Slip, POD, Dispatch",
+            is_active=True,
+        )
+        db.add(cat)
+        await db.flush()
+
+    if doc_type == "LOADING_SLIP":
+        prefix = f"{br_code}LS-" if br_code else "LS-"
+        series_name = f"{br_code.rstrip('-')} LS".strip() if br_code else "Standard Loading Slip Series"
+    else:
+        prefix = f"JOB-{br_code}" if br_code else "JOB-2026-"
+        series_name = f"Standard Job Series {br_code}".strip()
+
+    series = SeriesMaster(
+        category_id=cat.id,
+        document_type=doc_type,
+        series_name=series_name,
+        prefix=prefix,
+        suffix="",
+        starting_number=1,
+        current_number=0,
+        series_mode="AUTOMATIC",
+        financial_year=financial_year,
+        is_active=True,
+        is_default=True,
+        issuing_office_id=issuing_office_id,
+    )
+    db.add(series)
+    await db.flush()
+    return series
+
+
 async def allocate_or_validate_voucher_number(
     db: AsyncSession,
     document_type: str,
@@ -760,29 +845,11 @@ async def allocate_or_validate_voucher_number(
         res = await db.execute(fallback_stmt)
         series = res.scalars().first()
 
-    # Auto-provision standard automatic JOB series if not yet initialized in tenant or office
-    if not series and norm_type == "JOB":
-        from app.tenant_db.models import Branch
-        br_code = ""
-        if issuing_office_id:
-            br_obj = await db.get(Branch, issuing_office_id)
-            if br_obj and br_obj.code:
-                br_code = f"{br_obj.code}-"
-        prefix = f"JOB-{br_code}" if br_code else "JOB-2026-"
-        series = SeriesMaster(
-            document_type="JOB",
-            series_name=f"Standard Job Series {br_code}".strip(),
-            prefix=prefix,
-            starting_number=1,
-            current_number=0,
-            series_mode="AUTOMATIC",
-            financial_year="2026-2027",
-            is_active=True,
-            is_default=True,
-            issuing_office_id=issuing_office_id,
+    # Auto-provision standard automatic JOB / LOADING_SLIP series if not yet initialized in tenant or office
+    if not series and norm_type in ("JOB", "LOADING_SLIP"):
+        series = await _auto_provision_automatic_series(
+            db, norm_type, issuing_office_id=issuing_office_id, financial_year=financial_year
         )
-        db.add(series)
-        await db.flush()
 
     # Rule: LR, HC, General Invoice, Transport Invoice mandatory manual check
     if is_mandatory_manual and not series:
@@ -973,6 +1040,14 @@ async def check_series_status(
 
     res = await db.execute(stmt)
     all_series = res.scalars().all()
+
+    if not all_series and norm_type == "LOADING_SLIP":
+        auto_series = await _auto_provision_automatic_series(
+            db, "LOADING_SLIP", issuing_office_id=target_office_id
+        )
+        await db.commit()
+        await db.refresh(auto_series)
+        all_series = [auto_series]
 
     if not all_series:
         return {

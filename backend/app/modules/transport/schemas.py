@@ -800,30 +800,137 @@ class PODRecordResponse(PODRecordBase):
     model_config = ConfigDict(from_attributes=True)
 
 # ---------------------------------------------------------------------------
-# Truck Hiring Note Schemas
+# Loading Slip Schemas
 # ---------------------------------------------------------------------------
-class TruckHiringNoteBase(BaseModel):
-    note_number: Optional[str] = None
-    note_date: date = Field(default_factory=date.today)
-    hire_challan_id: Optional[int] = None
-    vehicle_number: str = Field(..., min_length=4, max_length=20)
-    owner_name: Optional[str] = None
-    broker_name: Optional[str] = None
-    driver_name: Optional[str] = None
+class LoadingSlipBase(BaseModel):
+    slip_number: Optional[str] = None
+    slip_date: date = Field(default_factory=date.today)
+    slip_series_id: Optional[int] = None
+    issuing_office_id: Optional[int] = None
+    vehicle_number: str = Field(..., min_length=2, max_length=30)
+    consigner_id: Optional[int] = None
+    consigner_name: Optional[str] = None
+    phone: str = Field(..., min_length=5, max_length=50)
+    email: Optional[str] = None
+    pan: Optional[str] = None
+    lorry_coordinator: Optional[str] = None
+    lorry_coordinator_phone: Optional[str] = None
+    origin_location_id: Optional[int] = None
+    destination_location_id: Optional[int] = None
     loading_point: Optional[str] = None
     unloading_point: Optional[str] = None
-    agreed_rate: Decimal = Decimal("0.00")
-    advance_cash: Decimal = Decimal("0.00")
-    advance_diesel_slip: Decimal = Decimal("0.00")
-    balance_payable: Decimal = Decimal("0.00")
-    terms_and_conditions: Optional[str] = None
+    lr_id: Optional[int] = None
+    loading_date: Optional[date] = None
+    remark: Optional[str] = None
+    total_freight: Decimal = Decimal("0.00")
+    advance_amount: Decimal = Decimal("0.00")
+    detention_charge: Decimal = Decimal("0.00")
+    commission_amount: Decimal = Decimal("0.00")
+    mamul_hammali: Decimal = Decimal("0.00")
+    total_amount: Decimal = Decimal("0.00")
+    hire_challan_id: Optional[int] = None
 
-class TruckHiringNoteCreate(TruckHiringNoteBase):
+    @field_validator("loading_date", mode="before")
+    @classmethod
+    def coerce_empty_loading_slip_dates(cls, v):
+        if v == "" or (isinstance(v, str) and not v.strip()):
+            return None
+        return v
+
+    @field_validator("slip_series_id", "issuing_office_id", "consigner_id", "origin_location_id", "destination_location_id", "lr_id", "hire_challan_id", mode="before")
+    @classmethod
+    def coerce_empty_loading_slip_ints(cls, v):
+        if v == "" or (isinstance(v, str) and not v.strip()):
+            return None
+        return v
+
+    @field_validator("total_freight", "advance_amount", "detention_charge", "commission_amount", "mamul_hammali", "total_amount", mode="before")
+    @classmethod
+    def coerce_empty_loading_slip_decimals(cls, v):
+        if v == "" or v is None or (isinstance(v, str) and not v.strip()):
+            return Decimal("0.00")
+        return v
+
+    @field_validator("pan", "email", "lorry_coordinator", "lorry_coordinator_phone", "remark", mode="before")
+    @classmethod
+    def normalize_optional_loading_slip_strings(cls, v, info):
+        if v is None or (isinstance(v, str) and not v.strip()):
+            return None
+        val = str(v).strip()
+        if info.field_name == "pan":
+            return val.upper()
+        return val
+
+class LoadingSlipCreate(LoadingSlipBase):
     pass
 
-class TruckHiringNoteResponse(TruckHiringNoteBase):
+class LoadingSlipUpdate(BaseModel):
+    slip_date: Optional[date] = None
+    issuing_office_id: Optional[int] = None
+    vehicle_number: Optional[str] = Field(None, min_length=2, max_length=30)
+    consigner_id: Optional[int] = None
+    consigner_name: Optional[str] = None
+    phone: Optional[str] = Field(None, min_length=5, max_length=50)
+    email: Optional[str] = None
+    pan: Optional[str] = None
+    lorry_coordinator: Optional[str] = None
+    lorry_coordinator_phone: Optional[str] = None
+    origin_location_id: Optional[int] = None
+    destination_location_id: Optional[int] = None
+    loading_point: Optional[str] = None
+    unloading_point: Optional[str] = None
+    lr_id: Optional[int] = None
+    loading_date: Optional[date] = None
+    remark: Optional[str] = None
+    total_freight: Optional[Decimal] = None
+    advance_amount: Optional[Decimal] = None
+    detention_charge: Optional[Decimal] = None
+    commission_amount: Optional[Decimal] = None
+    mamul_hammali: Optional[Decimal] = None
+    hire_challan_id: Optional[int] = None
+
+    @field_validator("slip_date", "loading_date", mode="before")
+    @classmethod
+    def coerce_empty_update_dates(cls, v):
+        if v == "" or (isinstance(v, str) and not v.strip()):
+            return None
+        return v
+
+    @field_validator("issuing_office_id", "consigner_id", "origin_location_id", "destination_location_id", "lr_id", "hire_challan_id", mode="before")
+    @classmethod
+    def coerce_empty_update_ints(cls, v):
+        if v == "" or (isinstance(v, str) and not v.strip()):
+            return None
+        return v
+
+    @field_validator("total_freight", "advance_amount", "detention_charge", "commission_amount", "mamul_hammali", mode="before")
+    @classmethod
+    def coerce_empty_update_decimals(cls, v):
+        if v == "" or (isinstance(v, str) and not v.strip()):
+            return None
+        return v
+
+    @field_validator("pan", "email", "lorry_coordinator", "lorry_coordinator_phone", "remark", mode="before")
+    @classmethod
+    def normalize_optional_update_strings(cls, v, info):
+        if v is None or (isinstance(v, str) and not v.strip()):
+            return None
+        val = str(v).strip()
+        if info.field_name == "pan":
+            return val.upper()
+        return val
+
+class LoadingSlipResponse(LoadingSlipBase):
     id: int
-    note_number: str
+    slip_number: str
+    origin_city: Optional[str] = None
+    origin_location_display: Optional[str] = None
+    destination_city: Optional[str] = None
+    destination_location_display: Optional[str] = None
+    lr_number: Optional[str] = None
+    issuing_office_name: Optional[str] = None
+    issuing_office_code: Optional[str] = None
+    created_by_user_id: Optional[int] = None
     created_at: datetime
     updated_at: datetime
     model_config = ConfigDict(from_attributes=True)

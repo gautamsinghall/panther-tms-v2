@@ -966,25 +966,38 @@ class PODRecord(TenantBase):
     lr = relationship("LR", back_populates="pod_record", lazy="selectin")
 
 
-class TruckHiringNote(TenantBase):
-    """Truck Hiring Note memorandum issued to truck broker/owner (PRD §7.3)"""
-    __tablename__ = "transport_truck_hiring_notes"
+class LoadingSlip(TenantBase):
+    """Loading Slip memorandum issued at vehicle loading & freight dispatch (PRD §7.3)"""
+    __tablename__ = "transport_loading_slips"
 
     id = Column(Integer, primary_key=True, index=True)
-    note_number = Column(String(50), unique=True, nullable=False, index=True)
-    note_date = Column(Date, default=date.today, nullable=False)
-    hire_challan_id = Column(Integer, ForeignKey("transport_hire_challans.id"), nullable=True)
-    vehicle_number = Column(String(20), nullable=False)
-    owner_name = Column(String(150), nullable=True)
-    broker_name = Column(String(150), nullable=True)
-    driver_name = Column(String(150), nullable=True)
+    slip_number = Column(String(50), unique=True, nullable=False, index=True)
+    slip_date = Column(Date, default=date.today, nullable=False)
+    slip_series_id = Column(Integer, ForeignKey("settings_series_masters.id"), nullable=True)
+    issuing_office_id = Column(Integer, ForeignKey("profile_branches.id"), nullable=True, index=True)
+    vehicle_number = Column(String(30), nullable=False)
+    consigner_id = Column(Integer, ForeignKey("general_consigners.id"), nullable=True)
+    consigner_name = Column(String(255), nullable=True)
+    phone = Column(String(50), nullable=False)
+    email = Column(String(255), nullable=True)
+    pan = Column(String(20), nullable=True)
+    lorry_coordinator = Column(String(150), nullable=True)
+    lorry_coordinator_phone = Column(String(50), nullable=True)
+    origin_location_id = Column(Integer, ForeignKey("general_locations.id"), nullable=True)
+    destination_location_id = Column(Integer, ForeignKey("general_locations.id"), nullable=True)
     loading_point = Column(String(150), nullable=True)
     unloading_point = Column(String(150), nullable=True)
-    agreed_rate = Column(Numeric(12, 2), default=0, nullable=False)
-    advance_cash = Column(Numeric(12, 2), default=0, nullable=False)
-    advance_diesel_slip = Column(Numeric(12, 2), default=0, nullable=False)
-    balance_payable = Column(Numeric(12, 2), default=0, nullable=False)
-    terms_and_conditions = Column(Text, nullable=True)
+    lr_id = Column(Integer, ForeignKey("transport_lrs.id"), nullable=True)
+    loading_date = Column(Date, nullable=True)
+    remark = Column(Text, nullable=True)
+    total_freight = Column(Numeric(12, 2), default=0, nullable=False)
+    advance_amount = Column(Numeric(12, 2), default=0, nullable=False)
+    detention_charge = Column(Numeric(12, 2), default=0, nullable=False)
+    commission_amount = Column(Numeric(12, 2), default=0, nullable=False)
+    mamul_hammali = Column(Numeric(12, 2), default=0, nullable=False)
+    total_amount = Column(Numeric(12, 2), default=0, nullable=False)
+    hire_challan_id = Column(Integer, ForeignKey("transport_hire_challans.id"), nullable=True)
+    created_by_user_id = Column(Integer, nullable=True)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
     updated_at = Column(
         DateTime(timezone=True),
@@ -993,7 +1006,13 @@ class TruckHiringNote(TenantBase):
         nullable=False
     )
 
-    hire_challan = relationship("HireChallan", lazy="selectin")
+    consigner = relationship("Consigner", foreign_keys=[consigner_id], lazy="selectin")
+    origin_location = relationship("Location", foreign_keys=[origin_location_id], lazy="selectin")
+    destination_location = relationship("Location", foreign_keys=[destination_location_id], lazy="selectin")
+    lr = relationship("LR", foreign_keys=[lr_id], lazy="selectin")
+    issuing_office = relationship("Branch", foreign_keys=[issuing_office_id], lazy="selectin")
+    slip_series = relationship("SeriesMaster", foreign_keys=[slip_series_id], lazy="selectin")
+    hire_challan = relationship("HireChallan", foreign_keys=[hire_challan_id], lazy="selectin")
 
 
 # ==============================================================================

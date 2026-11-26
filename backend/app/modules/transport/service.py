@@ -27,7 +27,7 @@ from app.tenant_db.models import (
     HireChallan,
     ArrivalReport,
     PODRecord,
-    TruckHiringNote,
+    LoadingSlip,
     EWayBill,
     TrackingPing,
     SIMTripRecord,
@@ -54,7 +54,8 @@ from app.modules.transport.schemas import (
     HireChallanCreate, HireChallanUpdate,
     ArrivalReportCreate,
     PODRecordCreate,
-    TruckHiringNoteCreate,
+    LoadingSlipCreate,
+    LoadingSlipUpdate,
     EWayBillCreate,
     TrackingPingCreate,
     SIMTripCreate,
@@ -1278,45 +1279,153 @@ async def verify_pod_record(db: AsyncSession, pod_id: int, verification_status: 
     return pod
 
 # ===========================================================================
-# Truck Hiring Note Services
+# Loading Slip Services
 # ===========================================================================
 
-async def get_all_truck_hiring_notes(
+def _calculate_loading_slip_total(
+    total_freight: Decimal,
+    advance_amount: Decimal,
+    detention_charge: Decimal,
+    commission_amount: Decimal,
+    mamul_hammali: Decimal,
+) -> Decimal:
+    return (total_freight + detention_charge) - (advance_amount + commission_amount + mamul_hammali)
+
+
+async def get_all_loading_slips(
     db: AsyncSession,
     office_id: Optional[int] = None,
     include_unassigned: bool = False,
-) -> List[TruckHiringNote]:
-    stmt = select(TruckHiringNote).order_by(desc(TruckHiringNote.created_at))
+) -> List[LoadingSlip]:
+    stmt = (
+        select(LoadingSlip)
+        .options(
+            selectinload(LoadingSlip.consigner),
+            selectinload(LoadingSlip.origin_location),
+            selectinload(LoadingSlip.destination_location),
+            selectinload(LoadingSlip.lr),
+            selectinload(LoadingSlip.issuing_office),
+            selectinload(LoadingSlip.slip_series),
+        )
+        .order_by(desc(LoadingSlip.created_at))
+    )
     if office_id:
-        stmt = stmt.outerjoin(HireChallan, TruckHiringNote.hire_challan_id == HireChallan.id)
         if include_unassigned:
-            stmt = stmt.where(
-                or_(
-                    HireChallan.issuing_office_id == office_id,
-                    HireChallan.issuing_office_id.is_(None),
-                    TruckHiringNote.hire_challan_id.is_(None),
-                )
-            )
+            stmt = stmt.where(or_(LoadingSlip.issuing_office_id == office_id, LoadingSlip.issuing_office_id.is_(None)))
         else:
-            stmt = stmt.where(HireChallan.issuing_office_id == office_id)
+            stmt = stmt.where(LoadingSlip.issuing_office_id == office_id)
     result = await db.execute(stmt)
-    return list(result.scalars().all())
+    return list(result.scalars().unique().all())
 
-async def create_truck_hiring_note(db: AsyncSession, data: TruckHiringNoteCreate) -> TruckHiringNote:
-    note_number = data.note_number or await _generate_sequence(db, TruckHiringNote, "THN")
-    note_dict = data.model_dump()
-    note_dict["note_number"] = note_number
-    
-    agreed = note_dict.get("agreed_rate") or Decimal("0.00")
-    cash = note_dict.get("advance_cash") or Decimal("0.00")
-    diesel = note_dict.get("advance_diesel_slip") or Decimal("0.00")
-    note_dict["balance_payable"] = agreed - (cash + diesel)
 
-    thn = TruckHiringNote(**note_dict)
-    db.add(thn)
+async def get_loading_slip_by_id(db: AsyncSession, slip_id: int) -> LoadingSlip:
+    stmt = (
+        select(LoadingSlip)
+        .options(
+            selectinload(LoadingSlip.consigner),
+            selectinload(LoadingSlip.origin_location),
+            selectinload(LoadingSlip.destination_location),
+            selectinload(LoadingSlip.lr),
+            selectinload(LoadingSlip.issuing_office),
+            selectinload(LoadingSlip.slip_series),
+        )
+        .where(LoadingSlip.id == slip_id)
+    )
+    slip = (await db.execute(stmt)).scalar_one_or_none()
+    if not slip:
+        raise AppException(status_code=404, error_code="NOT_FOUND", message="Loading Slip not found.")
+    return slip
+
+
+async def _populate_loading_slip_relations(db: AsyncSession, slip_dict: Dict[str, Any]) -> None:
+    if slip_dict.get("consigner_id"):
+        from app.tenant_db.models import Consigner
+        cons = await db.get(Consigner, slip_dict["consigner_id"])
+        if cons:
+            slip_dict["consigner_name"] = slip_dict.get("consigner_name") or cons.name
+            if not slip_dict.get("phone") and cons.phone:
+                slip_dict["phone"] = cons.phone
+            if not slip_dict.get("email") and cons.email:
+                slip_dict["email"] = cons.email
+            if not slip_dict.get("pan") and cons.pan:
+                slip_dict["pan"] = cons.pan
+
+    if slip_dict.get("origin_location_id"):
+        from app.tenant_db.models import Location
+        orig = await db.get(Location, slip_dict["origin_location_id"])
+        if orig:
+            slip_dict["loading_point"] = orig.city_name
+
+    if slip_dict.get("destination_location_id"):
+        from app.tenant_db.models import Location
+        dest = await db.get(Location, slip_dict["destination_location_id"])
+        if dest:
+            slip_dict["unloading_point"] = dest.city_name
+
+
+async def create_loading_slip(
+    db: AsyncSession,
+    data: LoadingSlipCreate,
+    user_id: Optional[int] = None,
+    office_id: Optional[int] = None,
+) -> LoadingSlip:
+    target_office_id = data.issuing_office_id or office_id
+    if not target_office_id:
+        from app.tenant_db.models import Branch
+        br_res = await db.execute(select(Branch.id).where(Branch.is_active == True).order_by(Branch.is_head_office.desc(), Branch.id.asc()).limit(1))
+        target_office_id = br_res.scalar_one_or_none()
+
+    slip_number = await allocate_or_validate_voucher_number(
+        db,
+        "LOADING_SLIP",
+        manual_number=data.slip_number,
+        issuing_office_id=target_office_id,
+        series_id=data.slip_series_id,
+    )
+
+    slip_dict = data.model_dump()
+    slip_dict["slip_number"] = slip_number
+    slip_dict["issuing_office_id"] = target_office_id
+    slip_dict["created_by_user_id"] = user_id
+    slip_dict["vehicle_number"] = data.vehicle_number.strip().upper()
+
+    await _populate_loading_slip_relations(db, slip_dict)
+
+    slip_dict["total_amount"] = _calculate_loading_slip_total(
+        slip_dict.get("total_freight") or Decimal("0.00"),
+        slip_dict.get("advance_amount") or Decimal("0.00"),
+        slip_dict.get("detention_charge") or Decimal("0.00"),
+        slip_dict.get("commission_amount") or Decimal("0.00"),
+        slip_dict.get("mamul_hammali") or Decimal("0.00"),
+    )
+
+    slip = LoadingSlip(**slip_dict)
+    db.add(slip)
     await db.commit()
-    await db.refresh(thn)
-    return thn
+    return await get_loading_slip_by_id(db, slip.id)
+
+
+async def update_loading_slip(db: AsyncSession, slip_id: int, data: LoadingSlipUpdate) -> LoadingSlip:
+    slip = await get_loading_slip_by_id(db, slip_id)
+    update_dict = data.model_dump(exclude_unset=True)
+    if "vehicle_number" in update_dict and update_dict["vehicle_number"]:
+        update_dict["vehicle_number"] = update_dict["vehicle_number"].strip().upper()
+
+    await _populate_loading_slip_relations(db, update_dict)
+
+    for field, val in update_dict.items():
+        setattr(slip, field, val)
+
+    slip.total_amount = _calculate_loading_slip_total(
+        slip.total_freight or Decimal("0.00"),
+        slip.advance_amount or Decimal("0.00"),
+        slip.detention_charge or Decimal("0.00"),
+        slip.commission_amount or Decimal("0.00"),
+        slip.mamul_hammali or Decimal("0.00"),
+    )
+
+    await db.commit()
+    return await get_loading_slip_by_id(db, slip.id)
 
 # ===========================================================================
 # E-Way Bill Services (Manual Entry per Rules §2)

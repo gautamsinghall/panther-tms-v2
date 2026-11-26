@@ -15,8 +15,10 @@ from app.modules.settings.series_service import (
 
 @pytest.mark.asyncio
 async def test_standard_vouchers_catalog_and_mandatory_rules():
-    # 1. Total standard vouchers should be 16
-    assert len(STANDARD_VOUCHER_METADATA) == 16
+    # 1. Total standard vouchers should be 17 (including LOADING_SLIP)
+    assert len(STANDARD_VOUCHER_METADATA) == 17
+    doc_types = {m["document_type"] for m in STANDARD_VOUCHER_METADATA}
+    assert "LOADING_SLIP" in doc_types
 
     # 2. Check 4 mandatory manual vouchers
     mandatory_codes = {"LR", "HIRE_CHALLAN", "TRANSPORT_INVOICE", "GENERAL_INVOICE"}
@@ -154,7 +156,7 @@ async def test_initialize_all_standard_series():
 
     async with async_session() as session:
         created = await initialize_all_standard_series(session, financial_year="2026-2027", exclude_manual=False)
-        assert len(created) == 16
+        assert len(created) == 17
 
         for item in created:
             if item["document_type"] in ["LR", "HIRE_CHALLAN", "TRANSPORT_INVOICE", "GENERAL_INVOICE"]:

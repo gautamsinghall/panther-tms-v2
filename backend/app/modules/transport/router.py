@@ -26,7 +26,7 @@ from app.modules.transport.schemas import (
     HireChallanCreate, HireChallanUpdate, HireChallanResponse, HireChallanSettleRequest,
     ArrivalReportCreate, ArrivalReportResponse,
     PODRecordCreate, PODRecordVerifyRequest, PODRecordResponse,
-    TruckHiringNoteCreate, TruckHiringNoteResponse,
+    LoadingSlipCreate, LoadingSlipUpdate, LoadingSlipResponse,
     EWayBillCreate, EWayBillResponse,
     TrackingPingCreate, TrackingPingResponse,
     SIMTripCreate, SIMTripUpdate, SIMTripCommentCreate, SIMTripClose, SIMConsentSimulate, SIMTripResponse, SIMTrackingSyncResponse,
@@ -51,7 +51,7 @@ def _ensure_lr_view_access(current_user: User) -> None:
         )
     has_perm = any(
         (
-            (p.module == "transport" and p.feature in ("lr_booking", "jobs", "hire_challan", "consignment_360") and p.permission in ("view", "all"))
+            (p.module == "transport" and p.feature in ("lr_booking", "jobs", "hire_challan", "loading_slip", "truck_hiring_note", "consignment_360") and p.permission in ("view", "all"))
             or (p.module == "accounts" and p.feature == "transport_invoice" and p.permission in ("view", "create", "all"))
             or (
                 p.module.replace("-", "_") == "transport_reports"
@@ -1511,37 +1511,150 @@ async def verify_pod_record(
     )
 
 # ==============================================================================
-# 10. Truck Hiring Notes
+# 10. Loading Slips
 # ==============================================================================
-@router.get("/truck-hiring-notes", response_model=List[TruckHiringNoteResponse])
-async def list_truck_hiring_notes(
-    current_user: User = Depends(require_permission("transport", "truck_hiring_note", "view")),
+def _build_loading_slip_response(s: Any) -> LoadingSlipResponse:
+    cons = getattr(s, "consigner", None)
+    orig = getattr(s, "origin_location", None)
+    dest = getattr(s, "destination_location", None)
+    lr = getattr(s, "lr", None)
+    office = getattr(s, "issuing_office", None)
+    return LoadingSlipResponse(
+        id=s.id,
+        slip_number=s.slip_number,
+        slip_date=s.slip_date,
+        slip_series_id=s.slip_series_id,
+        issuing_office_id=s.issuing_office_id,
+        issuing_office_name=office.name if office else None,
+        issuing_office_code=office.code if office else None,
+        vehicle_number=s.vehicle_number,
+        consigner_id=s.consigner_id,
+        consigner_name=s.consigner_name or (cons.name if cons else None),
+        phone=s.phone,
+        email=s.email,
+        pan=s.pan,
+        lorry_coordinator=s.lorry_coordinator,
+        lorry_coordinator_phone=s.lorry_coordinator_phone,
+        origin_location_id=s.origin_location_id,
+        destination_location_id=s.destination_location_id,
+        loading_point=s.loading_point or (orig.city_name if orig else None),
+        unloading_point=s.unloading_point or (dest.city_name if dest else None),
+        origin_city=orig.city_name if orig else s.loading_point,
+        origin_location_display=_location_display(orig) or s.loading_point,
+        destination_city=dest.city_name if dest else s.unloading_point,
+        destination_location_display=_location_display(dest) or s.unloading_point,
+        lr_id=s.lr_id,
+        lr_number=lr.lr_number if lr else None,
+        loading_date=s.loading_date,
+        remark=s.remark,
+        total_freight=s.total_freight,
+        advance_amount=s.advance_amount,
+        detention_charge=s.detention_charge,
+        commission_amount=s.commission_amount,
+        mamul_hammali=s.mamul_hammali,
+        total_amount=s.total_amount,
+        hire_challan_id=s.hire_challan_id,
+        created_by_user_id=s.created_by_user_id,
+        created_at=s.created_at,
+        updated_at=s.updated_at,
+    )
+
+
+@router.get("/loading-slips", response_model=List[LoadingSlipResponse])
+async def list_loading_slips(
+    current_user: User = Depends(require_permission("transport", "loading_slip", "view")),
     current_office: Optional[Branch] = Depends(get_current_office),
     db: AsyncSession = Depends(get_tenant_db),
 ):
     target_office_id = current_office.id if current_office else None
     include_unassigned = current_office.is_head_office if current_office else True
-    return await service.get_all_truck_hiring_notes(db, office_id=target_office_id, include_unassigned=include_unassigned)
+    slips = await service.get_all_loading_slips(db, office_id=target_office_id, include_unassigned=include_unassigned)
+    return [_build_loading_slip_response(s) for s in slips]
 
-@router.post("/truck-hiring-notes", response_model=TruckHiringNoteResponse, status_code=status.HTTP_201_CREATED)
-async def create_truck_hiring_note(
-    data: TruckHiringNoteCreate,
-    current_user: User = Depends(require_permission("transport", "truck_hiring_note", "create")),
+
+@router.get("/loading-slips/{id}", response_model=LoadingSlipResponse)
+async def get_loading_slip(
+    id: int,
+    current_user: User = Depends(require_permission("transport", "loading_slip", "view")),
     db: AsyncSession = Depends(get_tenant_db),
 ):
-    note = await service.create_truck_hiring_note(db, data)
+    slip = await service.get_loading_slip_by_id(db, id)
+    return _build_loading_slip_response(slip)
+
+
+@router.post("/loading-slips", response_model=LoadingSlipResponse, status_code=status.HTTP_201_CREATED)
+async def create_loading_slip(
+    data: LoadingSlipCreate,
+    current_user: User = Depends(require_permission("transport", "loading_slip", "create")),
+    current_office: Optional[Branch] = Depends(get_current_office),
+    db: AsyncSession = Depends(get_tenant_db),
+):
+    eff_office_id = data.issuing_office_id or (current_office.id if current_office else None)
+    slip = await service.create_loading_slip(db, data, user_id=current_user.id, office_id=eff_office_id)
+    target_office_id = slip.issuing_office_id or eff_office_id
+    office_name = slip.issuing_office.name if getattr(slip, "issuing_office", None) else (current_office.name if current_office else None)
+    office_code = slip.issuing_office.code if getattr(slip, "issuing_office", None) else (current_office.code if current_office else None)
     await log_activity(
         db=db,
         user=current_user,
-        action="TRUCK_HIRING_NOTE_CREATED",
+        action="LOADING_SLIP_CREATED",
         module="transport",
-        entity_type="TruckHiringNote",
-        entity_id=str(note.id),
-        entity_identifier=note.note_number,
-        details=f"Created Truck Hiring Note {note.note_number}",
-        details_json={"note_number": note.note_number, "vehicle_number": note.vehicle_number},
+        entity_type="LoadingSlip",
+        entity_id=str(slip.id),
+        entity_identifier=slip.slip_number,
+        office_id=target_office_id,
+        office_name=office_name,
+        office_code=office_code,
+        details=f"Created Loading Slip {slip.slip_number}",
+        details_json={"slip_number": slip.slip_number, "vehicle_number": slip.vehicle_number, "total_amount": float(slip.total_amount or 0)},
     )
-    return note
+    return _build_loading_slip_response(slip)
+
+
+@router.put("/loading-slips/{id}", response_model=LoadingSlipResponse)
+async def update_loading_slip(
+    id: int,
+    data: LoadingSlipUpdate,
+    current_user: User = Depends(require_permission("transport", "loading_slip", "edit")),
+    db: AsyncSession = Depends(get_tenant_db),
+):
+    slip = await service.update_loading_slip(db, id, data)
+    await log_activity(
+        db=db,
+        user=current_user,
+        action="LOADING_SLIP_UPDATED",
+        module="transport",
+        entity_type="LoadingSlip",
+        entity_id=str(slip.id),
+        entity_identifier=slip.slip_number,
+        office_id=slip.issuing_office_id,
+        details=f"Updated Loading Slip {slip.slip_number}",
+        details_json=data.model_dump(exclude_unset=True),
+    )
+    return _build_loading_slip_response(slip)
+
+
+@router.delete("/loading-slips/{id}", status_code=status.HTTP_403_FORBIDDEN)
+async def delete_loading_slip(
+    id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_tenant_db),
+):
+    """HARD RULE 0 — NO DELETION IN PANTHER TMS."""
+    await log_activity(
+        db=db,
+        user=current_user,
+        action="BLOCKED_DELETE_ATTEMPT",
+        module="transport",
+        entity_type="LoadingSlip",
+        entity_id=str(id),
+        details=f"Blocked attempt to delete Loading Slip ID {id}. Deletion is not allowed in Panther TMS.",
+        status="BLOCKED",
+    )
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="You cannot delete this loading slip. Deletion is not allowed in Panther TMS. Please contact your Company Admin if this slip needs correction or cancellation.",
+    )
 
 # ==============================================================================
 # 11. E-Way Bills (Manual Entry & Live Portal Fetch)
