@@ -133,6 +133,7 @@ interface VoucherItem {
   rate?: number;
   tax_amount?: number;
   total_amount?: number;
+  hsn_sac?: string;
 }
 
 interface VoucherRecord {
@@ -400,9 +401,18 @@ export default function TransportInvoicePage() {
         const q = searchTerm.toLowerCase();
         const vNum = (v.voucher_number || "").toLowerCase();
         const pName = (v.party_name || "").toLowerCase();
+        const clientName = (v.billing_client?.name || (v as any).billing_client_name || "").toLowerCase();
         const lrNum = (v.lr_number || "").toLowerCase();
         const gstin = (v.party_gstin || "").toLowerCase();
-        if (!vNum.includes(q) && !pName.includes(q) && !lrNum.includes(q) && !gstin.includes(q)) {
+        const irnVal = (v.irn || "").toLowerCase();
+        if (
+          !vNum.includes(q) &&
+          !pName.includes(q) &&
+          !clientName.includes(q) &&
+          !lrNum.includes(q) &&
+          !gstin.includes(q) &&
+          !irnVal.includes(q)
+        ) {
           return false;
         }
       }
@@ -667,20 +677,122 @@ export default function TransportInvoicePage() {
     }
   };
 
+  // Helper to extract clean GST tax breakup and rates for table display
+  const getVoucherTaxDetails = (row: VoucherRecord) => {
+    let tb = row.tax_breakup;
+    if (typeof tb === "string") {
+      try {
+        tb = JSON.parse(tb);
+      } catch {
+        tb = undefined;
+      }
+    }
+
+    const taxable =
+      parseFloat(String(row.total_amount ?? 0)) ||
+      (parseFloat(String(row.net_amount || 0)) - parseFloat(String(row.tax_amount || 0)));
+    const totalTax = parseFloat(String(row.tax_amount ?? 0));
+    const isRcm = row.gst_treatment === "RCM";
+    const isExempt = row.gst_treatment === "EXEMPT";
+
+    if (tb && typeof tb === "object") {
+      const cgstAmt = Number(tb.cgst_amount || 0);
+      const sgstAmt = Number(tb.sgst_amount || 0);
+      const igstAmt = Number(tb.igst_amount || 0);
+      const cgstRate = Number(tb.cgst_rate || 0);
+      const sgstRate = Number(tb.sgst_rate || 0);
+      const igstRate = Number(tb.igst_rate || 0);
+
+      let rateLabel = "0%";
+      if (isExempt) {
+        rateLabel = "Exempt";
+      } else if (isRcm) {
+        rateLabel =
+          igstRate > 0
+            ? `${igstRate}% RCM`
+            : cgstRate + sgstRate > 0
+            ? `${cgstRate + sgstRate}% RCM`
+            : "5% RCM";
+      } else if (igstRate > 0) {
+        rateLabel = `${igstRate}%`;
+      } else if (cgstRate + sgstRate > 0) {
+        rateLabel = `${cgstRate + sgstRate}%`;
+      } else if (taxable > 0 && totalTax > 0) {
+        rateLabel = `${Math.round((totalTax / taxable) * 100)}%`;
+      }
+
+      return {
+        taxable,
+        cgstAmt,
+        sgstAmt,
+        igstAmt,
+        rateLabel,
+      };
+    }
+
+    // Fallback calculation when tax_breakup is null
+    let cgstAmt = 0;
+    let sgstAmt = 0;
+    let igstAmt = 0;
+    let rateLabel = "0%";
+
+    if (isExempt) {
+      rateLabel = "Exempt";
+    } else if (isRcm) {
+      rateLabel = "5% RCM";
+    } else if (totalTax > 0 && taxable > 0) {
+      const effectiveRate = Math.round((totalTax / taxable) * 100);
+      rateLabel = `${effectiveRate}%`;
+      const isIntra =
+        (row.place_of_supply || "").toLowerCase().includes("maharashtra") ||
+        (row.place_of_supply || "") === "27";
+      if (isIntra) {
+        cgstAmt = Math.round((totalTax / 2) * 100) / 100;
+        sgstAmt = totalTax - cgstAmt;
+      } else {
+        igstAmt = totalTax;
+      }
+    }
+
+    return {
+      taxable,
+      cgstAmt,
+      sgstAmt,
+      igstAmt,
+      rateLabel,
+    };
+  };
+
   const columns: ColumnDef<VoucherRecord>[] = [
     {
       key: "voucher_number",
-      header: "Invoice No & Date",
+      header: "Invoice / LR / Date",
       sortable: true,
+      minWidth: "175px",
       cell: (row) => (
         <div>
-          <span className="font-bold text-slate-900 dark:text-white block text-xs sm:text-sm tabular-nums">
-            {row.voucher_number}
-          </span>
-          <div className="flex items-center gap-1.5 text-[11px] text-slate-500 dark:text-slate-400">
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <button
+              type="button"
+              onClick={() => setPrintInvoice(row)}
+              className="font-mono font-bold text-slate-900 dark:text-white hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors text-xs text-left cursor-pointer tabular-nums"
+              title="Click to view/print Tax Invoice"
+            >
+              {row.voucher_number}
+            </button>
+            {(row.lr_number || row.lr_id) && (
+              <span
+                className="text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200/90 dark:border-slate-700 tabular-nums"
+                title={`Linked Consignment LR #${row.lr_number || row.lr_id}`}
+              >
+                LR #{row.lr_number || row.lr_id}
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-1.5 mt-0.5 text-[11px] font-mono text-slate-500 dark:text-slate-400">
             <span>{formatDate(row.voucher_date)}</span>
             {row.due_date && (
-              <span className="text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded font-medium tabular-nums">
+              <span className="text-[10px] bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 px-1.5 py-0.5 rounded font-medium tabular-nums">
                 Due: {formatDate(row.due_date)}
               </span>
             )}
@@ -689,171 +801,222 @@ export default function TransportInvoicePage() {
       ),
     },
     {
-      key: "lr_number",
-      header: "Consignment (LR)",
-      sortable: true,
-      cell: (row) => (
-        <div>
-          <span className="text-xs font-semibold px-2 py-0.5 rounded bg-slate-100 dark:bg-[#1A1D2B] text-slate-900 dark:text-white border border-slate-200/90 dark:border-[#22232E] tabular-nums">
-            {row.lr_number || `LR #${row.lr_id}`}
-          </span>
-          {row.lr?.vehicle_number && (
-            <span className="block text-[10px] text-slate-500 mt-0.5 tabular-nums font-medium">
-              Truck: {row.lr.vehicle_number}
-            </span>
-          )}
-        </div>
-      ),
-    },
-    {
-      key: "party_name",
-      header: "Billed Customer",
-      sortable: true,
-      cell: (row) => (
-        <div>
-          <span className="font-semibold text-slate-900 dark:text-white block text-xs">
-            {row.party_name || "General Client"}
-          </span>
-          <div className="flex items-center gap-2 mt-0.5">
-            {row.party_gstin && (
-              <span className="text-[10px] text-slate-500 uppercase font-medium tracking-wide">
-                GST: {row.party_gstin}
-              </span>
-            )}
-            {row.place_of_supply && (
-              <span className="text-[10px] bg-blue-50 text-blue-700 px-1.5 py-0.2 rounded border border-blue-200 font-medium">
-                POS: {row.place_of_supply}
-              </span>
-            )}
-          </div>
-        </div>
-      ),
-    },
-    {
-      key: "gst_treatment",
-      header: "GST Type",
-      align: "center",
-      cell: (row) => {
-        const treat = row.gst_treatment || "FCM";
-        if (treat === "RCM") {
-          return (
-            <Badge variant="warning" className="text-[10px] font-semibold">
-              GTA RCM (Sec 9(3))
-            </Badge>
-          );
-        }
-        if (treat === "EXEMPT") {
-          return (
-            <Badge variant="neutral" className="text-[10px]">
-              Exempt / Nil
-            </Badge>
-          );
-        }
-        return (
-          <Badge variant="info" className="text-[10px] font-semibold">
-            FCM (Forward Charge)
-          </Badge>
-        );
-      },
-    },
-    {
-      key: "net_amount",
-      header: "Invoice Value (₹)",
-      sortable: true,
-      isNumeric: true,
-      cell: (row) => (
-        <div className="text-right">
-          <span className="font-bold text-slate-900 dark:text-white block text-xs sm:text-sm tabular-nums">
-            {formatCurrency(row.net_amount)}
-          </span>
-          <span className="text-[11px] text-slate-500 dark:text-slate-400 tabular-nums font-medium">
-            Tax: {formatCurrency(row.tax_amount)}
-          </span>
-        </div>
-      ),
-    },
-    {
       key: "balance_amount",
-      header: "Outstanding Balance",
+      header: "Outstanding / Status",
       sortable: true,
-      isNumeric: true,
+      minWidth: "150px",
       cell: (row) => {
         const bal = parseFloat(String(row.balance_amount ?? row.net_amount));
         const paid = parseFloat(String(row.paid_amount ?? 0));
+        const status = row.payment_status || "UNPAID";
+
         return (
-          <div className="text-right tabular-nums">
-            <span
-              className={cn(
-                "font-bold block text-xs sm:text-sm",
-                bal > 0 ? "text-amber-700 dark:text-amber-400" : "text-emerald-700 dark:text-emerald-400"
-              )}
-            >
-              {formatCurrency(bal)}
-            </span>
-            {paid > 0 && (
-              <span className="text-[10px] text-slate-500 block font-medium">
-                Paid: {formatCurrency(paid)}
+          <div>
+            <div className="flex items-baseline gap-1.5">
+              <span
+                className={cn(
+                  "font-mono font-bold text-xs sm:text-sm tabular-nums",
+                  bal > 0 ? "text-amber-700 dark:text-amber-400" : "text-emerald-700 dark:text-emerald-400"
+                )}
+              >
+                {formatCurrency(bal)}
               </span>
-            )}
+              {paid > 0 && bal > 0 && (
+                <span className="text-[10px] text-slate-400 font-mono tabular-nums">
+                  (Pd: {formatCurrency(paid)})
+                </span>
+              )}
+            </div>
+            <div className="mt-1">
+              {row.is_void ? (
+                <Badge variant="danger" className="text-[10px] font-semibold py-0.5">
+                  VOID
+                </Badge>
+              ) : status === "PAID" ? (
+                <Badge variant="success" className="text-[10px] gap-1 font-semibold py-0.5">
+                  <Check className="w-2.5 h-2.5 text-[#16A34A]" /> Settled
+                </Badge>
+              ) : status === "PARTIALLY_PAID" ? (
+                <Badge variant="info" className="text-[10px] gap-1 font-semibold py-0.5">
+                  Partially Paid
+                </Badge>
+              ) : (
+                <Badge variant="warning" className="text-[10px] gap-1 font-semibold py-0.5">
+                  Unpaid
+                </Badge>
+              )}
+            </div>
           </div>
         );
       },
     },
     {
-      key: "payment_status",
-      header: "Payment Status",
+      key: "irn",
+      header: "IRN",
       align: "center",
-      cell: (row) => {
-        if (row.is_void) {
-          return <Badge variant="danger">VOID</Badge>;
-        }
-        const status = row.payment_status || "UNPAID";
-        if (status === "PAID") {
-          return (
-            <Badge variant="success" className="gap-1 font-semibold">
-              <Check className="w-3 h-3 text-[#16A34A]" /> Settled
-            </Badge>
-          );
-        }
-        if (status === "PARTIALLY_PAID") {
-          return (
-            <Badge variant="info" className="gap-1 font-semibold">
-              Partially Paid
-            </Badge>
-          );
-        }
-        return (
-          <Badge variant="warning" className="gap-1 font-semibold">
-            Unpaid
-          </Badge>
-        );
-      },
-    },
-    {
-      key: "irn_status",
-      header: "E-Invoice (IRN)",
-      align: "center",
+      minWidth: "120px",
       cell: (row) => {
         if (row.irn_status === "GENERATED") {
           return (
-            <div className="flex flex-col items-center">
-              <Badge variant="success" className="gap-1">
-                <ShieldCheck className="w-3 h-3 text-[#16A34A]" />
+            <div className="flex flex-col items-center max-w-[125px]">
+              <Badge variant="success" className="gap-1 text-[10px] font-semibold py-0.5">
+                <ShieldCheck className="w-3 h-3 text-[#16A34A] shrink-0" />
                 IRN Active
               </Badge>
               {row.irn && (
-                <span className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5 truncate max-w-[100px] font-medium" title={row.irn}>
-                  {row.irn.substring(0, 8)}...
+                <span
+                  className="text-[10px] font-mono text-slate-500 dark:text-slate-400 mt-0.5 truncate block w-full text-center cursor-help"
+                  title={`Full IRN: ${row.irn}`}
+                >
+                  {row.irn.substring(0, 8)}...{row.irn.substring(row.irn.length - 4)}
                 </span>
               )}
             </div>
           );
         }
         if (row.irn_status === "CANCELLED") {
-          return <Badge variant="danger">IRN Cancelled</Badge>;
+          return (
+            <Badge variant="danger" className="text-[10px] py-0.5">
+              Cancelled
+            </Badge>
+          );
         }
-        return <Badge variant="neutral">Not Generated</Badge>;
+        return (
+          <span className="text-xs text-slate-400 dark:text-slate-500 font-mono">
+            —
+          </span>
+        );
       },
+    },
+    {
+      key: "party_name",
+      header: "Billing Customer",
+      sortable: true,
+      minWidth: "175px",
+      cell: (row) => {
+        const clientName =
+          row.billing_client?.name || (row as any).billing_client_name || row.party_name || "General Client";
+        return (
+          <div className="max-w-[210px]">
+            <span
+              className="font-semibold text-slate-900 dark:text-slate-100 block text-xs truncate"
+              title={clientName}
+            >
+              {clientName}
+            </span>
+            {row.party_gstin && (
+              <span className="text-[10px] font-mono text-slate-500 dark:text-slate-400 uppercase font-medium tracking-wide block truncate mt-0.5">
+                GST: {row.party_gstin}
+              </span>
+            )}
+          </div>
+        );
+      },
+    },
+    {
+      key: "sac",
+      header: "SAC",
+      align: "center",
+      minWidth: "85px",
+      cell: (row) => {
+        const sacCode =
+          row.items?.find((i: any) => i.hsn_sac)?.hsn_sac ||
+          row.items?.[0]?.hsn_sac ||
+          "9965";
+        return (
+          <span className="font-mono text-xs text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800/80 px-2 py-0.5 rounded border border-slate-200/80 dark:border-slate-700 tabular-nums">
+            {sacCode}
+          </span>
+        );
+      },
+    },
+    {
+      key: "total_amount",
+      header: "Amount",
+      sortable: true,
+      isNumeric: true,
+      align: "right",
+      minWidth: "110px",
+      cell: (row) => {
+        const { taxable } = getVoucherTaxDetails(row);
+        return (
+          <span className="font-mono font-semibold text-slate-900 dark:text-white block text-xs tabular-nums text-right">
+            {formatCurrency(taxable)}
+          </span>
+        );
+      },
+    },
+    {
+      key: "tax_rate",
+      header: "Tax Rate",
+      align: "center",
+      minWidth: "90px",
+      cell: (row) => {
+        const { rateLabel } = getVoucherTaxDetails(row);
+        return (
+          <span className="font-mono text-xs text-slate-700 dark:text-slate-300 bg-slate-50 dark:bg-slate-800/50 px-2 py-0.5 rounded border border-slate-200/60 dark:border-slate-700/60 tabular-nums font-medium">
+            {rateLabel}
+          </span>
+        );
+      },
+    },
+    {
+      key: "cgst",
+      header: "CGST",
+      isNumeric: true,
+      align: "right",
+      minWidth: "95px",
+      cell: (row) => {
+        const { cgstAmt } = getVoucherTaxDetails(row);
+        return (
+          <span className="font-mono text-xs tabular-nums text-slate-700 dark:text-slate-300 block text-right">
+            {cgstAmt > 0 ? formatCurrency(cgstAmt) : "—"}
+          </span>
+        );
+      },
+    },
+    {
+      key: "sgst",
+      header: "SGST",
+      isNumeric: true,
+      align: "right",
+      minWidth: "95px",
+      cell: (row) => {
+        const { sgstAmt } = getVoucherTaxDetails(row);
+        return (
+          <span className="font-mono text-xs tabular-nums text-slate-700 dark:text-slate-300 block text-right">
+            {sgstAmt > 0 ? formatCurrency(sgstAmt) : "—"}
+          </span>
+        );
+      },
+    },
+    {
+      key: "igst",
+      header: "IGST",
+      isNumeric: true,
+      align: "right",
+      minWidth: "95px",
+      cell: (row) => {
+        const { igstAmt } = getVoucherTaxDetails(row);
+        return (
+          <span className="font-mono text-xs tabular-nums text-slate-700 dark:text-slate-300 block text-right">
+            {igstAmt > 0 ? formatCurrency(igstAmt) : "—"}
+          </span>
+        );
+      },
+    },
+    {
+      key: "net_amount",
+      header: "Total Amount",
+      sortable: true,
+      isNumeric: true,
+      align: "right",
+      minWidth: "120px",
+      cell: (row) => (
+        <span className="font-mono font-bold text-slate-900 dark:text-white block text-xs sm:text-sm tabular-nums text-right">
+          {formatCurrency(row.net_amount)}
+        </span>
+      ),
     },
   ];
 
@@ -991,7 +1154,7 @@ export default function TransportInvoicePage() {
       <FilterBar
         searchValue={searchTerm}
         onSearchChange={setSearchTerm}
-        searchPlaceholder="Search invoice number, customer, LR, GSTIN..."
+        searchPlaceholder="Search invoice number, customer, LR, GSTIN, IRN..."
         filters={[
           {
             id: "status",
@@ -1026,6 +1189,7 @@ export default function TransportInvoicePage() {
       />
 
       <DataTable
+        tableId="transport-invoices-v2"
         columns={columns}
         data={filteredData}
         isLoading={isLoading}

@@ -758,7 +758,7 @@ export function Sidebar() {
   const normalizedPathname = pathname
     ? pathname.replace(/^\/[a-z0-9]{10}/, "").replace(/^\/demo123456/, "").replace(/^\/demo/, "") || "/"
     : "/";
-  
+
   // Usability Issue 6 Fix: Only keep the active route's group expanded by default (Hick's Law)
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({
     home: true,
@@ -920,441 +920,441 @@ export function Sidebar() {
 
   return (
     <>
-    <motion.aside
-      initial={hasEntered ? false : "hidden"}
-      animate={{
-        x: 0,
-        opacity: 1,
-        width: isCollapsed ? 68 : isCompactDesktop ? 240 : 276,
-      }}
-      variants={sidebarVariants}
-      transition={{
-        x: { duration: shouldReduceMotion ? 0 : 0.28, ease: EASE_CUBIC },
-        opacity: { duration: shouldReduceMotion ? 0 : 0.28, ease: EASE_CUBIC },
-        width: { duration: shouldReduceMotion ? 0 : 0.24, ease: EASE_CUBIC },
-      }}
-      className={cn(
-        "hidden lg:flex relative flex-col border-r border-slate-200/80 dark:border-[#22232E] bg-white dark:bg-[#101013] select-none z-30 shrink-0 h-screen h-[100dvh] overflow-hidden",
-        "will-change-[width]"
-      )}
-    >
-      {/* Brand Header — Clean Transparent Enterprise Logo & Workspace Identity */}
-      <div className="flex h-14 sm:h-16 items-center justify-between px-3 border-b border-slate-200/80 dark:border-[#22232E] bg-white dark:bg-[#101013] shrink-0">
-        <AnimatePresence mode="wait" initial={false}>
-          {!isCollapsed ? (
-            <motion.div
-              key="brand-expanded"
-              initial={{ opacity: 0, x: -8 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -8 }}
-              transition={{ duration: 0.16 }}
-              className="flex items-center min-w-0 flex-1 overflow-hidden"
-            >
-              <Link
-                href={resolveUrl("/")}
-                onClick={() => {
-                  if (isFormOpen) closeFormTab(true);
-                  setActiveTab("list");
-                }}
-                className="flex items-center gap-2.5 group min-w-0"
+      <motion.aside
+        initial={hasEntered ? false : "hidden"}
+        animate={{
+          x: 0,
+          opacity: 1,
+          width: isCollapsed ? 68 : isCompactDesktop ? 240 : 276,
+        }}
+        variants={sidebarVariants}
+        transition={{
+          x: { duration: shouldReduceMotion ? 0 : 0.28, ease: EASE_CUBIC },
+          opacity: { duration: shouldReduceMotion ? 0 : 0.28, ease: EASE_CUBIC },
+          width: { duration: shouldReduceMotion ? 0 : 0.24, ease: EASE_CUBIC },
+        }}
+        className={cn(
+          "hidden lg:flex relative flex-col border-r border-slate-200/80 dark:border-[#22232E] bg-white dark:bg-[#101013] select-none z-30 shrink-0 h-screen h-[100dvh] overflow-hidden",
+          "will-change-[width]"
+        )}
+      >
+        {/* Brand Header — Clean Transparent Enterprise Logo & Workspace Identity */}
+        <div className="flex h-14 sm:h-16 items-center justify-between px-3 border-b border-slate-200/80 dark:border-[#22232E] bg-white dark:bg-[#101013] shrink-0">
+          <AnimatePresence mode="wait" initial={false}>
+            {!isCollapsed ? (
+              <motion.div
+                key="brand-expanded"
+                initial={{ opacity: 0, x: -8 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -8 }}
+                transition={{ duration: 0.16 }}
+                className="flex items-center min-w-0 flex-1 overflow-hidden"
               >
-                <img
-                  src="/panther-logo.png"
-                  alt="PantherTMS Logo"
-                  className="h-9 w-auto max-w-[52px] object-contain shrink-0 drop-shadow-xs transition-transform duration-200"
-                />
-                <div className="min-w-0">
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-sm font-bold tracking-tight text-slate-900 dark:text-white transition-colors truncate">
-                      Panther<span className="text-indigo-600 dark:text-indigo-400">TMS</span>
-                    </span>
-                    <span className="text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded bg-slate-100 dark:bg-[#1E1E26] border border-slate-200 dark:border-[#2E2E38] text-slate-600 dark:text-slate-300">
-                      v2.0
-                    </span>
-                  </div>
-                  <span className="block text-[11px] text-slate-500 dark:text-slate-400 font-medium tracking-tight truncate">
-                    Panther Digital Solutions
-                  </span>
-                </div>
-              </Link>
-            </motion.div>
-          ) : (
-            <motion.div
-              key="brand-collapsed"
-              initial={{ opacity: 0, scale: 0.85 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.85 }}
-              transition={{ duration: 0.16 }}
-              className="mx-auto flex items-center justify-center"
-            >
-              <Tooltip content="PantherTMS v2.0" side="right">
                 <Link
                   href={resolveUrl("/")}
                   onClick={() => {
                     if (isFormOpen) closeFormTab(true);
                     setActiveTab("list");
                   }}
-                  className="flex items-center justify-center p-1"
-                  title="PantherTMS"
+                  className="flex items-center gap-2.5 group min-w-0"
                 >
                   <img
                     src="/panther-logo.png"
                     alt="PantherTMS Logo"
-                    className="h-8 w-auto max-w-[34px] object-contain drop-shadow-xs transition-transform duration-200"
+                    className="h-9 w-auto max-w-[52px] object-contain shrink-0 drop-shadow-xs transition-transform duration-200"
                   />
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-sm font-bold tracking-tight text-slate-900 dark:text-white transition-colors truncate">
+                        Panther<span className="text-indigo-600 dark:text-indigo-400">TMS</span>
+                      </span>
+                      <span className="text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded bg-slate-100 dark:bg-[#1E1E26] border border-slate-200 dark:border-[#2E2E38] text-slate-600 dark:text-slate-300">
+                        v2.0
+                      </span>
+                    </div>
+                    <span className="block text-[11px] text-slate-500 dark:text-slate-400 font-medium tracking-tight truncate">
+                      Panther Digital Solutions
+                    </span>
+                  </div>
                 </Link>
-              </Tooltip>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        <button
-          type="button"
-          onClick={handleToggleCollapse}
-          className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-[#F5F5F7] hover:bg-slate-100 dark:hover:bg-[#1C1C22] transition-colors cursor-pointer shrink-0 ml-1"
-          title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-          aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-        >
-          {isCollapsed ? (
-            <PanelLeftOpen className="w-4 h-4 mx-auto" />
-          ) : (
-            <PanelLeftClose className="w-4 h-4" />
-          )}
-        </button>
-      </div>
-
-      {/* Navigation List — Linear-style Inset Item Hierarchy */}
-      <motion.div
-        variants={navListVariants}
-        initial={hasEntered ? false : "hidden"}
-        animate="visible"
-        className="flex-1 overflow-y-auto py-3 pb-16 px-2 space-y-1 custom-sidebar-scroll"
-      >
-        {isLoadingNav && navGroups.length === 0 ? (
-          <div className="py-2 px-1 space-y-2 animate-pulse">
-            {[1, 2, 3, 4, 5, 6].map((i) => (
-              <div
-                key={i}
-                className={cn(
-                  "flex items-center gap-2.5 rounded-xl bg-slate-50 border border-slate-100",
-                  isCollapsed ? "justify-center p-2.5" : "px-2.5 py-2.5"
-                )}
-              >
-                <div className="w-4 h-4 rounded bg-slate-200 shrink-0" />
-                {!isCollapsed && <div className="h-3 bg-slate-200 rounded w-28" />}
-              </div>
-            ))}
-          </div>
-        ) : navGroups.length === 0 ? (
-          <div className="px-3 py-6 text-center text-xs text-slate-400">
-            {!isCollapsed && "No authorized modules found."}
-          </div>
-        ) : (
-          navGroups.map((group) => {
-            const isExpanded = expandedGroups[group.id] ?? false;
-            const hasActiveChild = isGroupActive(group, normalizedPathname);
-            const icon = MODULE_ICONS[group.id] || <Layers className="w-5 h-5" />;
-
-            return (
+              </motion.div>
+            ) : (
               <motion.div
-                key={group.id}
-                variants={navItemVariants}
-                className="space-y-0.5"
+                key="brand-collapsed"
+                initial={{ opacity: 0, scale: 0.85 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.85 }}
+                transition={{ duration: 0.16 }}
+                className="mx-auto flex items-center justify-center"
               >
-                {isCollapsed ? (
-                  <Tooltip content={group.title} side="right">
-                    {group.items && group.items.length > 0 ? (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (group.is_locked) {
-                            setPlanGate({
-                              featureName: group.title,
-                              requiredPlan: group.required_plan || "BUSINESS",
-                            });
-                            return;
-                          }
-                          setIsCollapsed(false);
-                          setExpandedGroups((prev) => ({
-                            ...prev,
-                            [group.id]: true,
-                          }));
-                        }}
-                        className={cn(
-                          "w-11 h-11 mx-auto flex items-center justify-center rounded-xl transition-all duration-150 cursor-pointer group select-none relative",
-                          hasActiveChild
-                            ? "bg-indigo-50/90 text-indigo-600 border border-indigo-200/80 shadow-2xs"
-                            : "text-slate-600 dark:text-[#CACAD0] hover:bg-slate-100 dark:hover:bg-[#1C1C22] hover:text-slate-900 dark:hover:text-[#F5F5F7] active:bg-slate-200/50"
-                        )}
-                        title={group.title}
-                        aria-label={group.title}
-                      >
-                        <span className={cn(
-                          "transition-transform duration-150",
-                          hasActiveChild ? "text-indigo-600" : "text-slate-500"
-                        )}>
-                          {icon}
-                        </span>
-                        {hasActiveChild && (
-                          <span className="absolute -left-1 top-2.5 bottom-2.5 w-[3px] rounded-r-full bg-indigo-600 shadow-[0_0_8px_rgba(79,70,229,0.4)]" />
-                        )}
-                      </button>
-                    ) : (
-                      <Link
-                        href={group.is_locked ? "#" : resolveUrl(getGroupRoute(group))}
-                        onClick={(e) => {
-                          if (group.is_locked) {
-                            e.preventDefault();
-                            setPlanGate({
-                              featureName: group.title,
-                              requiredPlan: group.required_plan || "BUSINESS",
-                            });
-                            return;
-                          }
-                          if (isFormOpen) {
-                            closeFormTab(false);
-                          }
-                          setActiveTab("list");
-                        }}
-                        className={cn(
-                          "w-11 h-11 mx-auto flex items-center justify-center rounded-xl transition-all duration-150 cursor-pointer group select-none relative",
-                          hasActiveChild
-                            ? "bg-indigo-50/90 text-indigo-600 border border-indigo-200/80 shadow-2xs"
-                            : "text-slate-600 dark:text-[#CACAD0] hover:bg-slate-100 dark:hover:bg-[#1C1C22] hover:text-slate-900 dark:hover:text-[#F5F5F7] active:bg-slate-200/50"
-                        )}
-                        title={group.title}
-                        aria-label={group.title}
-                      >
-                        <span className={cn(
-                          "transition-transform duration-150",
-                          hasActiveChild ? "text-indigo-600" : "text-slate-500"
-                        )}>
-                          {icon}
-                        </span>
-                        {hasActiveChild && (
-                          <span className="absolute -left-1 top-2.5 bottom-2.5 w-[3px] rounded-r-full bg-indigo-600 shadow-[0_0_8px_rgba(79,70,229,0.4)]" />
-                        )}
-                      </Link>
-                    )}
-                  </Tooltip>
-                ) : group.items && group.items.length > 0 ? (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (group.is_locked) {
-                        setPlanGate({
-                          featureName: group.title,
-                          requiredPlan: group.required_plan || "BUSINESS",
-                        });
-                        return;
-                      }
-                      toggleGroup(group.id);
-                    }}
-                    className={cn(
-                      "group flex w-full items-center justify-between px-2.5 py-1.5 rounded-xl text-xs font-medium transition-all duration-150 select-none cursor-pointer",
-                      hasActiveChild
-                        ? "text-slate-900 dark:text-[#F5F5F7] font-semibold bg-slate-100/90 dark:bg-[#17171B] border border-slate-200/80 dark:border-[#303036] shadow-2xs"
-                        : "text-slate-700 dark:text-[#CACAD0] hover:bg-slate-100 dark:hover:bg-[#1C1C22] hover:text-slate-900 dark:hover:text-[#F5F5F7] active:bg-slate-200/50"
-                    )}
-                    aria-label={`${group.title} section`}
-                    aria-expanded={isExpanded}
-                  >
-                    <div className="flex items-center gap-2.5 min-w-0 flex-1 mr-1 py-0.5">
-                      <span className={cn(
-                        "shrink-0 transition-all duration-150",
-                        hasActiveChild ? "text-indigo-600 dark:text-indigo-400" : "text-slate-500"
-                      )}>
-                        {icon}
-                      </span>
-                      <span className="text-xs font-semibold text-slate-800 dark:text-[#F5F5F7] truncate">
-                        {group.title}
-                      </span>
-                    </div>
-
-                    <div className="flex items-center gap-1.5 shrink-0 ml-1">
-                      {group.is_locked && (
-                        <span
-                          className="inline-flex items-center justify-center w-5 h-5 rounded bg-amber-50 border border-amber-200/80 text-amber-700 shadow-2xs shrink-0"
-                          title={`Requires ${formatPlanName(group.required_plan)} plan`}
-                        >
-                          <Lock className="w-2.5 h-2.5 shrink-0" />
-                        </span>
-                      )}
-                      <span className="p-1 -m-1 rounded-md text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-200 transition-colors inline-flex items-center justify-center">
-                        {isExpanded ? (
-                          <ChevronDown className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
-                        ) : (
-                          <ChevronRight className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
-                        )}
-                      </span>
-                    </div>
-                  </button>
-                ) : (
+                <Tooltip content="PantherTMS v2.0" side="right">
                   <Link
-                    href={group.is_locked ? "#" : resolveUrl(getGroupRoute(group))}
-                    onClick={(e) => {
-                      if (group.is_locked) {
-                        e.preventDefault();
-                        setPlanGate({
-                          featureName: group.title,
-                          requiredPlan: group.required_plan || "BUSINESS",
-                        });
-                        return;
-                      }
-                      if (isFormOpen) {
-                        closeFormTab(false);
-                      }
+                    href={resolveUrl("/")}
+                    onClick={() => {
+                      if (isFormOpen) closeFormTab(true);
                       setActiveTab("list");
                     }}
-                    className={cn(
-                      "group flex w-full items-center justify-between px-2.5 py-1.5 rounded-xl text-xs font-medium transition-all duration-150 select-none cursor-pointer",
-                      hasActiveChild
-                        ? "text-slate-900 dark:text-[#F5F5F7] font-semibold bg-slate-100/90 dark:bg-[#17171B] border border-slate-200/80 dark:border-[#303036] shadow-2xs"
-                        : "text-slate-700 dark:text-[#CACAD0] hover:bg-slate-100 dark:hover:bg-[#1C1C22] hover:text-slate-900 dark:hover:text-[#F5F5F7] active:bg-slate-200/50"
-                    )}
+                    className="flex items-center justify-center p-1"
+                    title="PantherTMS"
                   >
-                    <div className="flex items-center gap-2.5 min-w-0 flex-1 mr-1 py-0.5">
-                      <span className={cn(
-                        "shrink-0 transition-all duration-150",
-                        hasActiveChild ? "text-indigo-600 dark:text-indigo-400" : "text-slate-500"
-                      )}>
-                        {icon}
-                      </span>
-                      <span className="text-xs font-semibold text-slate-800 dark:text-[#F5F5F7] truncate">
-                        {group.title}
-                      </span>
-                    </div>
+                    <img
+                      src="/panther-logo.png"
+                      alt="PantherTMS Logo"
+                      className="h-8 w-auto max-w-[34px] object-contain drop-shadow-xs transition-transform duration-200"
+                    />
                   </Link>
-                )}
+                </Tooltip>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
-                {/* Sub items — Accordion with Smooth CSS Grid Transition */}
+          <button
+            type="button"
+            onClick={handleToggleCollapse}
+            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-[#F5F5F7] hover:bg-slate-100 dark:hover:bg-[#1C1C22] transition-colors cursor-pointer shrink-0 ml-1"
+            title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+            aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+          >
+            {isCollapsed ? (
+              <PanelLeftOpen className="w-4 h-4 mx-auto" />
+            ) : (
+              <PanelLeftClose className="w-4 h-4" />
+            )}
+          </button>
+        </div>
+
+        {/* Navigation List — Linear-style Inset Item Hierarchy */}
+        <motion.div
+          variants={navListVariants}
+          initial={hasEntered ? false : "hidden"}
+          animate="visible"
+          className="flex-1 overflow-y-auto py-3 pb-16 px-2 space-y-1 custom-sidebar-scroll"
+        >
+          {isLoadingNav && navGroups.length === 0 ? (
+            <div className="py-2 px-1 space-y-2 animate-pulse">
+              {[1, 2, 3, 4, 5, 6].map((i) => (
                 <div
+                  key={i}
                   className={cn(
-                    "grid transition-[grid-template-rows,opacity] duration-150 ease-out",
-                    !isCollapsed && isExpanded
-                      ? "grid-rows-[1fr] opacity-100"
-                      : "grid-rows-[0fr] opacity-0 pointer-events-none"
+                    "flex items-center gap-2.5 rounded-xl bg-slate-50 border border-slate-100",
+                    isCollapsed ? "justify-center p-2.5" : "px-2.5 py-2.5"
                   )}
                 >
-                  <div className="min-h-0 overflow-hidden pl-3.5 pr-1 space-y-0.5 pt-0.5 border-l border-slate-100/90 dark:border-[#22232E] ml-4 my-0.5 relative">
-                    {group.items?.map((sub) => {
-                      const isActive = normalizedPathname === sub.href;
-                      const SubIcon = getSubItemIcon(sub);
+                  <div className="w-4 h-4 rounded bg-slate-200 shrink-0" />
+                  {!isCollapsed && <div className="h-3 bg-slate-200 rounded w-28" />}
+                </div>
+              ))}
+            </div>
+          ) : navGroups.length === 0 ? (
+            <div className="px-3 py-6 text-center text-xs text-slate-400">
+              {!isCollapsed && "No authorized modules found."}
+            </div>
+          ) : (
+            navGroups.map((group) => {
+              const isExpanded = expandedGroups[group.id] ?? false;
+              const hasActiveChild = isGroupActive(group, normalizedPathname);
+              const icon = MODULE_ICONS[group.id] || <Layers className="w-5 h-5" />;
 
-                      return (
+              return (
+                <motion.div
+                  key={group.id}
+                  variants={navItemVariants}
+                  className="space-y-0.5"
+                >
+                  {isCollapsed ? (
+                    <Tooltip content={group.title} side="right">
+                      {group.items && group.items.length > 0 ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (group.is_locked) {
+                              setPlanGate({
+                                featureName: group.title,
+                                requiredPlan: group.required_plan || "BUSINESS",
+                              });
+                              return;
+                            }
+                            setIsCollapsed(false);
+                            setExpandedGroups((prev) => ({
+                              ...prev,
+                              [group.id]: true,
+                            }));
+                          }}
+                          className={cn(
+                            "w-11 h-11 mx-auto flex items-center justify-center rounded-xl transition-all duration-150 cursor-pointer group select-none relative",
+                            hasActiveChild
+                              ? "bg-indigo-50/90 text-indigo-600 border border-indigo-200/80 shadow-2xs"
+                              : "text-slate-600 dark:text-[#CACAD0] hover:bg-slate-100 dark:hover:bg-[#1C1C22] hover:text-slate-900 dark:hover:text-[#F5F5F7] active:bg-slate-200/50"
+                          )}
+                          title={group.title}
+                          aria-label={group.title}
+                        >
+                          <span className={cn(
+                            "transition-transform duration-150",
+                            hasActiveChild ? "text-indigo-600" : "text-slate-500"
+                          )}>
+                            {icon}
+                          </span>
+                          {hasActiveChild && (
+                            <span className="absolute -left-1 top-2.5 bottom-2.5 w-[3px] rounded-r-full bg-indigo-600 shadow-[0_0_8px_rgba(79,70,229,0.4)]" />
+                          )}
+                        </button>
+                      ) : (
                         <Link
-                          key={sub.href}
-                          href={sub.is_locked ? "#" : resolveUrl(sub.href)}
-                          prefetch={false}
+                          href={group.is_locked ? "#" : resolveUrl(getGroupRoute(group))}
                           onClick={(e) => {
-                            if (sub.is_locked) {
+                            if (group.is_locked) {
                               e.preventDefault();
                               setPlanGate({
-                                featureName: sub.title,
-                                requiredPlan: sub.required_plan || group.required_plan || "BUSINESS",
+                                featureName: group.title,
+                                requiredPlan: group.required_plan || "BUSINESS",
                               });
                               return;
                             }
                             if (isFormOpen) {
-                              closeFormTab(true);
+                              closeFormTab(false);
                             }
                             setActiveTab("list");
-                            if (typeof window !== "undefined") {
-                              window.dispatchEvent(new Event("panther_close_active_drawer"));
-                            }
-                            if (normalizedPathname === sub.href) {
-                              e.preventDefault();
-                              router.push(resolveUrl(sub.href));
-                            }
                           }}
                           className={cn(
-                            "group relative flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs sm:text-[13px] transition-colors duration-100 select-none",
-                            sub.is_locked
-                              ? "text-slate-400 opacity-80 cursor-not-allowed"
-                              : isActive
-                              ? "bg-indigo-50/90 text-indigo-700 font-semibold border border-indigo-200/60 shadow-2xs"
-                              : "text-slate-600 dark:text-[#CACAD0] hover:bg-slate-100/80 dark:hover:bg-[#1C1C22] hover:text-slate-900 dark:hover:text-[#F5F5F7]"
+                            "w-11 h-11 mx-auto flex items-center justify-center rounded-xl transition-all duration-150 cursor-pointer group select-none relative",
+                            hasActiveChild
+                              ? "bg-indigo-50/90 text-indigo-600 border border-indigo-200/80 shadow-2xs"
+                              : "text-slate-600 dark:text-[#CACAD0] hover:bg-slate-100 dark:hover:bg-[#1C1C22] hover:text-slate-900 dark:hover:text-[#F5F5F7] active:bg-slate-200/50"
                           )}
+                          title={group.title}
+                          aria-label={group.title}
                         >
-                          {/* Slim Vertical Accent Indicator */}
-                          {isActive && !sub.is_locked && (
-                            <span
-                              className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-r-full bg-indigo-600 shadow-[0_0_8px_rgba(79,70,229,0.35)]"
-                            />
-                          )}
-
-                          <span className="truncate flex items-center gap-2 min-w-0">
-                            <span
-                              className={cn(
-                                "shrink-0 transition-transform duration-100",
-                                sub.is_locked
-                                  ? "text-slate-300"
-                                  : isActive
-                                  ? "text-indigo-600 scale-105"
-                                  : "text-slate-400"
-                              )}
-                            >
-                              <SubIcon className="w-3.5 h-3.5" />
-                            </span>
-                            <span className="truncate">{sub.title}</span>
-                            {sub.is_locked && (
-                              <span className="inline-flex items-center gap-0.5 text-[9px] font-bold px-1 py-0.5 rounded bg-amber-50 border border-amber-200 text-amber-800 uppercase">
-                                <Lock className="w-2 h-2" />
-                                {formatPlanName(sub.required_plan || group.required_plan)}
-                              </span>
-                            )}
+                          <span className={cn(
+                            "transition-transform duration-150",
+                            hasActiveChild ? "text-indigo-600" : "text-slate-500"
+                          )}>
+                            {icon}
                           </span>
-                          {isActive && !sub.is_locked && (
-                            <motion.span
-                              initial={{ scale: 0 }}
-                              animate={{ scale: 1 }}
-                              transition={{ type: "spring", stiffness: 500, damping: 30 }}
-                              className="w-1.5 h-1.5 rounded-full bg-indigo-600 shrink-0 shadow-xs"
-                            />
+                          {hasActiveChild && (
+                            <span className="absolute -left-1 top-2.5 bottom-2.5 w-[3px] rounded-r-full bg-indigo-600 shadow-[0_0_8px_rgba(79,70,229,0.4)]" />
                           )}
                         </Link>
-                      );
-                    })}
-                  </div>
-                </div>
-              </motion.div>
-            );
-          })
-        )}
-      </motion.div>
+                      )}
+                    </Tooltip>
+                  ) : group.items && group.items.length > 0 ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (group.is_locked) {
+                          setPlanGate({
+                            featureName: group.title,
+                            requiredPlan: group.required_plan || "BUSINESS",
+                          });
+                          return;
+                        }
+                        toggleGroup(group.id);
+                      }}
+                      className={cn(
+                        "group flex w-full items-center justify-between px-2.5 py-1.5 rounded-xl text-xs font-medium transition-all duration-150 select-none cursor-pointer",
+                        hasActiveChild
+                          ? "text-slate-900 dark:text-[#F5F5F7] font-semibold bg-slate-100/90 dark:bg-[#17171B] border border-slate-200/80 dark:border-[#303036] shadow-2xs"
+                          : "text-slate-700 dark:text-[#CACAD0] hover:bg-slate-100 dark:hover:bg-[#1C1C22] hover:text-slate-900 dark:hover:text-[#F5F5F7] active:bg-slate-200/50"
+                      )}
+                      aria-label={`${group.title} section`}
+                      aria-expanded={isExpanded}
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0 flex-1 mr-1 py-0.5">
+                        <span className={cn(
+                          "shrink-0 transition-all duration-150",
+                          hasActiveChild ? "text-indigo-600 dark:text-indigo-400" : "text-slate-500"
+                        )}>
+                          {icon}
+                        </span>
+                        <span className="text-xs font-semibold text-slate-800 dark:text-[#F5F5F7] truncate">
+                          {group.title}
+                        </span>
+                      </div>
 
-      {/* RBAC Active Footer — Linear/Stripe Enterprise Status */}
-      {!isCollapsed ? (
-        <div className="p-3 border-t border-slate-200/80 dark:border-[#303036] bg-slate-50/50 dark:bg-[#101013]">
-          <div className="rounded-lg bg-white dark:bg-[#17171B] border border-slate-200/80 dark:border-[#303036] p-2.5 flex items-center justify-between shadow-2xs">
-            <div className="flex items-center gap-2 min-w-0">
-              <span className="relative flex h-2 w-2 shrink-0">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
-              </span>
-              <div className="leading-tight truncate">
-                <span className="text-xs font-semibold text-slate-800 dark:text-[#F5F5F7] block truncate">
-                  Tenant RBAC Active
+                      <div className="flex items-center gap-1.5 shrink-0 ml-1">
+                        {group.is_locked && (
+                          <span
+                            className="inline-flex items-center justify-center w-5 h-5 rounded bg-amber-50 border border-amber-200/80 text-amber-700 shadow-2xs shrink-0"
+                            title={`Requires ${formatPlanName(group.required_plan)} plan`}
+                          >
+                            <Lock className="w-2.5 h-2.5 shrink-0" />
+                          </span>
+                        )}
+                        <span className="p-1 -m-1 rounded-md text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-200 transition-colors inline-flex items-center justify-center">
+                          {isExpanded ? (
+                            <ChevronDown className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
+                          ) : (
+                            <ChevronRight className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
+                          )}
+                        </span>
+                      </div>
+                    </button>
+                  ) : (
+                    <Link
+                      href={group.is_locked ? "#" : resolveUrl(getGroupRoute(group))}
+                      onClick={(e) => {
+                        if (group.is_locked) {
+                          e.preventDefault();
+                          setPlanGate({
+                            featureName: group.title,
+                            requiredPlan: group.required_plan || "BUSINESS",
+                          });
+                          return;
+                        }
+                        if (isFormOpen) {
+                          closeFormTab(false);
+                        }
+                        setActiveTab("list");
+                      }}
+                      className={cn(
+                        "group flex w-full items-center justify-between px-2.5 py-1.5 rounded-xl text-xs font-medium transition-all duration-150 select-none cursor-pointer",
+                        hasActiveChild
+                          ? "text-slate-900 dark:text-[#F5F5F7] font-semibold bg-slate-100/90 dark:bg-[#17171B] border border-slate-200/80 dark:border-[#303036] shadow-2xs"
+                          : "text-slate-700 dark:text-[#CACAD0] hover:bg-slate-100 dark:hover:bg-[#1C1C22] hover:text-slate-900 dark:hover:text-[#F5F5F7] active:bg-slate-200/50"
+                      )}
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0 flex-1 mr-1 py-0.5">
+                        <span className={cn(
+                          "shrink-0 transition-all duration-150",
+                          hasActiveChild ? "text-indigo-600 dark:text-indigo-400" : "text-slate-500"
+                        )}>
+                          {icon}
+                        </span>
+                        <span className="text-xs font-semibold text-slate-800 dark:text-[#F5F5F7] truncate">
+                          {group.title}
+                        </span>
+                      </div>
+                    </Link>
+                  )}
+
+                  {/* Sub items — Accordion with Smooth CSS Grid Transition */}
+                  <div
+                    className={cn(
+                      "grid transition-[grid-template-rows,opacity] duration-150 ease-out",
+                      !isCollapsed && isExpanded
+                        ? "grid-rows-[1fr] opacity-100"
+                        : "grid-rows-[0fr] opacity-0 pointer-events-none"
+                    )}
+                  >
+                    <div className="min-h-0 overflow-hidden pl-3.5 pr-1 space-y-0.5 pt-0.5 border-l border-slate-100/90 dark:border-[#22232E] ml-4 my-0.5 relative">
+                      {group.items?.map((sub) => {
+                        const isActive = normalizedPathname === sub.href;
+                        const SubIcon = getSubItemIcon(sub);
+
+                        return (
+                          <Link
+                            key={sub.href}
+                            href={sub.is_locked ? "#" : resolveUrl(sub.href)}
+                            prefetch={false}
+                            onClick={(e) => {
+                              if (sub.is_locked) {
+                                e.preventDefault();
+                                setPlanGate({
+                                  featureName: sub.title,
+                                  requiredPlan: sub.required_plan || group.required_plan || "BUSINESS",
+                                });
+                                return;
+                              }
+                              if (isFormOpen) {
+                                closeFormTab(true);
+                              }
+                              setActiveTab("list");
+                              if (typeof window !== "undefined") {
+                                window.dispatchEvent(new Event("panther_close_active_drawer"));
+                              }
+                              if (normalizedPathname === sub.href) {
+                                e.preventDefault();
+                                router.push(resolveUrl(sub.href));
+                              }
+                            }}
+                            className={cn(
+                              "group relative flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs sm:text-[13px] transition-colors duration-100 select-none",
+                              sub.is_locked
+                                ? "text-slate-400 opacity-80 cursor-not-allowed"
+                                : isActive
+                                  ? "bg-indigo-50/90 text-indigo-700 font-semibold border border-indigo-200/60 shadow-2xs"
+                                  : "text-slate-600 dark:text-[#CACAD0] hover:bg-slate-100/80 dark:hover:bg-[#1C1C22] hover:text-slate-900 dark:hover:text-[#F5F5F7]"
+                            )}
+                          >
+                            {/* Slim Vertical Accent Indicator */}
+                            {isActive && !sub.is_locked && (
+                              <span
+                                className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-r-full bg-indigo-600 shadow-[0_0_8px_rgba(79,70,229,0.35)]"
+                              />
+                            )}
+
+                            <span className="truncate flex items-center gap-2 min-w-0">
+                              <span
+                                className={cn(
+                                  "shrink-0 transition-transform duration-100",
+                                  sub.is_locked
+                                    ? "text-slate-300"
+                                    : isActive
+                                      ? "text-indigo-600 scale-105"
+                                      : "text-slate-400"
+                                )}
+                              >
+                                <SubIcon className="w-3.5 h-3.5" />
+                              </span>
+                              <span className="truncate">{sub.title}</span>
+                              {sub.is_locked && (
+                                <span className="inline-flex items-center gap-0.5 text-[9px] font-bold px-1 py-0.5 rounded bg-amber-50 border border-amber-200 text-amber-800 uppercase">
+                                  <Lock className="w-2 h-2" />
+                                  {formatPlanName(sub.required_plan || group.required_plan)}
+                                </span>
+                              )}
+                            </span>
+                            {isActive && !sub.is_locked && (
+                              <motion.span
+                                initial={{ scale: 0 }}
+                                animate={{ scale: 1 }}
+                                transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                                className="w-1.5 h-1.5 rounded-full bg-indigo-600 shrink-0 shadow-xs"
+                              />
+                            )}
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </motion.div>
+              );
+            })
+          )}
+        </motion.div>
+
+        {/* RBAC Active Footer — Linear/Stripe Enterprise Status */}
+        {!isCollapsed ? (
+          <div className="p-3 border-t border-slate-200/80 dark:border-[#303036] bg-slate-50/50 dark:bg-[#101013]">
+            <div className="rounded-lg bg-white dark:bg-[#17171B] border border-slate-200/80 dark:border-[#303036] p-2.5 flex items-center justify-between shadow-2xs">
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="relative flex h-2 w-2 shrink-0">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
                 </span>
-                <span className="text-xs text-slate-500 dark:text-[#898991] block truncate">
-                  Multi-tenant isolated
-                </span>
+                <div className="leading-tight truncate">
+                  <span className="text-xs font-semibold text-slate-800 dark:text-[#F5F5F7] block truncate">
+                    Tenant RBAC Active
+                  </span>
+                  <span className="text-xs text-slate-500 dark:text-[#898991] block truncate">
+                    Multi-tenant isolated
+                  </span>
+                </div>
               </div>
+              <ShieldCheck className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
             </div>
-            <ShieldCheck className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
           </div>
-        </div>
-      ) : (
-        <div className="p-3 border-t border-slate-200/80 dark:border-[#303036] bg-slate-50/50 dark:bg-[#101013] flex justify-center">
-          <Tooltip content="Tenant RBAC Active (Multi-tenant isolated)" side="right">
-            <div className="relative flex h-4 w-4 items-center justify-center cursor-default">
-              <span className="animate-ping absolute inline-flex h-2.5 w-2.5 rounded-full bg-emerald-400 opacity-75" />
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
-            </div>
-          </Tooltip>
-        </div>
-      )}
-    </motion.aside>
+        ) : (
+          <div className="p-3 border-t border-slate-200/80 dark:border-[#303036] bg-slate-50/50 dark:bg-[#101013] flex justify-center">
+            <Tooltip content="Tenant RBAC Active (Multi-tenant isolated)" side="right">
+              <div className="relative flex h-4 w-4 items-center justify-center cursor-default">
+                <span className="animate-ping absolute inline-flex h-2.5 w-2.5 rounded-full bg-emerald-400 opacity-75" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+              </div>
+            </Tooltip>
+          </div>
+        )}
+      </motion.aside>
 
       {/* Mobile Off-Canvas Navigation Drawer (< 1024px) */}
       <AnimatePresence>
@@ -1538,8 +1538,8 @@ export function Sidebar() {
                                   sub.is_locked
                                     ? "text-slate-400 opacity-80 cursor-not-allowed"
                                     : isActive
-                                    ? "bg-indigo-50/90 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 font-semibold border border-indigo-200/60 dark:border-indigo-800/60"
-                                    : "text-slate-600 dark:text-[#CACAD0] hover:bg-slate-100/80 dark:hover:bg-[#1C1C22] hover:text-slate-900 dark:hover:text-[#F5F5F7]"
+                                      ? "bg-indigo-50/90 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 font-semibold border border-indigo-200/60 dark:border-indigo-800/60"
+                                      : "text-slate-600 dark:text-[#CACAD0] hover:bg-slate-100/80 dark:hover:bg-[#1C1C22] hover:text-slate-900 dark:hover:text-[#F5F5F7]"
                                 )}
                               >
                                 <span className="truncate flex items-center gap-2 min-w-0">
@@ -1591,12 +1591,12 @@ export function Sidebar() {
           </div>
         )}
       </AnimatePresence>
-    <PlanGateDialog
-      isOpen={Boolean(planGate)}
-      onClose={() => setPlanGate(null)}
-      featureName={planGate?.featureName}
-      requiredPlan={planGate?.requiredPlan}
-    />
+      <PlanGateDialog
+        isOpen={Boolean(planGate)}
+        onClose={() => setPlanGate(null)}
+        featureName={planGate?.featureName}
+        requiredPlan={planGate?.requiredPlan}
+      />
     </>
   );
 }
