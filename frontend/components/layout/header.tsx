@@ -111,7 +111,7 @@ export function Header() {
       : authData?.role || "User");
 
   return (
-    <header className="h-14 sm:h-16 border-b border-slate-200/80 dark:border-[#22232E] bg-white/95 dark:bg-[#101013]/95 backdrop-blur-md px-2.5 sm:px-4 xl:px-5 flex items-center justify-between gap-1.5 sm:gap-2 z-20 shrink-0 select-none overflow-hidden">
+    <header className="h-14 sm:h-16 border-b border-slate-200/80 dark:border-[#22232E] bg-white/95 dark:bg-[#101013]/95 backdrop-blur-md px-2.5 sm:px-4 xl:px-5 flex items-center justify-between gap-1.5 sm:gap-2 z-20 shrink-0 select-none">
       {/* Zone 1: Left - Mobile Menu Trigger + Organization + Branch Switcher */}
       <div className="flex items-center gap-1 sm:gap-2 min-w-0 shrink">
         {/* Mobile Sidebar Hamburger Trigger (Hidden on Desktop >= 1024px) */}

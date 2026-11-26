@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { Building2, MapPin, ChevronDown, Check, Globe } from "lucide-react";
 import { getStoredAuth, setStoredAuth, getActiveOffice, setActiveOffice, OfficeSummary } from "@/lib/auth";
@@ -9,6 +10,7 @@ import { cn } from "@/lib/utils";
 
 export function OfficeSwitcher() {
   const router = useRouter();
+  const [mounted, setMounted] = useState(false);
   const [offices, setOffices] = useState<OfficeSummary[]>(() => {
     if (typeof window === "undefined") return [];
     return getStoredAuth()?.assignedOffices || [];
@@ -25,7 +27,13 @@ export function OfficeSwitcher() {
   });
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const popoverRef = useRef<HTMLDivElement>(null);
+  const [menuStyle, setMenuStyle] = useState<React.CSSProperties>({});
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const syncOffices = async () => {
     const auth = getStoredAuth();
@@ -116,16 +124,85 @@ export function OfficeSwitcher() {
     };
   }, []);
 
-  // Close on outside click
+  const updatePosition = useCallback(() => {
+    if (!triggerRef.current) return;
+    const rect = triggerRef.current.getBoundingClientRect();
+    const width = 296; // w-72 approx 288-296px
+    const padding = 12;
+
+    let left = rect.left;
+    if (left + width > window.innerWidth - padding) {
+      left = Math.max(padding, window.innerWidth - width - padding);
+    }
+    if (left < padding) {
+      left = padding;
+    }
+
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const estimatedHeight = 320;
+    const openUpward = spaceBelow < estimatedHeight && rect.top > spaceBelow;
+
+    const style: React.CSSProperties = {
+      position: "fixed",
+      zIndex: 99999,
+      left: `${left}px`,
+      width: `${Math.min(width, window.innerWidth - padding * 2)}px`,
+    };
+
+    if (openUpward) {
+      style.bottom = `${Math.max(padding, window.innerHeight - rect.top + 6)}px`;
+    } else {
+      style.top = `${rect.bottom + 6}px`;
+    }
+
+    setMenuStyle(style);
+  }, []);
+
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+    if (!isOpen) return;
+
+    updatePosition();
+
+    function handleScroll(event: Event) {
+      if (popoverRef.current && popoverRef.current.contains(event.target as Node)) {
+        return;
+      }
+      setIsOpen(false);
+    }
+
+    function handleResize() {
+      updatePosition();
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
         setIsOpen(false);
       }
-    };
+    }
+
+    function handleClickOutside(event: MouseEvent) {
+      const target = event.target as Node;
+      if (
+        (triggerRef.current && triggerRef.current.contains(target)) ||
+        (popoverRef.current && popoverRef.current.contains(target))
+      ) {
+        return;
+      }
+      setIsOpen(false);
+    }
+
+    window.addEventListener("scroll", handleScroll, true);
+    window.addEventListener("resize", handleResize);
+    document.addEventListener("keydown", handleKeyDown);
     document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
+
+    return () => {
+      window.removeEventListener("scroll", handleScroll, true);
+      window.removeEventListener("resize", handleResize);
+      document.removeEventListener("keydown", handleKeyDown);
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [isOpen, updatePosition]);
 
   const handleSelect = (office: OfficeSummary | null) => {
     if (office) {
@@ -177,8 +254,9 @@ export function OfficeSwitcher() {
 
   // Multi-office, Single-office, or Admin: Interactive Switcher Dropdown
   return (
-    <div className="relative inline-block max-w-full text-left" ref={dropdownRef}>
+    <div className="relative inline-block max-w-full text-left">
       <button
+        ref={triggerRef}
         type="button"
         onClick={() => setIsOpen(!isOpen)}
         className={cn(
@@ -190,7 +268,7 @@ export function OfficeSwitcher() {
       >
         <div className="w-2 h-2 rounded-full bg-emerald-500 shrink-0 animate-pulse" />
         <Building2 className="w-3.5 h-3.5 text-slate-500 shrink-0 hidden sm:block" />
-        
+
         <div className="flex items-center gap-1.5 text-left truncate min-w-0">
           <span className="text-slate-400 font-normal hidden xl:inline">Office:</span>
           {activeOffice?.id === 0 ? (
@@ -199,7 +277,9 @@ export function OfficeSwitcher() {
             </span>
           ) : (
             <>
-              <span className="font-bold text-slate-900 dark:text-white truncate max-w-[68px] sm:max-w-[90px]">{activeOffice?.code || "HQ"}</span>
+              <span className="font-bold text-slate-900 dark:text-white truncate max-w-[68px] sm:max-w-[90px]">
+                {activeOffice?.code || "HQ"}
+              </span>
               <span className="font-medium text-slate-600 dark:text-slate-300 truncate max-w-[110px] hidden xl:inline">
                 {activeOffice?.name || "Corporate Office"}
               </span>
@@ -215,93 +295,106 @@ export function OfficeSwitcher() {
         />
       </button>
 
-      {isOpen && (
-        <div className="absolute left-0 mt-1.5 w-72 max-w-[calc(100vw-1.5rem)] rounded-xl border border-slate-200 dark:border-[#303036] bg-white dark:bg-[#17171B] p-1.5 shadow-xl z-50 animate-in fade-in-0 zoom-in-95">
-          <div className="px-2.5 py-2 border-b border-slate-100 dark:border-[#22232E] flex items-center justify-between">
-            <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
-              Active Issuing Office
-            </span>
-            <span className="text-[10px] text-slate-500 font-medium">
-              {offices.length} {offices.length === 1 ? "Assigned" : "Available"}
-            </span>
-          </div>
+      {isOpen &&
+        mounted &&
+        createPortal(
+          <div
+            ref={popoverRef}
+            style={menuStyle}
+            onClick={(e) => e.stopPropagation()}
+            className="rounded-xl border border-slate-200 dark:border-[#303036] bg-white dark:bg-[#17171B] p-1.5 shadow-2xl animate-in fade-in-0 zoom-in-95 duration-100"
+          >
+            <div className="px-2.5 py-2 border-b border-slate-100 dark:border-[#22232E] flex items-center justify-between">
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+                Active Issuing Office
+              </span>
+              <span className="text-[10px] text-slate-500 font-medium">
+                {offices.length} {offices.length === 1 ? "Assigned" : "Available"}
+              </span>
+            </div>
 
-          <div className="py-1 max-h-64 overflow-y-auto space-y-0.5">
-            {isAdmin && (
-              <button
-                type="button"
-                onClick={() => handleSelect(null)}
-                className={cn(
-                  "w-full flex items-center justify-between px-2.5 py-2 rounded-lg text-left text-xs transition-colors cursor-pointer",
-                  activeOffice?.id === 0
-                    ? "bg-indigo-50/90 dark:bg-indigo-950/50 text-indigo-900 dark:text-indigo-200 font-semibold"
-                    : "text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-white/5"
-                )}
-              >
-                <div className="flex items-center gap-2">
-                  <Globe className="w-4 h-4 text-indigo-600 shrink-0" />
-                  <div>
-                    <div className="font-semibold text-slate-900 dark:text-white">All Issuing Offices</div>
-                    <div className="text-[11px] text-slate-400">Consolidated cross-office view</div>
-                  </div>
-                </div>
-                {activeOffice?.id === 0 && <Check className="w-4 h-4 text-indigo-600 shrink-0" />}
-              </button>
-            )}
-
-            {offices.map((office) => {
-              const isSelected = activeOffice?.id === office.id;
-              return (
+            <div className="py-1 max-h-64 overflow-y-auto space-y-0.5 custom-scrollbar">
+              {isAdmin && (
                 <button
-                  key={office.id}
                   type="button"
-                  onClick={() => handleSelect(office)}
+                  onClick={() => handleSelect(null)}
                   className={cn(
-                    "w-full flex items-center justify-between px-2.5 py-2 rounded-lg text-left text-xs transition-colors cursor-pointer group",
-                    isSelected
+                    "w-full flex items-center justify-between px-2.5 py-2 rounded-lg text-left text-xs transition-colors cursor-pointer",
+                    activeOffice?.id === 0
                       ? "bg-indigo-50/90 dark:bg-indigo-950/50 text-indigo-900 dark:text-indigo-200 font-semibold"
                       : "text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-white/5"
                   )}
                 >
-                  <div className="flex items-center gap-2 min-w-0">
-                    <MapPin className={cn("w-3.5 h-3.5 shrink-0", isSelected ? "text-indigo-600" : "text-slate-400 group-hover:text-slate-600")} />
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-1.5">
-                        <span className="font-bold text-slate-900 dark:text-white">{office.code}</span>
-                        <span className="text-slate-700 dark:text-slate-200 truncate">{office.name}</span>
-                        {office.is_head_office && (
-                          <span className="text-[9px] font-bold bg-amber-50 text-amber-700 border border-amber-200/80 px-1 py-0.2 rounded shrink-0">
-                            HQ
-                          </span>
-                        )}
-                        {office.is_default && !office.is_head_office && (
-                          <span className="text-[9px] font-medium bg-slate-100 text-slate-600 px-1 py-0.2 rounded shrink-0">
-                            Primary
-                          </span>
-                        )}
-                      </div>
-                      {(office.city || office.state) && (
-                        <div className="text-[11px] text-slate-400 truncate">
-                          {[office.city, office.state].filter(Boolean).join(", ")}
-                        </div>
-                      )}
+                  <div className="flex items-center gap-2">
+                    <Globe className="w-4 h-4 text-indigo-600 shrink-0" />
+                    <div>
+                      <div className="font-semibold text-slate-900 dark:text-white">All Issuing Offices</div>
+                      <div className="text-[11px] text-slate-400">Consolidated cross-office view</div>
                     </div>
                   </div>
-                  {isSelected && <Check className="w-4 h-4 text-indigo-600 shrink-0 ml-2" />}
+                  {activeOffice?.id === 0 && <Check className="w-4 h-4 text-indigo-600 shrink-0" />}
                 </button>
-              );
-            })}
-          </div>
+              )}
 
-          <div className="pt-1.5 mt-1 border-t border-slate-100 dark:border-[#22232E] px-2.5 pb-1">
-            <span className="text-[10px] text-slate-400">
-              {!isMultiOffice
-                ? "Assigned exclusively to this office. Additional branches can be assigned under Settings > Users."
-                : "Data & transactions are scoped to the selected office."}
-            </span>
-          </div>
-        </div>
-      )}
+              {offices.map((office) => {
+                const isSelected = activeOffice?.id === office.id;
+                return (
+                  <button
+                    key={office.id}
+                    type="button"
+                    onClick={() => handleSelect(office)}
+                    className={cn(
+                      "w-full flex items-center justify-between px-2.5 py-2 rounded-lg text-left text-xs transition-colors cursor-pointer group",
+                      isSelected
+                        ? "bg-indigo-50/90 dark:bg-indigo-950/50 text-indigo-900 dark:text-indigo-200 font-semibold"
+                        : "text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-white/5"
+                    )}
+                  >
+                    <div className="flex items-center gap-2 min-w-0">
+                      <MapPin
+                        className={cn(
+                          "w-3.5 h-3.5 shrink-0",
+                          isSelected ? "text-indigo-600" : "text-slate-400 group-hover:text-slate-600"
+                        )}
+                      />
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-bold text-slate-900 dark:text-white">{office.code}</span>
+                          <span className="text-slate-700 dark:text-slate-200 truncate">{office.name}</span>
+                          {office.is_head_office && (
+                            <span className="text-[9px] font-bold bg-amber-50 text-amber-700 border border-amber-200/80 px-1 py-0.2 rounded shrink-0">
+                              HQ
+                            </span>
+                          )}
+                          {office.is_default && !office.is_head_office && (
+                            <span className="text-[9px] font-medium bg-slate-100 text-slate-600 px-1 py-0.2 rounded shrink-0">
+                              Primary
+                            </span>
+                          )}
+                        </div>
+                        {(office.city || office.state) && (
+                          <div className="text-[11px] text-slate-400 truncate">
+                            {[office.city, office.state].filter(Boolean).join(", ")}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    {isSelected && <Check className="w-4 h-4 text-indigo-600 shrink-0 ml-2" />}
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="pt-1.5 mt-1 border-t border-slate-100 dark:border-[#22232E] px-2.5 pb-1">
+              <span className="text-[10px] text-slate-400">
+                {!isMultiOffice
+                  ? "Assigned exclusively to this office. Additional branches can be assigned under Settings > Users."
+                  : "Data & transactions are scoped to the selected office."}
+              </span>
+            </div>
+          </div>,
+          document.body
+        )}
     </div>
   );
 }
