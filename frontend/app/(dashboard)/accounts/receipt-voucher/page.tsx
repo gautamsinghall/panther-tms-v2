@@ -134,6 +134,8 @@ interface VoucherRecord {
   payment_status?: string;
   billing_client_id?: number;
   billing_client_name?: string;
+  account_id?: number;
+  party_account_id?: number;
   due_date?: string;
   narration?: string;
   is_void: boolean;
@@ -187,8 +189,27 @@ interface BillingClientOption {
   name: string;
   gstin?: string;
   pan?: string;
+  phone?: string;
   tds_rate?: number;
   state?: string;
+  due_bills_count?: number;
+  total_due_amount?: number | string;
+}
+
+interface CompanyBankAccount {
+  id: number;
+  bank_name: string;
+  custom_bank_name?: string | null;
+  account_holder_name: string;
+  account_number: string;
+  account_number_masked: string;
+  account_type?: string;
+  ifsc_code: string;
+  branch_name?: string | null;
+  ledger_name?: string | null;
+  account_id?: number | null;
+  is_active: boolean;
+  is_default: boolean;
 }
 
 interface AccountOption {
@@ -233,6 +254,9 @@ export default function ReceiptVoucherPage() {
 
   // Masters
   const [billingClients, setBillingClients] = useState<BillingClientOption[]>([]);
+  const [billingClientsWithDueBills, setBillingClientsWithDueBills] = useState<BillingClientOption[]>([]);
+  const [companyBankAccounts, setCompanyBankAccounts] = useState<CompanyBankAccount[]>([]);
+  const [allAccounts, setAllAccounts] = useState<AccountOption[]>([]);
   const [bankAccounts, setBankAccounts] = useState<AccountOption[]>([]);
   const [seriesInfo, setSeriesInfo] = useState<any>(null);
 
@@ -249,6 +273,7 @@ export default function ReceiptVoucherPage() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [editingVoucher, setEditingVoucher] = useState<VoucherRecord | null>(null);
   const [selectedClientId, setSelectedClientId] = useState<string>("");
+  const [selectedLedgerId, setSelectedLedgerId] = useState<string>("");
   const [receiptType, setReceiptType] = useState<"AGAINST_REF" | "ADVANCE" | "ON_ACCOUNT">("AGAINST_REF");
   const [paymentMode, setPaymentMode] = useState<string>("BANK");
   const [bankAccountId, setBankAccountId] = useState<string>("");
@@ -259,8 +284,8 @@ export default function ReceiptVoucherPage() {
   const [chequeBank, setChequeBank] = useState<string>("");
   const [clearanceStatus, setClearanceStatus] = useState<string>("CLEARED");
   const [amountReceived, setAmountReceived] = useState<string>("");
-  const [tdsSection, setTdsSection] = useState<string>("194C");
-  const [tdsRate, setTdsRate] = useState<string>("0");
+  const [tdsSection, setTdsSection] = useState<string>("194C_2");
+  const [tdsRate, setTdsRate] = useState<string>("2");
   const [tdsAmount, setTdsAmount] = useState<string>("0");
   const [discountAmount, setDiscountAmount] = useState<string>("0");
   const [narration, setNarration] = useState<string>("");
@@ -300,11 +325,13 @@ export default function ReceiptVoucherPage() {
       const activeOffice = getActiveOffice();
       const officeParam = activeOffice?.id ? `?office_id=${activeOffice.id}` : "";
 
-      const [vouchersRes, sInfo, clientsRes, accountsRes, companyRes, branchesRes] = await Promise.all([
+      const [vouchersRes, sInfo, clientsRes, dueClientsRes, accountsRes, realBanksRes, companyRes, branchesRes] = await Promise.all([
         apiClient<VoucherRecord[]>("/api/v1/accounts/vouchers?voucher_type=RECEIPT_VOUCHER"),
         apiClient<any>(`/api/v1/settings/series/check/RECEIPT_VOUCHER${officeParam}`).catch(() => null),
         apiClient<BillingClientOption[]>("/api/v1/general/billing-clients").catch(() => []),
+        apiClient<BillingClientOption[]>("/api/v1/accounts/billing-clients/with-due-bills").catch(() => []),
         apiClient<AccountOption[]>("/api/v1/misc/accounts").catch(() => []),
+        apiClient<CompanyBankAccount[]>("/api/v1/accounts/bank-accounts").catch(() => []),
         apiClient<CompanySettingData>("/api/v1/profile/company").catch(() => null),
         apiClient<BranchOption[]>("/api/v1/profile/branches").catch(() => []),
       ]);
@@ -312,16 +339,31 @@ export default function ReceiptVoucherPage() {
       setData(vouchersRes);
       setSeriesInfo(sInfo);
       setBillingClients(clientsRes);
+      setBillingClientsWithDueBills(dueClientsRes || []);
+      setAllAccounts(accountsRes);
       setCompany(companyRes);
       setBranches(Array.isArray(branchesRes) ? branchesRes : []);
+
+      const activeRealBanks = (realBanksRes || []).filter((b) => b.is_active);
+      setCompanyBankAccounts(activeRealBanks);
       
-      // Filter bank and cash accounts
+      // Filter bank and cash accounts as fallback
       const liquidAccounts = accountsRes.filter((a) => {
         const name = (a.name || "").toLowerCase();
         const code = (a.code || "").toUpperCase();
         return code.includes("BANK") || code.includes("CASH") || name.includes("bank") || name.includes("cash");
       });
       setBankAccounts(liquidAccounts.length > 0 ? liquidAccounts : accountsRes);
+
+      // Pre-select default real bank account if none chosen
+      if (activeRealBanks.length > 0) {
+        const defaultBank = activeRealBanks.find((b) => b.is_default) || activeRealBanks[0];
+        if (defaultBank) {
+          setBankAccountId((prev) => prev || String(defaultBank.id));
+        }
+      } else if (liquidAccounts.length > 0) {
+        setBankAccountId((prev) => prev || String(liquidAccounts[0].id));
+      }
     } catch (err: any) {
       setErrorMessage(err.message || "Failed to load receipt vouchers.");
     } finally {
@@ -344,6 +386,18 @@ export default function ReceiptVoucherPage() {
     }
   }, [isPrintModalOpen, company]);
 
+  // Filter displayed billing clients (only those with due bills for AGAINST_REF)
+  const displayedBillingClients = useMemo(() => {
+    if (receiptType === "AGAINST_REF") {
+      if (selectedClientId && !billingClientsWithDueBills.some((c) => String(c.id) === String(selectedClientId))) {
+        const match = billingClients.find((c) => String(c.id) === String(selectedClientId));
+        if (match) return [match, ...billingClientsWithDueBills];
+      }
+      return billingClientsWithDueBills;
+    }
+    return billingClients;
+  }, [receiptType, billingClientsWithDueBills, billingClients, selectedClientId]);
+
   // When selected client changes in create drawer, fetch open invoices
   useEffect(() => {
     if (!selectedClientId) {
@@ -355,12 +409,10 @@ export default function ReceiptVoucherPage() {
     const clientIdNum = parseInt(selectedClientId);
     if (!clientIdNum) return;
 
-    // Auto-detect client default TDS rate
+    // Auto-detect client default TDS rate if client has one specified
     const cl = billingClients.find((c) => c.id === clientIdNum);
-    if (cl && cl.tds_rate !== undefined && cl.tds_rate !== null) {
+    if (cl && cl.tds_rate !== undefined && cl.tds_rate !== null && Number(cl.tds_rate) > 0) {
       setTdsRate(String(cl.tds_rate));
-    } else {
-      setTdsRate("0");
     }
 
     setIsLoadingOpenInvoices(true);
@@ -375,7 +427,7 @@ export default function ReceiptVoucherPage() {
             invoice_number: inv.voucher_number,
             voucher_date: inv.voucher_date,
             voucher_type: inv.voucher_type,
-            balance_amount: inv.balance_amount,
+            balance_amount: parseFloat(String(inv.balance_amount)) || 0,
             days_overdue: inv.days_overdue,
             allocated_amount: "",
             tds_amount: "",
@@ -394,36 +446,179 @@ export default function ReceiptVoucherPage() {
       });
   }, [selectedClientId, billingClients]);
 
-  // Handle quick "Pay Full" for an invoice row
-  const handlePayFullInvoice = (inv: OpenInvoice) => {
-    const bal = inv.balance_amount;
-    const rateNum = parseFloat(tdsRate) || 0;
-    let autoTds = 0;
-    let netPay = bal;
-
-    if (rateNum > 0) {
-      autoTds = Math.round((bal * (rateNum / 100)) * 100) / 100;
-      netPay = Math.round((bal - autoTds) * 100) / 100;
+  // Handle distributed TDS Section selection and autofill TDS Rate (%)
+  const handleTdsSectionChange = (sec: string) => {
+    setTdsSection(sec);
+    let autoRate = "0";
+    if (sec === "194C_1") {
+      autoRate = "1";
+    } else if (sec === "194C_2" || sec === "194C") {
+      autoRate = "2";
+    } else if (sec === "194J_2") {
+      autoRate = "2";
+    } else if (sec === "194J_10" || sec === "194J") {
+      autoRate = "10";
+    } else if (sec === "194I_2") {
+      autoRate = "2";
+    } else if (sec === "194I_10") {
+      autoRate = "10";
+    } else if (sec === "NONE") {
+      autoRate = "0";
     }
-
-    const updatedAllocations = {
-      ...allocations,
-      [inv.id]: {
-        ...allocations[inv.id],
-        allocated_amount: netPay.toFixed(2),
-        tds_amount: autoTds > 0 ? autoTds.toFixed(2) : "0",
-        discount_amount: "0",
-      },
-    };
-    setAllocations(updatedAllocations);
-
-    // Compute updated total cash/bank received across all allocations
-    let sumNet = 0;
-    Object.values(updatedAllocations).forEach((a) => {
-      sumNet += parseFloat(a.allocated_amount) || 0;
-    });
-    setAmountReceived(sumNet > 0 ? (Math.round(sumNet * 100) / 100).toFixed(2) : "");
+    setTdsRate(autoRate);
   };
+
+  // Handle quick "Pay Full" for an individual invoice row
+  const handlePayFullInvoice = (inv: OpenInvoice) => {
+    const bal = parseFloat(String(inv.balance_amount)) || 0;
+    const rateNum = parseFloat(tdsRate) || 0;
+
+    setAllocations((prev) => {
+      const prevRow = prev[inv.id] || {
+        invoice_id: inv.id,
+        invoice_number: inv.voucher_number,
+        voucher_date: inv.voucher_date,
+        voucher_type: inv.voucher_type,
+        balance_amount: bal,
+        days_overdue: inv.days_overdue,
+        allocated_amount: "",
+        tds_amount: "",
+        discount_amount: "",
+      };
+
+      const disc = parseFloat(prevRow.discount_amount) || 0;
+      const effectiveBal = Math.max(0, bal - disc);
+      let autoTds = 0;
+      let netPay = effectiveBal;
+      if (rateNum > 0) {
+        autoTds = Math.round(bal * (rateNum / 100) * 100) / 100;
+        netPay = Math.max(0, Math.round((effectiveBal - autoTds) * 100) / 100);
+      }
+
+      const updated = {
+        ...prev,
+        [inv.id]: {
+          ...prevRow,
+          invoice_id: inv.id,
+          invoice_number: inv.voucher_number,
+          voucher_date: inv.voucher_date,
+          voucher_type: inv.voucher_type,
+          balance_amount: bal,
+          days_overdue: inv.days_overdue,
+          allocated_amount: netPay > 0 ? netPay.toFixed(2) : "0",
+          tds_amount: autoTds > 0 ? autoTds.toFixed(2) : "0",
+          discount_amount: prevRow.discount_amount || "0",
+        },
+      };
+
+      // Compute total across all allocations
+      let sumNet = 0;
+      Object.values(updated).forEach((a) => {
+        sumNet += parseFloat(a.allocated_amount) || 0;
+      });
+      setAmountReceived(sumNet > 0 ? (Math.round(sumNet * 100) / 100).toFixed(2) : "");
+
+      return updated;
+    });
+  };
+
+  // Handle "Auto Fill All" across all client open invoices
+  const handlePayAllInvoices = () => {
+    const rateNum = parseFloat(tdsRate) || 0;
+    setAllocations((prev) => {
+      const updated: Record<number, AllocationRow> = { ...prev };
+      let sumNet = 0;
+
+      clientOpenInvoices.forEach((inv) => {
+        const bal = parseFloat(String(inv.balance_amount)) || 0;
+        const prevRow = prev[inv.id] || {
+          invoice_id: inv.id,
+          invoice_number: inv.voucher_number,
+          voucher_date: inv.voucher_date,
+          voucher_type: inv.voucher_type,
+          balance_amount: bal,
+          days_overdue: inv.days_overdue,
+          allocated_amount: "",
+          tds_amount: "",
+          discount_amount: "",
+        };
+
+        const disc = parseFloat(prevRow.discount_amount) || 0;
+        const effectiveBal = Math.max(0, bal - disc);
+        let autoTds = 0;
+        let netPay = effectiveBal;
+        if (rateNum > 0) {
+          autoTds = Math.round(bal * (rateNum / 100) * 100) / 100;
+          netPay = Math.max(0, Math.round((effectiveBal - autoTds) * 100) / 100);
+        }
+
+        updated[inv.id] = {
+          ...prevRow,
+          invoice_id: inv.id,
+          invoice_number: inv.voucher_number,
+          voucher_date: inv.voucher_date,
+          voucher_type: inv.voucher_type,
+          balance_amount: bal,
+          days_overdue: inv.days_overdue,
+          allocated_amount: netPay > 0 ? netPay.toFixed(2) : "0",
+          tds_amount: autoTds > 0 ? autoTds.toFixed(2) : "0",
+          discount_amount: prevRow.discount_amount || "0",
+        };
+
+        sumNet += netPay;
+      });
+
+      setAmountReceived(sumNet > 0 ? (Math.round(sumNet * 100) / 100).toFixed(2) : "");
+      return updated;
+    });
+  };
+
+  // Handle "Clear All" allocations
+  const handleClearAllInvoices = () => {
+    setAllocations((prev) => {
+      const updated: Record<number, AllocationRow> = {};
+      clientOpenInvoices.forEach((inv) => {
+        const bal = parseFloat(String(inv.balance_amount)) || 0;
+        updated[inv.id] = {
+          invoice_id: inv.id,
+          invoice_number: inv.voucher_number,
+          voucher_date: inv.voucher_date,
+          voucher_type: inv.voucher_type,
+          balance_amount: bal,
+          days_overdue: inv.days_overdue,
+          allocated_amount: "",
+          tds_amount: "",
+          discount_amount: "",
+        };
+      });
+      return updated;
+    });
+    setAmountReceived("");
+  };
+
+  // Dynamic real account labels for Tally Double-Entry Preview
+  const resolvedBankName = useMemo(() => {
+    if (paymentMode === "CASH") {
+      const cashAcc = allAccounts.find((a) => String(a.id) === String(bankAccountId));
+      return cashAcc?.name || "Cash Account";
+    }
+    const realBank = companyBankAccounts.find((b) => String(b.id) === String(bankAccountId));
+    if (realBank) {
+      return `${realBank.custom_bank_name || realBank.bank_name} (${realBank.account_number_masked || realBank.account_number})`;
+    }
+    const fallbackAcc = bankAccounts.find((a) => String(a.id) === String(bankAccountId));
+    if (fallbackAcc) return fallbackAcc.name;
+    return "Bank / Cash Account";
+  }, [paymentMode, bankAccountId, companyBankAccounts, allAccounts, bankAccounts]);
+
+  const resolvedPartyName = useMemo(() => {
+    if (receiptType === "ON_ACCOUNT") {
+      const ledger = allAccounts.find((a) => String(a.id) === String(selectedLedgerId));
+      return ledger ? `${ledger.name} (${ledger.code})` : "All Ledger";
+    }
+    const client = billingClients.find((c) => String(c.id) === String(selectedClientId));
+    return client?.name || "Debtor / Customer Ledger";
+  }, [receiptType, selectedLedgerId, selectedClientId, allAccounts, billingClients]);
 
   // Compute live totals from bill allocation table
   const allocatedTotals = useMemo(() => {
@@ -531,9 +726,15 @@ export default function ReceiptVoucherPage() {
   // Reset Create Form
   const resetCreateForm = () => {
     setSelectedClientId("");
+    setSelectedLedgerId("");
     setReceiptType("AGAINST_REF");
     setPaymentMode("BANK");
-    setBankAccountId("");
+    if (companyBankAccounts.length > 0) {
+      const defBank = companyBankAccounts.find((b) => b.is_default) || companyBankAccounts[0];
+      setBankAccountId(String(defBank.id));
+    } else {
+      setBankAccountId("");
+    }
     setVoucherDate(new Date().toISOString().split("T")[0]);
     setReferenceNumber("");
     setChequeNumber("");
@@ -541,8 +742,8 @@ export default function ReceiptVoucherPage() {
     setChequeBank("");
     setClearanceStatus("CLEARED");
     setAmountReceived("");
-    setTdsSection("194C");
-    setTdsRate("0");
+    setTdsSection("194C_2");
+    setTdsRate("2");
     setTdsAmount("0");
     setDiscountAmount("0");
     setNarration("");
@@ -556,6 +757,11 @@ export default function ReceiptVoucherPage() {
     const tb = v.tax_breakup || {};
     const clientId = v.billing_client_id ? String(v.billing_client_id) : "";
     setSelectedClientId(clientId);
+    if (tb.receipt_type === "ON_ACCOUNT" || !v.billing_client_id) {
+      setSelectedLedgerId(v.account_id ? String(v.account_id) : "");
+    } else {
+      setSelectedLedgerId("");
+    }
     setReceiptType((tb.receipt_type as any) || "AGAINST_REF");
     setPaymentMode(tb.payment_mode || "BANK");
     setBankAccountId(tb.bank_account_id ? String(tb.bank_account_id) : "");
@@ -566,8 +772,8 @@ export default function ReceiptVoucherPage() {
     setChequeBank(tb.cheque_bank || "");
     setClearanceStatus(tb.clearance_status || "CLEARED");
     setAmountReceived(String(v.net_amount || ""));
-    setTdsSection(tb.tds_section || "194C");
-    setTdsRate(tb.tds_rate ? String(tb.tds_rate) : "0");
+    setTdsSection(tb.tds_section || "194C_2");
+    setTdsRate(tb.tds_rate ? String(tb.tds_rate) : "2");
     setTdsAmount(tb.tds_amount ? String(tb.tds_amount) : "0");
     setDiscountAmount(tb.discount_amount ? String(tb.discount_amount) : "0");
     setNarration(v.narration || "");
@@ -611,9 +817,16 @@ export default function ReceiptVoucherPage() {
       return;
     }
 
-    if (!selectedClientId) {
-      toast.warning("Please select a Billing Client.");
-      return;
+    if (receiptType === "ON_ACCOUNT") {
+      if (!selectedLedgerId) {
+        toast.warning("Please select a Ledger Account from All Ledger.");
+        return;
+      }
+    } else {
+      if (!selectedClientId) {
+        toast.warning("Please select a Billing Client.");
+        return;
+      }
     }
 
     // Build allocation payload
@@ -664,9 +877,12 @@ export default function ReceiptVoucherPage() {
     setIsSubmitting(true);
     try {
       const selectedClientObj = billingClients.find((c) => c.id === parseInt(selectedClientId));
+      const selectedLedgerObj = allAccounts.find((a) => a.id === parseInt(selectedLedgerId));
+
       const payload = {
-        billing_client_id: parseInt(selectedClientId),
-        party_name: selectedClientObj?.name,
+        billing_client_id: receiptType !== "ON_ACCOUNT" && selectedClientId ? parseInt(selectedClientId) : undefined,
+        party_account_id: receiptType === "ON_ACCOUNT" && selectedLedgerId ? parseInt(selectedLedgerId) : undefined,
+        party_name: receiptType === "ON_ACCOUNT" ? selectedLedgerObj?.name : selectedClientObj?.name,
         voucher_date: voucherDate,
         receipt_type: receiptType,
         payment_mode: paymentMode,
@@ -677,11 +893,11 @@ export default function ReceiptVoucherPage() {
         cheque_bank: chequeBank.trim() || undefined,
         clearance_status: clearanceStatus,
         amount: netReceived,
-        tds_section: tdsSection,
-        tds_rate: parseFloat(tdsRate) || 0,
-        tds_amount: receiptType === "AGAINST_REF" ? allocatedTotals.sumTds : (parseFloat(tdsAmount) || 0),
-        discount_amount: receiptType === "AGAINST_REF" ? allocatedTotals.sumDisc : (parseFloat(discountAmount) || 0),
-        allocations: activeAllocations,
+        tds_section: receiptType === "AGAINST_REF" ? tdsSection : "NONE",
+        tds_rate: receiptType === "AGAINST_REF" ? (parseFloat(tdsRate) || 0) : 0,
+        tds_amount: receiptType === "AGAINST_REF" ? allocatedTotals.sumTds : 0,
+        discount_amount: receiptType === "AGAINST_REF" ? allocatedTotals.sumDisc : 0,
+        allocations: receiptType === "AGAINST_REF" ? activeAllocations : [],
         unapplied_advance_amount: unappliedAdvance,
         narration: narration.trim() || undefined,
       };
@@ -870,7 +1086,7 @@ export default function ReceiptVoucherPage() {
         if (rType === "ON_ACCOUNT") {
           return (
             <Badge variant="outline" className="bg-indigo-50 text-indigo-800 border-indigo-200 dark:bg-indigo-950/60 dark:text-indigo-300 dark:border-indigo-800/60 text-[11px]">
-              On Account
+              Other Accounts
             </Badge>
           );
         }
@@ -1106,7 +1322,7 @@ export default function ReceiptVoucherPage() {
               <option value="ALL">All Receipt Types</option>
               <option value="AGAINST_REF">Against Bills (Settlement)</option>
               <option value="ADVANCE">Customer Advance</option>
-              <option value="ON_ACCOUNT">On Account</option>
+              <option value="ON_ACCOUNT">Other Accounts</option>
             </select>
 
             {/* Status Filter */}
@@ -1188,32 +1404,63 @@ export default function ReceiptVoucherPage() {
               <span className="flex h-6 w-6 items-center justify-center rounded-full bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200/60 dark:border-indigo-800/60 text-xs font-bold text-indigo-700 dark:text-indigo-300 shrink-0">
                 1
               </span>
-              Who Paid You The Money? (Customer)
+              Who Paid You The Money? (Customer / Ledger)
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 tracking-tight mb-1">
-                  Select Billing Client <span className="text-rose-400">*</span>
-                </label>
-                <select
-                  value={selectedClientId}
-                  onChange={(e) => {
-                    setSelectedClientId(e.target.value);
-                  }}
-                  className="w-full px-3.5 py-2.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#2B2E42] bg-white dark:bg-[#0E0F15] text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 shadow-2xs transition-all"
-                >
-                  <option value="">-- Choose Corporate / Billing Client --</option>
-                  {billingClients.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name} {c.gstin ? `(${c.gstin})` : ""}
+              {receiptType === "ON_ACCOUNT" ? (
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 tracking-tight mb-1">
+                    All Ledger <span className="text-rose-400">*</span>
+                  </label>
+                  <select
+                    value={selectedLedgerId}
+                    onChange={(e) => {
+                      setSelectedLedgerId(e.target.value);
+                    }}
+                    className="w-full px-3.5 py-2.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#2B2E42] bg-white dark:bg-[#0E0F15] text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 shadow-2xs transition-all"
+                  >
+                    <option value="">-- Choose Ledger Account --</option>
+                    {allAccounts.map((acc) => (
+                      <option key={acc.id} value={acc.id}>
+                        {acc.name} ({acc.code}) {acc.group_name ? `• ${acc.group_name}` : ""}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-[11px] text-slate-500 mt-1">
+                    Post miscellaneous collections directly against any ledger head.
+                  </p>
+                </div>
+              ) : (
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 tracking-tight mb-1">
+                    Select Billing Client <span className="text-rose-400">*</span>
+                  </label>
+                  <select
+                    value={selectedClientId}
+                    onChange={(e) => {
+                      setSelectedClientId(e.target.value);
+                    }}
+                    className="w-full px-3.5 py-2.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#2B2E42] bg-white dark:bg-[#0E0F15] text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 shadow-2xs transition-all"
+                  >
+                    <option value="">
+                      {receiptType === "AGAINST_REF"
+                        ? "-- Choose Billing Client With Due Bills --"
+                        : "-- Choose Corporate / Billing Client --"}
                     </option>
-                  ))}
-                </select>
-                <p className="text-[11px] text-slate-500 mt-1">
-                  Selecting a client automatically loads all unpaid transport and sales invoices.
-                </p>
-              </div>
+                    {displayedBillingClients.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name} {c.gstin ? `(${c.gstin})` : ""} {c.due_bills_count ? `[${c.due_bills_count} due bill(s)]` : ""}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-[11px] text-slate-500 mt-1">
+                    {receiptType === "AGAINST_REF"
+                      ? "Showing only billing clients with unpaid/due invoices."
+                      : "Selecting a client records customer advance under their account head."}
+                  </p>
+                </div>
+              )}
 
               <div>
                 <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 tracking-tight mb-1">
@@ -1254,7 +1501,7 @@ export default function ReceiptVoucherPage() {
                         : "bg-white dark:bg-[#0E0F15] border-slate-200 dark:border-[#2B2E42] text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-[#1A1D2B]"
                     )}
                   >
-                    On Account
+                    Other Accounts
                   </button>
                 </div>
               </div>
@@ -1283,25 +1530,50 @@ export default function ReceiptVoucherPage() {
                   <option value="BANK">Bank Transfer (NEFT / RTGS / IMPS)</option>
                   <option value="CHEQUE">Cheque</option>
                   <option value="UPI">UPI / Digital QR</option>
-                  <option value="CASH">Cash in Hand</option>
+                  <option value="CASH">Cash</option>
                 </select>
               </div>
 
               <div>
                 <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 tracking-tight mb-1">
-                  Deposit Into Ledger <span className="text-rose-400">*</span>
+                  {paymentMode === "CASH" ? "Cash Account" : "Bank Account"} <span className="text-rose-400">*</span>
                 </label>
                 <select
                   value={bankAccountId}
                   onChange={(e) => setBankAccountId(e.target.value)}
                   className="w-full px-3.5 py-2.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#2B2E42] bg-white dark:bg-[#0E0F15] text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 shadow-2xs transition-all"
                 >
-                  <option value="">-- Standard Bank / Cash Account --</option>
-                  {bankAccounts.map((a) => (
-                    <option key={a.id} value={a.id}>
-                      {a.name} ({a.code})
-                    </option>
-                  ))}
+                  {paymentMode === "CASH" ? (
+                    <>
+                      <option value="">-- Standard Cash Account --</option>
+                      {allAccounts
+                        .filter((a) => {
+                          const n = (a.name || "").toLowerCase();
+                          const c = (a.code || "").toUpperCase();
+                          return n.includes("cash") || c.includes("CASH");
+                        })
+                        .map((a) => (
+                          <option key={a.id} value={a.id}>
+                            {a.name} ({a.code})
+                          </option>
+                        ))}
+                    </>
+                  ) : (
+                    <>
+                      <option value="">-- Choose Real Bank Account --</option>
+                      {companyBankAccounts.map((b) => (
+                        <option key={b.id} value={b.id}>
+                          {b.custom_bank_name || b.bank_name} - {b.account_number_masked || b.account_number} ({b.ifsc_code})
+                        </option>
+                      ))}
+                      {companyBankAccounts.length === 0 &&
+                        bankAccounts.map((a) => (
+                          <option key={a.id} value={a.id}>
+                            {a.name} ({a.code})
+                          </option>
+                        ))}
+                    </>
+                  )}
                 </select>
               </div>
 
@@ -1386,7 +1658,7 @@ export default function ReceiptVoucherPage() {
 
               <div>
                 <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 tracking-tight mb-1">
-                  Net Amount Received (₹) <span className="text-rose-400">*</span>
+                  Net Amount Received (Cr) (₹) <span className="text-rose-400">*</span>
                 </label>
                 <input
                   type="number"
@@ -1415,7 +1687,7 @@ export default function ReceiptVoucherPage() {
           {/* Step 3: Bill-wise allocation table (if AGAINST_REF) */}
           {receiptType === "AGAINST_REF" && (
             <div className="bg-white dark:bg-[#12131A] rounded-2xl border border-slate-200/90 dark:border-[#22232E] p-5 sm:p-6 space-y-4 shadow-2xs">
-              <div className="flex items-center justify-between border-b border-slate-100 dark:border-[#22232E] pb-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 dark:border-[#22232E] pb-3">
                 <div className="flex items-center gap-2.5 text-base font-bold text-slate-900 dark:text-white">
                   <span className="flex h-6 w-6 items-center justify-center rounded-full bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200/60 dark:border-indigo-800/60 text-xs font-bold text-indigo-700 dark:text-indigo-300 shrink-0">
                     3
@@ -1423,10 +1695,72 @@ export default function ReceiptVoucherPage() {
                   Which Bills / Invoices Are Being Settled?
                 </div>
                 {clientOpenInvoices.length > 0 && (
-                  <span className="text-xs text-slate-400">
-                    {clientOpenInvoices.length} open invoice(s) found
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-slate-400">
+                      {clientOpenInvoices.length} open bill(s)
+                    </span>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={handlePayAllInvoices}
+                      className="text-[11px] h-7 px-2.5 rounded-lg border-indigo-200 dark:border-indigo-800 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 font-semibold cursor-pointer"
+                    >
+                      Auto Fill All Bills
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      onClick={handleClearAllInvoices}
+                      className="text-[11px] h-7 px-2 rounded-lg text-slate-500 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/30 cursor-pointer"
+                    >
+                      Clear All
+                    </Button>
+                  </div>
                 )}
+              </div>
+
+              {/* Distributed TDS Section & Rate Autofill Configuration */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 p-3.5 rounded-xl bg-slate-50 dark:bg-[#0E0F15] border border-slate-200/80 dark:border-[#2B2E42]">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 tracking-tight mb-1">
+                    Customer TDS Section
+                  </label>
+                  <select
+                    value={tdsSection}
+                    onChange={(e) => handleTdsSectionChange(e.target.value)}
+                    className="w-full px-3 py-2 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#2B2E42] bg-white dark:bg-[#12131A] text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 shadow-2xs transition-all"
+                  >
+                    <option value="NONE">No TDS Deducted (0%)</option>
+                    <option value="194C_1">Section 194C - Individual / HUF Transport Contractor (1%)</option>
+                    <option value="194C_2">Section 194C - Company / Firm / Others Transport (2%)</option>
+                    <option value="194J_2">Section 194J - Technical / Call Center Services (2%)</option>
+                    <option value="194J_10">Section 194J - Professional / Royalty / Fees (10%)</option>
+                    <option value="194I_2">Section 194I - Plant & Machinery Rent (2%)</option>
+                    <option value="194I_10">Section 194I - Land & Building Rent (10%)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 tracking-tight mb-1">
+                    TDS Rate (%)
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="number"
+                      step="0.01"
+                      placeholder="0.00"
+                      value={tdsRate}
+                      onChange={(e) => setTdsRate(e.target.value)}
+                      className="w-full px-3 py-2 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#2B2E42] bg-white dark:bg-[#12131A] text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 shadow-2xs transition-all"
+                    />
+                    <span className="absolute right-3 top-2 text-xs text-slate-400 font-bold">%</span>
+                  </div>
+                  <p className="text-[10px] text-slate-500 mt-1">
+                    Autofilled by TDS Section. Used by &quot;Pay Full&quot; and &quot;Auto Fill All Bills&quot;.
+                  </p>
+                </div>
               </div>
 
               {isLoadingOpenInvoices ? (
@@ -1596,81 +1930,6 @@ export default function ReceiptVoucherPage() {
             </div>
           )}
 
-          {/* Deductions & TDS section for non-allocated or quick setup */}
-          {receiptType !== "AGAINST_REF" && (
-            <div className="bg-white dark:bg-[#12131A] rounded-2xl border border-slate-200/90 dark:border-[#22232E] p-5 sm:p-6 space-y-4 shadow-2xs">
-              <div className="flex items-center gap-2 text-sm font-bold text-slate-900 dark:text-white border-b border-slate-100 dark:border-[#22232E] pb-3">
-                <Percent className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
-                Customer TDS Deduction & Settlement Discount
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 tracking-tight mb-1">
-                    TDS Section
-                  </label>
-                  <select
-                    value={tdsSection}
-                    onChange={(e) => setTdsSection(e.target.value)}
-                    className="w-full px-3.5 py-2.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#2B2E42] bg-white dark:bg-[#0E0F15] text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 shadow-2xs transition-all"
-                  >
-                    <option value="194C">Section 194C (Transport / Contractor - 1% or 2%)</option>
-                    <option value="194J">Section 194J (Professional / Technical - 2% or 10%)</option>
-                    <option value="NONE">No TDS Deducted</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 tracking-tight mb-1">
-                    TDS Rate (%)
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={tdsRate}
-                    onChange={(e) => {
-                      const r = e.target.value;
-                      setTdsRate(r);
-                      const amt = parseFloat(amountReceived) || 0;
-                      const rateNum = parseFloat(r) || 0;
-                      if (amt > 0 && rateNum > 0) {
-                        const calculatedTds = (amt / (1 - (rateNum / 100))) * (rateNum / 100);
-                        setTdsAmount(calculatedTds.toFixed(2));
-                      }
-                    }}
-                    className="w-full px-3.5 py-2.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#2B2E42] bg-white dark:bg-[#0E0F15] text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 shadow-2xs transition-all"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 tracking-tight mb-1">
-                    TDS Amount (₹)
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={tdsAmount}
-                    onChange={(e) => setTdsAmount(e.target.value)}
-                    className="w-full h-10 px-3.5 text-xs sm:text-sm font-semibold rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50/30 dark:bg-amber-950/20 text-amber-700 dark:text-amber-300 focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 shadow-2xs"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 tracking-tight mb-1">
-                    Cash Discount Allowed (₹)
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={discountAmount}
-                    onChange={(e) => setDiscountAmount(e.target.value)}
-                    className="w-full h-10 px-3.5 text-xs sm:text-sm font-semibold rounded-xl border border-indigo-200 dark:border-indigo-800 bg-indigo-50/30 dark:bg-indigo-950/20 text-indigo-700 dark:text-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 shadow-2xs"
-                  />
-                </div>
-              </div>
-            </div>
-          )}
-
           {/* Narration & Live Double-Entry Preview */}
           <div className="bg-white dark:bg-[#12131A] rounded-2xl border border-slate-200/90 dark:border-[#22232E] p-5 sm:p-6 space-y-4 shadow-2xs">
             <div>
@@ -1694,10 +1953,10 @@ export default function ReceiptVoucherPage() {
               </span>
               <div className="text-xs font-mono space-y-1.5 pt-1">
                 <div className="flex justify-between text-emerald-700 dark:text-emerald-400 font-medium">
-                  <span>Dr. Bank / Cash Account (Funds received)</span>
+                  <span>Dr. {resolvedBankName} (Funds received)</span>
                   <span>{formatCurrency(parseFloat(amountReceived) || 0)}</span>
                 </div>
-                {(parseFloat(tdsAmount) > 0 || allocatedTotals.sumTds > 0) && (
+                {(allocatedTotals.sumTds > 0 || (receiptType !== "AGAINST_REF" && parseFloat(tdsAmount) > 0)) && (
                   <div className="flex justify-between text-amber-700 dark:text-amber-400 font-medium">
                     <span>Dr. TDS Receivable ({tdsSection} Tax Credit)</span>
                     <span>
@@ -1705,7 +1964,7 @@ export default function ReceiptVoucherPage() {
                     </span>
                   </div>
                 )}
-                {(parseFloat(discountAmount) > 0 || allocatedTotals.sumDisc > 0) && (
+                {(allocatedTotals.sumDisc > 0 || (receiptType !== "AGAINST_REF" && parseFloat(discountAmount) > 0)) && (
                   <div className="flex justify-between text-blue-700 dark:text-blue-400 font-medium">
                     <span>Dr. Consignment Discount Allowed</span>
                     <span>
@@ -1716,7 +1975,7 @@ export default function ReceiptVoucherPage() {
                 {receiptType === "AGAINST_REF" ? (
                   <>
                     <div className="flex justify-between text-slate-800 dark:text-slate-200 border-t border-slate-200 dark:border-[#303036] pt-1">
-                      <span>Cr. Debtor / Customer Ledger (Settled Against Bills)</span>
+                      <span>Cr. {resolvedPartyName} (Settled Against Bills)</span>
                       <span>{formatCurrency(allocatedTotals.sumTotal)}</span>
                     </div>
                     {unappliedAdvance > 0 && (
@@ -1728,12 +1987,12 @@ export default function ReceiptVoucherPage() {
                   </>
                 ) : receiptType === "ADVANCE" ? (
                   <div className="flex justify-between text-cyan-600 dark:text-cyan-400 border-t border-slate-200 dark:border-[#303036] pt-1">
-                    <span>Cr. Customer Advances & Unapplied Receipts</span>
+                    <span>Cr. {resolvedPartyName} (Customer Advance)</span>
                     <span>{formatCurrency(parseFloat(amountReceived) || 0)}</span>
                   </div>
                 ) : (
                   <div className="flex justify-between text-slate-800 dark:text-slate-200 border-t border-slate-200 dark:border-[#303036] pt-1">
-                    <span>Cr. Debtor / Customer Ledger (On Account)</span>
+                    <span>Cr. {resolvedPartyName} (Other Accounts)</span>
                     <span>{formatCurrency(parseFloat(amountReceived) || 0)}</span>
                   </div>
                 )}

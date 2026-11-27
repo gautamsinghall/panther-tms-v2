@@ -1473,6 +1473,89 @@ async def get_open_invoices_for_client(session: AsyncSession, client_id: int) ->
 
 
 # ------------------------------------------------------------------------------
+# Billing Clients With Due Invoices
+# ------------------------------------------------------------------------------
+async def get_billing_clients_with_due_bills(session: AsyncSession) -> List[schemas.BillingClientDueBillSummary]:
+    """
+    Fetch all billing clients having tagged due sales / transport invoices (unpaid or partially paid)
+    with remaining balance > 0.
+    """
+    stmt = (
+        select(
+            Voucher.id,
+            Voucher.billing_client_id,
+            Voucher.party_name,
+            Voucher.balance_amount,
+            Voucher.net_amount,
+        )
+        .where(
+            Voucher.is_void == False,
+            Voucher.voucher_type.in_([VoucherType.TRANSPORT_INVOICE.value, VoucherType.GENERAL_INVOICE.value]),
+            or_(
+                Voucher.payment_status.in_(["UNPAID", "PARTIALLY_PAID", "PARTIAL"]),
+                Voucher.payment_status.is_(None),
+            ),
+        )
+    )
+    vouchers = (await session.execute(stmt)).all()
+    if not vouchers:
+        return []
+
+    due_by_client: dict[int, dict] = {}
+    vouchers_needing_client_match = []
+
+    for v in vouchers:
+        bal = v.balance_amount if v.balance_amount is not None else v.net_amount
+        if bal is None or bal <= Decimal("0.00"):
+            continue
+        if v.billing_client_id:
+            if v.billing_client_id not in due_by_client:
+                due_by_client[v.billing_client_id] = {"total_due_amount": Decimal("0.00"), "due_bills_count": 0}
+            due_by_client[v.billing_client_id]["total_due_amount"] += Decimal(str(bal))
+            due_by_client[v.billing_client_id]["due_bills_count"] += 1
+        elif v.party_name:
+            vouchers_needing_client_match.append((v, bal))
+
+    if vouchers_needing_client_match:
+        names = [v.party_name.strip() for v, _ in vouchers_needing_client_match if v.party_name]
+        if names:
+            c_res = await session.execute(select(BillingClient).where(BillingClient.name.in_(names)))
+            c_name_map = {client.name.lower(): client.id for client in c_res.scalars().all()}
+            for v, bal in vouchers_needing_client_match:
+                matched_id = c_name_map.get(v.party_name.strip().lower())
+                if matched_id:
+                    if matched_id not in due_by_client:
+                        due_by_client[matched_id] = {"total_due_amount": Decimal("0.00"), "due_bills_count": 0}
+                    due_by_client[matched_id]["total_due_amount"] += Decimal(str(bal))
+                    due_by_client[matched_id]["due_bills_count"] += 1
+
+    if not due_by_client:
+        return []
+
+    clients_res = await session.execute(
+        select(BillingClient).where(BillingClient.id.in_(list(due_by_client.keys()))).order_by(BillingClient.name.asc())
+    )
+    clients = clients_res.scalars().all()
+
+    result = []
+    for c in clients:
+        info = due_by_client.get(c.id)
+        if info:
+            result.append(
+                schemas.BillingClientDueBillSummary(
+                    id=c.id,
+                    name=c.name,
+                    gstin=c.gstin,
+                    pan=c.pan,
+                    phone=c.phone,
+                    total_due_amount=info["total_due_amount"],
+                    due_bills_count=info["due_bills_count"],
+                )
+            )
+    return result
+
+
+# ------------------------------------------------------------------------------
 # Comprehensive Tally-Style Receipt Voucher Posting
 # ------------------------------------------------------------------------------
 async def create_receipt_voucher(

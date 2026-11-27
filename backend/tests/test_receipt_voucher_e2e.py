@@ -431,3 +431,25 @@ async def test_map_voucher_response_with_allocations(e2e_session: AsyncSession):
     from app.modules.accounts.router import map_voucher_response
     resp = map_voucher_response(fresh_receipt)
     assert resp.id == receipt.id
+
+
+@pytest.mark.asyncio
+async def test_get_billing_clients_with_due_bills(e2e_session: AsyncSession):
+    session = e2e_session
+    # Create invoice for billing client 1
+    inv = await accounts_service.create_general_invoice(
+        session,
+        GeneralInvoiceCreate(
+            billing_client_id=1,
+            voucher_date=date(2026, 4, 1),
+            items=[GeneralInvoiceItemCreate(description="Services", quantity=Decimal("1.00"), rate=Decimal("10000.00"), tax_rate=Decimal("0.00"))]
+        ),
+        office_id=1,
+    )
+    due_clients = await accounts_service.get_billing_clients_with_due_bills(session)
+    assert len(due_clients) > 0
+    client_match = next((c for c in due_clients if c.id == 1), None)
+    assert client_match is not None
+    assert client_match.due_bills_count >= 1
+    assert client_match.total_due_amount >= Decimal("10000.00")
+

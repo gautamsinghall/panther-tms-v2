@@ -298,6 +298,19 @@ async def create_transport_invoice(
     )
     return map_voucher_response(voucher)
 
+@router.get("/billing-clients/with-due-bills", response_model=List[schemas.BillingClientDueBillSummary])
+async def get_billing_clients_with_due_bills_endpoint(
+    session: AsyncSession = Depends(get_tenant_db),
+    current_user: User = Depends(get_current_user),
+    _perm: bool = Depends(require_permission("accounts", "receipt_voucher", "view")),
+):
+    """
+    Get all billing clients with tagged due bills (unpaid or partially paid sales/transport invoices),
+    along with their total outstanding amount and bill counts.
+    """
+    return await service.get_billing_clients_with_due_bills(session)
+
+
 @router.get("/billing-clients/{client_id}/open-invoices", response_model=List[schemas.OpenInvoiceItem])
 async def get_client_open_invoices(
     client_id: int,
