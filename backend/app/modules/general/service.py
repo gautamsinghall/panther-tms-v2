@@ -10,7 +10,6 @@ from app.tenant_db.models import (
     Consigner,
     Location,
     Industry,
-    Designation,
     GroupCompany,
     Unit,
     MethodOfPacking,
@@ -318,34 +317,6 @@ async def update_industry(db: AsyncSession, iid: int, data) -> Industry:
 
 async def delete_industry(db: AsyncSession, iid: int) -> Industry:
     return await _soft_delete(db, Industry, iid)
-
-# --- Designation Service ---
-async def list_designations(db: AsyncSession) -> List[Designation]:
-    return await _get_all(db, Designation)
-
-async def get_designation(db: AsyncSession, did: int) -> Designation:
-    return await _get_by_id(db, Designation, did)
-
-async def create_designation(db: AsyncSession, data) -> Designation:
-    stmt = select(Designation).where(Designation.title == data.title.strip())
-    if (await db.execute(stmt)).scalar_one_or_none():
-        raise AppException(status_code=409, error_code="DESIGNATION_EXISTS", message="Designation with this title already exists.")
-    entity = Designation(**data.model_dump())
-    db.add(entity)
-    await db.commit()
-    await db.refresh(entity)
-    return entity
-
-async def update_designation(db: AsyncSession, did: int, data) -> Designation:
-    entity = await _get_by_id(db, Designation, did)
-    for k, v in data.model_dump(exclude_unset=True).items():
-        setattr(entity, k, v)
-    await db.commit()
-    await db.refresh(entity)
-    return entity
-
-async def delete_designation(db: AsyncSession, did: int) -> Designation:
-    return await _soft_delete(db, Designation, did)
 
 # --- Group Company Service ---
 async def list_group_companies(db: AsyncSession) -> List[GroupCompany]:

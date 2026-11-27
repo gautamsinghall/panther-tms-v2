@@ -524,7 +524,6 @@ class StaffImprestLedgerListItem(BaseModel):
     name: str  # Employee Name
     employee_code: Optional[str] = None
     department: Optional[str] = None
-    designation_title: Optional[str] = None
     phone: Optional[str] = None
     email: Optional[str] = None
     imprest_limit: Decimal = Decimal("0.00")

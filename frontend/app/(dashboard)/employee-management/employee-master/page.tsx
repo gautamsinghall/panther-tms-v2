@@ -36,8 +36,6 @@ export interface EmployeeRecord {
   id: number;
   name: string;
   employee_code?: string | null;
-  designation_id?: number | null;
-  designation_title?: string | null;
   department?: string | null;
   phone?: string | null;
   email?: string | null;
@@ -69,7 +67,6 @@ export interface EmployeeRecord {
 const defaultInitialValues = {
   name: "",
   department: "",
-  designation_id: "",
   date_of_joining: "",
   blood_group: "",
   phone: "",
@@ -91,7 +88,6 @@ const defaultInitialValues = {
 
 export default function EmployeeMasterPage() {
   const [data, setData] = useState<EmployeeRecord[]>([]);
-  const [designationOptions, setDesignationOptions] = useState<{ value: string; label: string }[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -114,19 +110,8 @@ export default function EmployeeMasterPage() {
     setIsLoading(true);
     setErrorMessage(null);
     try {
-      const [empRes, desigRes] = await Promise.all([
-        apiClient<EmployeeRecord[]>("/api/v1/misc/employees"),
-        apiClient<any[]>("/api/v1/general/designations").catch(() => []),
-      ]);
+      const empRes = await apiClient<EmployeeRecord[]>("/api/v1/misc/employees");
       setData(empRes);
-      if (Array.isArray(desigRes)) {
-        setDesignationOptions(
-          desigRes.map((d) => ({
-            value: String(d.id),
-            label: d.title || d.name || `Designation #${d.id}`,
-          }))
-        );
-      }
     } catch (err: any) {
       setErrorMessage(err.message || "Failed to load employees.");
       toast.error(err.message || "Failed to load employee directory");
@@ -170,7 +155,6 @@ export default function EmployeeMasterPage() {
       const payload: Record<string, any> = {
         name: values.name?.trim(),
         department: values.department?.trim() || null,
-        designation_id: values.designation_id ? parseInt(values.designation_id, 10) : null,
         date_of_joining: values.date_of_joining || null,
         blood_group: values.blood_group || null,
         phone: values.phone?.trim() || null,
@@ -219,7 +203,7 @@ export default function EmployeeMasterPage() {
     {
       id: "personal_details",
       title: "Personal & Employment Details",
-      description: "Employee core identity, role designation, department, and active status.",
+      description: "Employee core identity, department, and active status.",
       columns: 2,
       fields: [
         {
@@ -235,14 +219,6 @@ export default function EmployeeMasterPage() {
           label: "Department",
           type: "text",
           placeholder: "e.g. Operations, Accounts, Dispatch, Fleet",
-          colSpan: 1,
-        },
-        {
-          name: "designation_id",
-          label: "Designation",
-          type: "select",
-          options: designationOptions,
-          placeholder: "Select Designation",
           colSpan: 1,
         },
         {
@@ -424,7 +400,6 @@ export default function EmployeeMasterPage() {
         const q = searchTerm.toLowerCase().trim();
         const matchesName = (emp.name || "").toLowerCase().includes(q);
         const matchesDept = (emp.department || "").toLowerCase().includes(q);
-        const matchesDesig = (emp.designation_title || "").toLowerCase().includes(q);
         const matchesPhone = (emp.phone || "").toLowerCase().includes(q);
         const matchesPan = (emp.pan || "").toLowerCase().includes(q);
         const matchesCity = (emp.city || "").toLowerCase().includes(q);
@@ -432,7 +407,6 @@ export default function EmployeeMasterPage() {
         return (
           matchesName ||
           matchesDept ||
-          matchesDesig ||
           matchesPhone ||
           matchesPan ||
           matchesCity ||
@@ -458,7 +432,6 @@ export default function EmployeeMasterPage() {
     return {
       name: editingEmployee.name || "",
       department: editingEmployee.department || "",
-      designation_id: editingEmployee.designation_id ? String(editingEmployee.designation_id) : "",
       date_of_joining: editingEmployee.date_of_joining || "",
       blood_group: editingEmployee.blood_group || "",
       phone: editingEmployee.phone || "",
@@ -489,7 +462,7 @@ export default function EmployeeMasterPage() {
         <div>
           <span className="font-semibold text-text-primary block text-sm">{row.name}</span>
           <div className="flex items-center gap-1.5 mt-0.5 text-xs text-text-muted">
-            <span>{row.designation_title || row.department || "General Staff"}</span>
+            <span>{row.department || "General Staff"}</span>
             {row.blood_group && (
               <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800">
                 {row.blood_group}

@@ -130,7 +130,6 @@ class AccountResponse(AccountBase):
 class EmployeeMasterBase(BaseModel):
     name: str = Field(..., max_length=150)
     employee_code: Optional[str] = None
-    designation_id: Optional[int] = None
     department: Optional[str] = None
     phone: Optional[str] = None
     email: Optional[str] = None
@@ -159,7 +158,6 @@ class EmployeeMasterCreate(EmployeeMasterBase):
 class EmployeeMasterUpdate(BaseModel):
     name: Optional[str] = None
     employee_code: Optional[str] = None
-    designation_id: Optional[int] = None
     department: Optional[str] = None
     phone: Optional[str] = None
     email: Optional[str] = None
@@ -184,7 +182,6 @@ class EmployeeMasterUpdate(BaseModel):
 
 class EmployeeMasterResponse(EmployeeMasterBase):
     id: int
-    designation_title: Optional[str] = None
     imprest_account_name: Optional[str] = None
     imprest_account_code: Optional[str] = None
     current_imprest_balance: Decimal = Field(default=Decimal("0.00"))

@@ -269,29 +269,6 @@ class IndustryResponse(IndustryBase):
 
     model_config = ConfigDict(from_attributes=True)
 
-# --- Designation ---
-class DesignationBase(BaseModel):
-    title: str = Field(..., min_length=2, max_length=150)
-    department: Optional[str] = None
-    description: Optional[str] = None
-
-class DesignationCreate(DesignationBase):
-    is_active: bool = True
-
-class DesignationUpdate(BaseModel):
-    title: Optional[str] = None
-    department: Optional[str] = None
-    description: Optional[str] = None
-    is_active: Optional[bool] = None
-
-class DesignationResponse(DesignationBase):
-    id: int
-    is_active: bool
-    created_at: datetime
-    updated_at: datetime
-
-    model_config = ConfigDict(from_attributes=True)
-
 # --- Group Company ---
 class GroupCompanyBase(BaseModel):
     company_name: str = Field(..., min_length=2, max_length=255)

@@ -242,7 +242,6 @@ async def ensure_employee_schema(session: AsyncSession) -> None:
             id SERIAL PRIMARY KEY,
             name VARCHAR(150) NOT NULL,
             employee_code VARCHAR(50),
-            designation_id INTEGER,
             department VARCHAR(100),
             phone VARCHAR(50),
             email VARCHAR(255),
@@ -269,7 +268,6 @@ async def ensure_employee_schema(session: AsyncSession) -> None:
         );
         """,
         "ALTER TABLE misc_employees ADD COLUMN IF NOT EXISTS employee_code VARCHAR(50);",
-        "ALTER TABLE misc_employees ADD COLUMN IF NOT EXISTS designation_id INTEGER;",
         "ALTER TABLE misc_employees ADD COLUMN IF NOT EXISTS department VARCHAR(100);",
         "ALTER TABLE misc_employees ADD COLUMN IF NOT EXISTS phone VARCHAR(50);",
         "ALTER TABLE misc_employees ADD COLUMN IF NOT EXISTS email VARCHAR(255);",
@@ -314,7 +312,6 @@ async def get_employees(session: AsyncSession) -> List[EmployeeMaster]:
     stmt = (
         select(EmployeeMaster)
         .options(
-            selectinload(EmployeeMaster.designation),
             selectinload(EmployeeMaster.imprest_account),
         )
         .order_by(EmployeeMaster.id)
@@ -375,7 +372,6 @@ async def get_employee_by_id(session: AsyncSession, item_id: int) -> EmployeeMas
     stmt = (
         select(EmployeeMaster)
         .options(
-            selectinload(EmployeeMaster.designation),
             selectinload(EmployeeMaster.imprest_account),
         )
         .where(EmployeeMaster.id == item_id)

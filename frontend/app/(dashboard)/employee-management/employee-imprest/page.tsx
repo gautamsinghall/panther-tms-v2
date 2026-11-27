@@ -33,7 +33,6 @@ export interface EmployeeRecord {
   id: number;
   name: string;
   employee_code?: string | null;
-  designation_title?: string | null;
   department?: string | null;
   phone?: string | null;
   email?: string | null;
@@ -158,14 +157,12 @@ export default function EmployeeImprestPage() {
         const q = searchQuery.toLowerCase().trim();
         const matchesName = (emp.name || "").toLowerCase().includes(q);
         const matchesDept = (emp.department || "").toLowerCase().includes(q);
-        const matchesDesig = (emp.designation_title || "").toLowerCase().includes(q);
         const matchesPhone = (emp.phone || "").toLowerCase().includes(q);
         const matchesAccount = (emp.imprest_account_name || "").toLowerCase().includes(q);
         const matchesAccCode = (emp.imprest_account_code || "").toLowerCase().includes(q);
         return (
           matchesName ||
           matchesDept ||
-          matchesDesig ||
           matchesPhone ||
           matchesAccount ||
           matchesAccCode
@@ -199,7 +196,7 @@ export default function EmployeeImprestPage() {
         <div>
           <span className="font-semibold text-text-primary block text-sm">{row.name}</span>
           <span className="text-xs text-text-muted mt-0.5 block">
-            {row.designation_title || row.department || "General Staff"}
+            {row.department || "General Staff"}
           </span>
         </div>
       ),
@@ -491,7 +488,7 @@ export default function EmployeeImprestPage() {
                 {activatingEmployee.name}
               </h3>
               <p className="text-xs text-text-muted mt-0.5">
-                {activatingEmployee.designation_title || activatingEmployee.department || "General Staff"}
+                {activatingEmployee.department || "General Staff"}
               </p>
             </div>
 

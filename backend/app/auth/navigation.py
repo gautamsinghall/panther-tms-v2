@@ -58,7 +58,6 @@ ALL_NAVIGATION_MODULES = [
             {"feature": "vendor", "title": "Vendor", "href": "/general/vendor"},
             {"feature": "location", "title": "Location", "href": "/general/location"},
             {"feature": "industry", "title": "Industry", "href": "/general/industry"},
-            {"feature": "designation", "title": "Designation", "href": "/general/designation"},
             {"feature": "group_company", "title": "Group Company", "href": "/general/group-company"},
             {"feature": "unit", "title": "Unit", "href": "/general/unit"},
             {"feature": "method_of_packing", "title": "Method of Packing", "href": "/general/packing-method"},

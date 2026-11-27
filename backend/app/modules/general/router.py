@@ -434,48 +434,7 @@ async def delete_industry(
     return ind
 
 # ==============================================================================
-# 5. Designation
-# ==============================================================================
-@router.get("/designations", response_model=List[schemas.DesignationResponse], summary="List all designations")
-async def list_designations(
-    current_user: User = Depends(require_permission("general", "designation", "view")),
-    db: AsyncSession = Depends(get_tenant_db),
-):
-    return await service.list_designations(db)
-
-@router.post("/designations", response_model=schemas.DesignationResponse, status_code=status.HTTP_201_CREATED, summary="Create a designation")
-async def create_designation(
-    data: schemas.DesignationCreate,
-    current_user: User = Depends(require_permission("general", "designation", "create")),
-    db: AsyncSession = Depends(get_tenant_db),
-):
-    des = await service.create_designation(db, data)
-    await log_activity(db=db, user=current_user, action="DESIGNATION_CREATED", module="general", entity_type="Designation", entity_id=str(des.id), entity_identifier=des.name)
-    return des
-
-@router.put("/designations/{id}", response_model=schemas.DesignationResponse, summary="Update designation")
-async def update_designation(
-    id: int,
-    data: schemas.DesignationUpdate,
-    current_user: User = Depends(require_permission("general", "designation", "edit")),
-    db: AsyncSession = Depends(get_tenant_db),
-):
-    des = await service.update_designation(db, id, data)
-    await log_activity(db=db, user=current_user, action="DESIGNATION_UPDATED", module="general", entity_type="Designation", entity_id=str(des.id), entity_identifier=des.name)
-    return des
-
-@router.delete("/designations/{id}", response_model=schemas.DesignationResponse, summary="Deactivate designation")
-async def delete_designation(
-    id: int,
-    current_user: User = Depends(require_permission("general", "designation", "delete")),
-    db: AsyncSession = Depends(get_tenant_db),
-):
-    des = await service.delete_designation(db, id)
-    await log_activity(db=db, user=current_user, action="DESIGNATION_DEACTIVATED", module="general", entity_type="Designation", entity_id=str(id), entity_identifier=getattr(des, "name", str(id)))
-    return des
-
-# ==============================================================================
-# 6. Group Company
+# 5. Group Company
 # ==============================================================================
 @router.get("/group-companies", response_model=List[schemas.GroupCompanyResponse], summary="List all group companies")
 async def list_group_companies(

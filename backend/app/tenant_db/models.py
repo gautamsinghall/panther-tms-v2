@@ -304,24 +304,6 @@ class Industry(TenantBase):
     )
 
 
-class Designation(TenantBase):
-    """Employee designation / title master"""
-    __tablename__ = "general_designations"
-
-    id = Column(Integer, primary_key=True, index=True)
-    title = Column(String(150), unique=True, nullable=False, index=True)
-    department = Column(String(100), nullable=True)
-    description = Column(Text, nullable=True)
-    is_active = Column(Boolean, default=True, nullable=False)
-    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
-    updated_at = Column(
-        DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
-        onupdate=lambda: datetime.now(timezone.utc),
-        nullable=False
-    )
-
-
 class GroupCompany(TenantBase):
     """Sister/group companies sharing this tenant subscription (PRD §6 & §7.2)"""
     __tablename__ = "general_group_companies"
@@ -1467,7 +1449,6 @@ class EmployeeMaster(TenantBase):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(150), nullable=False, index=True)
     employee_code = Column(String(50), nullable=True, index=True)
-    designation_id = Column(Integer, ForeignKey("general_designations.id"), nullable=True)
     department = Column(String(100), nullable=True)
     phone = Column(String(50), nullable=True)
     email = Column(String(255), nullable=True)
@@ -1497,7 +1478,6 @@ class EmployeeMaster(TenantBase):
         nullable=False
     )
 
-    designation = relationship("Designation", lazy="selectin")
     imprest_account = relationship("Account", foreign_keys=[imprest_account_id], lazy="selectin")
 
 

@@ -151,18 +151,7 @@ async def test_general_module_crud_masters():
         )
         assert ind_res.status_code == 201
 
-        # 6. Designation CRUD
-        des_res = await ac.post(
-            "/api/v1/general/designations",
-            headers=headers,
-            json={
-                "title": f"Dispatch Officer {uid}",
-                "department": "Logistics Operations",
-            }
-        )
-        assert des_res.status_code == 201
-
-        # 7. Group Company CRUD
+        # 6. Group Company CRUD
         gc_res = await ac.post(
             "/api/v1/general/group-companies",
             headers=headers,

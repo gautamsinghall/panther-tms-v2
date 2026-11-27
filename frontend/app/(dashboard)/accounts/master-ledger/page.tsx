@@ -87,7 +87,6 @@ export interface StaffImprestLedgerItem {
   name: string;
   employee_code?: string;
   department?: string | null;
-  designation_title?: string | null;
   phone?: string | null;
   email?: string | null;
   imprest_limit: number | string;
@@ -841,7 +840,6 @@ export default function MasterLedgerPage() {
               name: emp.account_name || `Imprest - ${emp.name}`,
               code: emp.account_code || emp.employee_code || `EMP_IMP_${emp.id}`,
               company_name: emp.department || "Staff Imprest",
-              contact_person: emp.designation_title || undefined,
               phone: emp.phone || undefined,
               email: emp.email || undefined,
               group_name: emp.group_name || "Current Assets",
@@ -1202,8 +1200,7 @@ export default function MasterLedgerPage() {
         (s.employee_code && s.employee_code.toLowerCase().includes(searchQuery.toLowerCase())) ||
         (s.account_name && s.account_name.toLowerCase().includes(searchQuery.toLowerCase())) ||
         (s.account_code && s.account_code.toLowerCase().includes(searchQuery.toLowerCase())) ||
-        (s.department && s.department.toLowerCase().includes(searchQuery.toLowerCase())) ||
-        (s.designation_title && s.designation_title.toLowerCase().includes(searchQuery.toLowerCase()));
+        (s.department && s.department.toLowerCase().includes(searchQuery.toLowerCase()));
 
       const matchStatus =
         statusFilter === "ALL" ||
@@ -1357,7 +1354,7 @@ export default function MasterLedgerPage() {
         subgroup: s.subgroup_name || "Staff Imprest & Operating Float",
         balance: s.current_balance,
         balanceType: s.balance_type || "DR",
-        extraInfo: [s.department, s.designation_title, s.phone].filter(Boolean).join(" • "),
+        extraInfo: [s.department, s.phone].filter(Boolean).join(" • "),
       });
     });
 
@@ -3299,8 +3296,8 @@ export default function MasterLedgerPage() {
                                 {si.name}
                               </div>
                               <div className="flex items-center gap-1.5 mt-0.5 text-[11px] text-[#667085] dark:text-slate-400">
-                                {(si.department || si.designation_title) ? (
-                                  <span>{[si.department, si.designation_title].filter(Boolean).join(" - ")}</span>
+                                {si.department ? (
+                                  <span>{si.department}</span>
                                 ) : (
                                   <span>General Staff</span>
                                 )}

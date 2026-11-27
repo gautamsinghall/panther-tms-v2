@@ -81,13 +81,6 @@ export default function GeneralOverviewPage() {
       badge: "Packaging",
     },
     {
-      title: "Designation Master",
-      desc: "Staff designations: Dispatch Executive, Fleet Manager, Branch Accountant.",
-      href: "/general/designation",
-      icon: <Briefcase className="w-5 h-5 text-[#4F46E5]" />,
-      badge: "Organization",
-    },
-    {
       title: "Load Type Master",
       desc: "Cargo carriage categories: FTL (Full Truck Load), LTL / Part Load, Parcel, ODC, Containerized.",
       href: "/general/load-type",

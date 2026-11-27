@@ -736,7 +736,6 @@ async def lifespan(app: FastAPI):
                         # Employee Master & Imprest Evolution
                         for emp_col in [
                             "employee_code VARCHAR(50)",
-                            "designation_id INTEGER",
                             "department VARCHAR(100)",
                             "phone VARCHAR(50)",
                             "email VARCHAR(255)",

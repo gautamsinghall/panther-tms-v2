@@ -132,7 +132,6 @@ const SUBROUTE_TITLES: Record<string, string> = {
   vendor: "Vendor Master",
   location: "Locations",
   industry: "Industries",
-  designation: "Designations",
   "group-company": "Group Companies",
   unit: "Units",
   "packing-method": "Methods of Packing",

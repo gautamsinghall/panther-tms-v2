@@ -2437,7 +2437,6 @@ async def list_staff_imprest_ledgers(
     """
     emp_stmt = (
         select(EmployeeMaster)
-        .options(selectinload(EmployeeMaster.designation))
         .where(EmployeeMaster.is_active == True)
         .order_by(EmployeeMaster.name.asc())
     )
@@ -2549,7 +2548,6 @@ async def list_staff_imprest_ledgers(
                 name=emp.name,
                 employee_code=emp.employee_code,
                 department=emp.department,
-                designation_title=emp.designation.title if emp.designation else None,
                 phone=emp.phone,
                 email=emp.email,
                 imprest_limit=Decimal(str(emp.imprest_limit or "0.00")),

@@ -57,7 +57,7 @@ TMS_CORE_KNOWLEDGE = """
 - Consignees: /general/consignee (Delivery / receiving parties).
 - Vendors: /general/vendor (Petrol pumps, repair workshops, brokers).
 - Locations: /general/location (Cities, industrial hubs, ports).
-- Industry, Designation, Group Company, Unit, Packing Method, Load Type.
+- Industry, Group Company, Unit, Packing Method, Load Type.
 
 6. SHIPMENT TRACKING MODES:
 - FASTag Tracking: /tracking/fastag (Tracks toll plaza crossings via vehicle FASTag with automated 10-minute anti-spam cooldown).

@@ -247,7 +247,6 @@ async def delete_account(
 # ------------------------------------------------------------------------------
 def _format_employee_response(item: Any) -> schemas.EmployeeMasterResponse:
     resp = schemas.EmployeeMasterResponse.model_validate(item)
-    resp.designation_title = item.designation.title if getattr(item, "designation", None) else None
     if getattr(item, "imprest_account", None):
         resp.imprest_account_name = item.imprest_account.name
         resp.imprest_account_code = item.imprest_account.code
