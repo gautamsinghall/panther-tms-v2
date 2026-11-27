@@ -1392,7 +1392,18 @@ async def create_arrival_report(
     ar_dict["total_additional_payable"] = tot_pay
     ar_dict["net_amount"] = tot_pay - tot_ded
 
-    lr = await db.get(LR, data.lr_id)
+    lr_stmt = (
+        select(LR)
+        .options(
+            selectinload(LR.billing_customer),
+            selectinload(LR.consigner),
+            selectinload(LR.origin_location),
+            selectinload(LR.destination_location),
+        )
+        .where(LR.id == data.lr_id)
+    )
+    lr_res = await db.execute(lr_stmt)
+    lr = lr_res.scalar_one_or_none()
     if not lr:
         raise AppException(status_code=404, error_code="NOT_FOUND", message="Referenced LR not found.")
 
@@ -1403,12 +1414,17 @@ async def create_arrival_report(
             ar_dict["customer_name"] = lr.consigner.name
 
     if not ar_dict.get("from_location") and lr.origin_location:
-        ar_dict["from_location"] = lr.origin_location.city_name or lr.origin_location.name
+        ar_dict["from_location"] = lr.origin_location.city_name
     if not ar_dict.get("to_location") and lr.destination_location:
-        ar_dict["to_location"] = lr.destination_location.city_name or lr.destination_location.name
+        ar_dict["to_location"] = lr.destination_location.city_name
 
     if not ar_dict.get("lr_date"):
         ar_dict["lr_date"] = lr.lr_date
+    elif isinstance(ar_dict.get("lr_date"), str):
+        try:
+            ar_dict["lr_date"] = date.fromisoformat(ar_dict["lr_date"][:10])
+        except Exception:
+            ar_dict["lr_date"] = lr.lr_date
     if not ar_dict.get("eta"):
         ar_dict["eta"] = lr.eta
     if not ar_dict.get("booked_packages"):
@@ -1460,8 +1476,7 @@ async def create_arrival_report(
             job.status = JobStatus.DELIVERED.value
 
     await db.commit()
-    await db.refresh(ar)
-    return ar
+    return await get_arrival_report_by_id(db, ar.id)
 
 
 async def update_arrival_report(
@@ -1498,8 +1513,7 @@ async def update_arrival_report(
     ar.packages_short = ar.shortage_packages or 0
 
     await db.commit()
-    await db.refresh(ar)
-    return ar
+    return await get_arrival_report_by_id(db, ar.id)
 
 
 async def delete_arrival_report(db: AsyncSession, report_id: int) -> bool:

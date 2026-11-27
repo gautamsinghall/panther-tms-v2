@@ -1147,6 +1147,7 @@ async def check_series_status(
     return {
         "configured": True,
         "id": series.id,
+        "series_id": series.id,
         "document_type": series.document_type,
         "display_name": readable_title,
         "series_name": series.series_name,

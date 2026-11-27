@@ -125,6 +125,7 @@ export interface SeriesCheckInfo {
   display_name: string;
   series_mode: string;
   next_number_formatted: string;
+  id?: number;
   series_id?: number;
   series_options?: Array<{
     id: number;
@@ -194,8 +195,8 @@ export default function ArrivalReportsPage() {
     setErrorMessage(null);
     try {
       const [reportsRes, lrOptsRes, seriesRes] = await Promise.all([
-        apiClient<ArrivalReportRecord[]>("/api/v1/transport/arrival-reports"),
-        apiClient<ArrivalLROption[]>("/api/v1/transport/arrival-reports/lr-options"),
+        apiClient<ArrivalReportRecord[]>("/api/v1/transport/arrival-reports").catch(() => []),
+        apiClient<ArrivalLROption[]>("/api/v1/transport/arrival-reports/lr-options").catch(() => []),
         apiClient<SeriesCheckInfo>("/api/v1/transport/arrival-reports/next-number").catch(() => null),
       ]);
       setData(Array.isArray(reportsRes) ? reportsRes : []);
@@ -205,8 +206,9 @@ export default function ArrivalReportsPage() {
         if (seriesRes.next_number_formatted) {
           setFormArrivalNo(seriesRes.next_number_formatted);
         }
-        if (seriesRes.series_id) {
-          setSelectedSeriesId(seriesRes.series_id);
+        const sid = seriesRes.id || (seriesRes as any).series_id;
+        if (sid) {
+          setSelectedSeriesId(Number(sid));
         }
       }
     } catch (err: any) {
@@ -345,8 +347,9 @@ export default function ArrivalReportsPage() {
         if (s.next_number_formatted) {
           setFormArrivalNo(s.next_number_formatted);
         }
-        if (s.series_id) {
-          setSelectedSeriesId(s.series_id);
+        const sid = s.id || (s as any).series_id;
+        if (sid) {
+          setSelectedSeriesId(Number(sid));
         }
       }
     } catch {
@@ -375,7 +378,7 @@ export default function ArrivalReportsPage() {
         arrival_date: formDate,
         delivered_date: formDeliveredDate || formDate,
         report_number: formArrivalNo ? formArrivalNo.trim() : undefined,
-        series_id: selectedSeriesId,
+        series_id: selectedSeriesId ? Number(selectedSeriesId) : undefined,
         lr_id: parseInt(selectedLrId, 10),
         hire_challan_id: selectedHcId ? parseInt(selectedHcId, 10) : undefined,
 

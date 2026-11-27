@@ -252,9 +252,9 @@
     "semantic_hash": "a54f8ca3614a7b14512f44c017f61f50"
   },
   "backend/app/main.py": {
-    "mtime": 1795789476.8828623,
-    "seen": 1795789703.1205075,
-    "ast_hash": "a875a64e01c21eb56d0043a3b7246752",
+    "mtime": 1795790680.6258686,
+    "seen": 1795790822.5975802,
+    "ast_hash": "625f817586492b7d94f871a8a91bcceb",
     "semantic_hash": ""
   },
   "backend/app/modules/accounts/__init__.py": {
@@ -636,9 +636,9 @@
     "semantic_hash": ""
   },
   "backend/app/modules/settings/series_service.py": {
-    "mtime": 1795788978.7405357,
-    "seen": 1795789313.4306479,
-    "ast_hash": "f2775729dcd466b6d054268bd1c624b7",
+    "mtime": 1795790680.5734415,
+    "seen": 1795790822.5976496,
+    "ast_hash": "16a59ec2a77b4e746b3139b0d6812e32",
     "semantic_hash": ""
   },
   "backend/app/modules/settings/service.py": {
@@ -696,21 +696,21 @@
     "semantic_hash": ""
   },
   "backend/app/modules/transport/router.py": {
-    "mtime": 1795789468.1854138,
-    "seen": 1795789703.1205878,
-    "ast_hash": "26d1e94c0b1702126e7c84f245837227",
+    "mtime": 1795790650.396005,
+    "seen": 1795790822.59766,
+    "ast_hash": "b0ca458449cea74cf45220883ccec934",
     "semantic_hash": ""
   },
   "backend/app/modules/transport/schemas.py": {
-    "mtime": 1795789490.2027254,
-    "seen": 1795789703.1205888,
-    "ast_hash": "0605caae236a4fec9515288dc376f7d4",
+    "mtime": 1795790789.5976543,
+    "seen": 1795790822.597661,
+    "ast_hash": "207cf6bec5b028c77705f1184d10b7c3",
     "semantic_hash": ""
   },
   "backend/app/modules/transport/service.py": {
-    "mtime": 1795788978.7585342,
-    "seen": 1795789313.4306598,
-    "ast_hash": "6d99d3bad976e81be463b59eb08c2b9b",
+    "mtime": 1795790407.9235418,
+    "seen": 1795790822.5976622,
+    "ast_hash": "5f7d649a457d235a712d04f94e5b4899",
     "semantic_hash": ""
   },
   "backend/app/modules/transport_reports/__init__.py": {
@@ -1842,9 +1842,9 @@
     "semantic_hash": "95e96a5d628870245e7548f0ce13288f"
   },
   "frontend/app/(dashboard)/transport/arrival-reports/page.tsx": {
-    "mtime": 1795789200.541792,
-    "seen": 1795789313.4308715,
-    "ast_hash": "bd9a254478fe8fdb03724523909bf1c2",
+    "mtime": 1795790733.2112308,
+    "seen": 1795790822.5978808,
+    "ast_hash": "785a49a0410fbe00176580c812e31662",
     "semantic_hash": ""
   },
   "frontend/app/(dashboard)/transport/company-vehicles/page.tsx": {
@@ -2754,9 +2754,9 @@
     "semantic_hash": ""
   },
   "backend/tests/test_arrival_reports_revamp.py": {
-    "mtime": 1795789016.4629083,
-    "seen": 1795789313.4307046,
-    "ast_hash": "81294fd7419028e30441c125ef5a13f4",
+    "mtime": 1795790753.0964286,
+    "seen": 1795790822.59771,
+    "ast_hash": "e21a019e2d2dd171004521ea2c0dd730",
     "semantic_hash": ""
   },
   "frontend/package-lock.json": {

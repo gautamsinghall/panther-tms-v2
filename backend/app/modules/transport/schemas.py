@@ -748,8 +748,8 @@ class HireChallanResponse(HireChallanBase):
 class ArrivalReportBase(BaseModel):
     report_number: Optional[str] = None
     series_id: Optional[int] = None
-    arrival_date: Union[date, datetime, str] = Field(default_factory=date.today)
-    delivered_date: Union[date, datetime, str] = Field(default_factory=date.today)
+    arrival_date: Optional[Union[date, datetime, str]] = Field(default_factory=date.today)
+    delivered_date: Optional[Union[date, datetime, str]] = Field(default_factory=date.today)
     lr_id: int
     hire_challan_id: Optional[int] = None
     job_id: Optional[int] = None
@@ -800,6 +800,50 @@ class ArrivalReportBase(BaseModel):
     condition_remarks: Optional[str] = None
     unloaded_by: Optional[str] = None
     receiver_name: Optional[str] = None
+
+    @field_validator("arrival_date", "delivered_date", "lr_date", mode="before")
+    @classmethod
+    def coerce_empty_arrival_dates(cls, v):
+        if v == "" or (isinstance(v, str) and not v.strip()):
+            return None
+        return v
+
+    @field_validator("series_id", "hire_challan_id", "job_id", "issuing_office_id", mode="before")
+    @classmethod
+    def coerce_empty_arrival_optional_ints(cls, v):
+        if v == "" or v is None or (isinstance(v, str) and not v.strip()):
+            return None
+        try:
+            return int(v)
+        except (ValueError, TypeError):
+            return None
+
+    @field_validator("transit_days", "booked_packages", "delivered_packages", "shortage_packages", "damage_packages", "packages_received", "packages_damaged", "packages_short", mode="before")
+    @classmethod
+    def coerce_empty_arrival_count_ints(cls, v):
+        if v == "" or v is None or (isinstance(v, str) and not v.strip()):
+            return 0
+        try:
+            return int(v)
+        except (ValueError, TypeError):
+            return 0
+
+    @field_validator("booked_weight", "delivered_weight", "shortage_weight", "deduction_shortage", "deduction_others", "deduction_damage", "deduction_delay", "total_deductions", "payable_detention", "payable_mis_others", "payable_labour", "payable_border_expense", "total_additional_payable", "net_amount", mode="before")
+    @classmethod
+    def coerce_empty_arrival_decimals(cls, v):
+        if v == "" or v is None or (isinstance(v, str) and not v.strip()):
+            return Decimal("0.00")
+        try:
+            return Decimal(str(v))
+        except Exception:
+            return Decimal("0.00")
+
+    @field_validator("report_number", "customer_name", "from_location", "to_location", "eta", "issued_by", "vehicle_number", "damage_remarks", "condition_remarks", mode="before")
+    @classmethod
+    def normalize_optional_arrival_strings(cls, v):
+        if v is None or (isinstance(v, str) and not v.strip()):
+            return None
+        return str(v).strip()
 
 class ArrivalReportCreate(ArrivalReportBase):
     pass

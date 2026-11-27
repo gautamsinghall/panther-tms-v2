@@ -225,12 +225,44 @@ async def test_create_and_update_arrival_report(test_session: AsyncSession):
     lr = await test_session.get(LR, 1)
     assert lr.status == "ARRIVED"
 
-    # 6. Test list & get by id
+    # 6. Test list & get by id & router response builder
+    from app.modules.transport.router import _build_arrival_report_response
+    resp = _build_arrival_report_response(ar)
+    assert resp.id == ar.id
+    assert resp.report_number.startswith("AR-")
+    assert resp.customer_name == "Tata Steel Ltd"
+    assert resp.lr_number == "LR-2026-0001"
+    assert resp.challan_number == "HC-2026-0001"
+
     all_reports = await transport_service.get_all_arrival_reports(test_session, office_id=1)
     assert len(all_reports) == 1
+    resp_list = [_build_arrival_report_response(r) for r in all_reports]
+    assert len(resp_list) == 1
+    assert resp_list[0].customer_name == "Tata Steel Ltd"
+
     fetched = await transport_service.get_arrival_report_by_id(test_session, ar.id)
     assert fetched is not None
     assert fetched.id == ar.id
+    resp_fetched = _build_arrival_report_response(fetched)
+    assert resp_fetched.id == fetched.id
+
+    # Test empty string payload coercion
+    empty_str_payload = ArrivalReportCreate(
+        lr_id=2,
+        arrival_date="2026-11-27",
+        delivered_date="",
+        deduction_shortage="",
+        delivered_packages="",
+    )
+    ar2 = await transport_service.create_arrival_report(
+        test_session,
+        empty_str_payload,
+        office_id=1,
+    )
+    resp2 = _build_arrival_report_response(ar2)
+    assert resp2.id == ar2.id
+    assert resp2.deduction_shortage == Decimal("0.00")
+    assert resp2.delivered_packages == 0
 
     # 7. Test delete
     deleted = await transport_service.delete_arrival_report(test_session, ar.id)

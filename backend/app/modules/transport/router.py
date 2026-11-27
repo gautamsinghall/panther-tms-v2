@@ -1,4 +1,5 @@
 from typing import List, Dict, Any, Optional
+from datetime import datetime, date
 from decimal import Decimal
 from fastapi import APIRouter, Depends, status, UploadFile, File, Query, Form, HTTPException
 from fastapi.responses import StreamingResponse
@@ -1333,6 +1334,9 @@ async def delete_hire_challan(
 def _build_arrival_report_response(r: ArrivalReport) -> ArrivalReportResponse:
     arr_date = r.arrival_date
     del_date = getattr(r, "delivered_date", None) or (arr_date.date() if isinstance(arr_date, datetime) else arr_date)
+    # Safely extract relations from __dict__ to avoid async MissingGreenlet on unloaded relationships
+    lr = r.__dict__.get("lr")
+    hc = r.__dict__.get("hire_challan")
     return ArrivalReportResponse(
         id=r.id,
         report_number=r.report_number,
@@ -1343,16 +1347,16 @@ def _build_arrival_report_response(r: ArrivalReport) -> ArrivalReportResponse:
         hire_challan_id=r.hire_challan_id,
         job_id=r.job_id,
         issuing_office_id=r.issuing_office_id,
-        customer_name=r.customer_name or (r.lr.billing_customer.name if r.lr and r.lr.billing_customer else (r.lr.consigner.name if r.lr and r.lr.consigner else None)),
-        from_location=r.from_location or (r.lr.origin_location.city_name if r.lr and r.lr.origin_location else None),
-        to_location=r.to_location or (r.lr.destination_location.city_name if r.lr and r.lr.destination_location else None),
-        lr_date=r.lr_date or (r.lr.lr_date if r.lr else None),
+        customer_name=r.customer_name,
+        from_location=r.from_location,
+        to_location=r.to_location,
+        lr_date=r.lr_date or (getattr(lr, "lr_date", None) if lr else None),
         transit_days=r.transit_days or 0,
-        eta=r.eta or (r.lr.eta if r.lr else None),
-        booked_packages=r.booked_packages or (r.lr.package_count if r.lr else 0),
-        booked_weight=r.booked_weight or (r.lr.actual_weight_mt if r.lr else Decimal("0.000")),
-        issued_by=r.issued_by or (getattr(r.hire_challan, "created_by_user_name", None) if r.hire_challan else None),
-        vehicle_number=r.vehicle_number or (r.hire_challan.vehicle_number if r.hire_challan else (r.lr.vehicle_number if r.lr else None)),
+        eta=r.eta or (getattr(lr, "eta", None) if lr else None),
+        booked_packages=r.booked_packages or (getattr(lr, "package_count", 0) if lr else 0),
+        booked_weight=r.booked_weight or (getattr(lr, "actual_weight_mt", Decimal("0.000")) if lr else Decimal("0.000")),
+        issued_by=r.issued_by or (getattr(hc, "created_by_user_name", None) if hc else None),
+        vehicle_number=r.vehicle_number or (getattr(hc, "vehicle_number", None) if hc else (getattr(lr, "vehicle_number", None) if lr else None)),
         delivered_packages=r.delivered_packages or r.packages_received or 0,
         delivered_weight=r.delivered_weight or Decimal("0.000"),
         shortage_packages=r.shortage_packages or r.packages_short or 0,
@@ -1378,8 +1382,8 @@ def _build_arrival_report_response(r: ArrivalReport) -> ArrivalReportResponse:
         unloaded_by=r.unloaded_by,
         receiver_name=r.receiver_name,
         status=r.status,
-        lr_number=r.lr.lr_number if r.lr else None,
-        challan_number=r.hire_challan.challan_number if r.hire_challan else None,
+        lr_number=getattr(lr, "lr_number", None) if lr else None,
+        challan_number=getattr(hc, "challan_number", None) if hc else None,
         created_at=r.created_at,
         updated_at=r.updated_at,
     )

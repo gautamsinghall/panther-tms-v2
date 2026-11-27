@@ -277,6 +277,12 @@ async def lifespan(app: FastAPI):
                             "net_amount NUMERIC(12, 2) DEFAULT 0.00",
                         ]:
                             await t_conn.execute(text(f"ALTER TABLE transport_arrival_reports ADD COLUMN IF NOT EXISTS {ar_col};"))
+                        await t_conn.execute(text("ALTER TABLE transport_arrival_reports ALTER COLUMN vehicle_number TYPE VARCHAR(30);"))
+                        for col_drop_nn in ["packages_received", "packages_damaged", "packages_short"]:
+                            try:
+                                await t_conn.execute(text(f"ALTER TABLE transport_arrival_reports ALTER COLUMN {col_drop_nn} DROP NOT NULL;"))
+                            except Exception:
+                                pass
 
                         # Freight Tiger SIM Tracking Schema Evolution
                         await t_conn.execute(text("""
@@ -573,6 +579,34 @@ async def lifespan(app: FastAPI):
                                         INSERT INTO settings_series_masters
                                         (category_id, issuing_office_id, document_type, series_name, prefix, suffix, starting_number, current_number, financial_year, series_mode, is_default, is_active, created_at, updated_at)
                                         VALUES (:cat_id, NULL, 'LOADING_SLIP', 'Standard Loading Slip Series', 'LS-', '', 1, 0, '2026-2027', 'AUTOMATIC', TRUE, TRUE, NOW(), NOW());
+                                    """),
+                                    {"cat_id": cat_id_res},
+                                )
+
+                        has_any_ar_series = (await t_conn.execute(text("SELECT 1 FROM settings_series_masters WHERE document_type = 'ARRIVAL_REPORT' LIMIT 1;"))).scalar()
+                        if not has_any_ar_series:
+                            cat_id_res = (await t_conn.execute(text("SELECT id FROM settings_series_categories WHERE code = 'TRANSPORT' LIMIT 1;"))).scalar()
+                            if not cat_id_res:
+                                await t_conn.execute(text("INSERT INTO settings_series_categories (name, code, description, is_active, created_at, updated_at) VALUES ('Transport Documents', 'TRANSPORT', 'LR, Hire Challan, Loading Slip, POD, Dispatch', TRUE, NOW(), NOW()) ON CONFLICT (code) DO NOTHING;"))
+                                cat_id_res = (await t_conn.execute(text("SELECT id FROM settings_series_categories WHERE code = 'TRANSPORT' LIMIT 1;"))).scalar()
+                            branches_rows = (await t_conn.execute(text("SELECT id, code FROM profile_branches WHERE is_active = TRUE ORDER BY is_head_office DESC, id ASC;"))).fetchall()
+                            if branches_rows:
+                                for br_id, br_code in branches_rows:
+                                    b_code = (br_code or f"OFF{br_id}").upper().strip()
+                                    await t_conn.execute(
+                                        text("""
+                                            INSERT INTO settings_series_masters
+                                            (category_id, issuing_office_id, document_type, series_name, prefix, suffix, starting_number, current_number, financial_year, series_mode, is_default, is_active, created_at, updated_at)
+                                            VALUES (:cat_id, :off_id, 'ARRIVAL_REPORT', :sname, :pref, '', 1, 0, '2026-2027', 'AUTOMATIC', TRUE, TRUE, NOW(), NOW());
+                                        """),
+                                        {"cat_id": cat_id_res, "off_id": br_id, "sname": f"{b_code} AR", "pref": f"{b_code}-AR-"},
+                                    )
+                            else:
+                                await t_conn.execute(
+                                    text("""
+                                        INSERT INTO settings_series_masters
+                                        (category_id, issuing_office_id, document_type, series_name, prefix, suffix, starting_number, current_number, financial_year, series_mode, is_default, is_active, created_at, updated_at)
+                                        VALUES (:cat_id, NULL, 'ARRIVAL_REPORT', 'Standard Arrival Report Series', 'AR-', '', 1, 0, '2026-2027', 'AUTOMATIC', TRUE, TRUE, NOW(), NOW());
                                     """),
                                     {"cat_id": cat_id_res},
                                 )
