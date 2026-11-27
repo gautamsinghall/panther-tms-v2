@@ -11,6 +11,7 @@ import {
   Wallet,
   IndianRupee,
   Pencil,
+  Printer,
   Lock,
   CheckCircle2,
 } from "lucide-react";
@@ -20,6 +21,10 @@ import { DataTable } from "@/components/tables/data-table";
 import { EntityDrawer } from "@/components/ui/entity-drawer";
 import { Form } from "@/components/forms/form";
 import { KpiCard } from "@/components/ui/kpi-card";
+import {
+  LoadingSlipViewModal,
+  LoadingSlipRecord,
+} from "@/components/modals/loading-slip-view-modal";
 import { ColumnDef, RowAction } from "@/types/table";
 import { FormSectionDef } from "@/types/form";
 import { apiClient } from "@/lib/api-client";
@@ -28,42 +33,7 @@ import { getActiveOffice, getStoredAuth, getStoredNavigation, OfficeSummary } fr
 import { canAccessRoute } from "@/lib/permissions";
 import { useWorkspaceTabs } from "@/lib/workspace-tabs-context";
 
-interface LoadingSlipRecord {
-  id: number;
-  slip_number: string;
-  slip_date: string;
-  slip_series_id?: number | null;
-  issuing_office_id?: number | null;
-  issuing_office_name?: string | null;
-  issuing_office_code?: string | null;
-  vehicle_number: string;
-  consigner_id?: number | null;
-  consigner_name?: string | null;
-  phone: string;
-  email?: string | null;
-  pan?: string | null;
-  lorry_coordinator?: string | null;
-  lorry_coordinator_phone?: string | null;
-  origin_location_id?: number | null;
-  destination_location_id?: number | null;
-  origin_city?: string | null;
-  origin_location_display?: string | null;
-  destination_city?: string | null;
-  destination_location_display?: string | null;
-  loading_point?: string | null;
-  unloading_point?: string | null;
-  lr_id?: number | null;
-  lr_number?: string | null;
-  loading_date?: string | null;
-  remark?: string | null;
-  total_freight: string | number;
-  advance_amount: string | number;
-  detention_charge: string | number;
-  commission_amount: string | number;
-  mamul_hammali: string | number;
-  total_amount: string | number;
-  created_at: string;
-}
+export type { LoadingSlipRecord };
 
 interface VehicleMasterOption {
   id: number;
@@ -141,6 +111,7 @@ export default function LoadingSlipPage() {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [editingSlip, setEditingSlip] = useState<LoadingSlipRecord | null>(null);
+  const [printSlip, setPrintSlip] = useState<LoadingSlipRecord | null>(null);
   const [formInitialValues, setFormInitialValues] = useState<Record<string, any>>({});
   const [isVehicleTypePromptOpen, setIsVehicleTypePromptOpen] = useState(false);
 
@@ -514,8 +485,12 @@ export default function LoadingSlipPage() {
       header: "Loading Slip No.",
       sortable: true,
       cell: (row) => (
-        <div>
-          <span className="font-mono font-bold text-[#101828] dark:text-white block">
+        <div
+          onClick={() => setPrintSlip(row)}
+          className="cursor-pointer group"
+          title="Click to view and print loading slip"
+        >
+          <span className="font-mono font-bold text-indigo-700 dark:text-indigo-400 group-hover:underline block">
             {row.slip_number}
           </span>
           <span className="block text-[11px] text-[#667085] dark:text-slate-400">
@@ -605,6 +580,11 @@ export default function LoadingSlipPage() {
   ];
 
   const actions: RowAction<LoadingSlipRecord>[] = [
+    {
+      label: "Print Preview",
+      icon: <Printer className="w-4 h-4 text-emerald-600" />,
+      onClick: (row) => setPrintSlip(row),
+    },
     {
       label: "Edit Loading Slip",
       icon: <Pencil className="w-4 h-4 text-blue-600" />,
@@ -1202,6 +1182,16 @@ export default function LoadingSlipPage() {
           isLoading={isSubmitting}
         />
       </EntityDrawer>
+
+      <LoadingSlipViewModal
+        isOpen={Boolean(printSlip)}
+        slip={printSlip}
+        onClose={() => setPrintSlip(null)}
+        onEdit={(slip) => {
+          setPrintSlip(null);
+          openEditDrawer(slip);
+        }}
+      />
     </div>
   );
 }

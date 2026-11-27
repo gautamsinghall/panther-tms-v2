@@ -7,6 +7,7 @@ import {
   AlertTriangle,
   Clock,
   Printer,
+  Pencil,
   Trash2,
   Eye,
   RefreshCw,
@@ -35,6 +36,10 @@ import { StatusBadge, Badge } from "@/components/ui/badge";
 import { KpiCard } from "@/components/ui/kpi-card";
 import { Button } from "@/components/ui/button";
 import { ColumnDef } from "@/types/table";
+import {
+  ArrivalReportViewModal,
+  ArrivalReportRecord,
+} from "@/components/modals/arrival-report-view-modal";
 import { apiClient } from "@/lib/api-client";
 import { formatDate, formatCurrency, cn } from "@/lib/utils";
 import { toast } from "@/lib/toast";
@@ -43,57 +48,7 @@ import { toast } from "@/lib/toast";
 // Types
 // ------------------------------------------------------------------------------
 
-export interface ArrivalReportRecord {
-  id: number;
-  report_number: string;
-  series_id?: number | null;
-  arrival_date: string;
-  delivered_date: string;
-  lr_id: number;
-  hire_challan_id?: number | null;
-  job_id?: number | null;
-  issuing_office_id?: number | null;
-
-  customer_name?: string | null;
-  from_location?: string | null;
-  to_location?: string | null;
-  lr_date?: string | null;
-  transit_days: number;
-  eta?: string | null;
-  booked_packages: number;
-  booked_weight: number | string;
-  issued_by?: string | null;
-  vehicle_number?: string | null;
-
-  delivered_packages: number;
-  delivered_weight: number | string;
-  shortage_packages: number;
-  shortage_weight: number | string;
-  damage_packages: number;
-  damage_remarks?: string | null;
-
-  deduction_shortage: number | string;
-  deduction_others: number | string;
-  deduction_damage: number | string;
-  deduction_delay: number | string;
-  total_deductions: number | string;
-
-  payable_detention: number | string;
-  payable_mis_others: number | string;
-  payable_labour: number | string;
-  payable_border_expense: number | string;
-  total_additional_payable: number | string;
-  net_amount: number | string;
-
-  condition_remarks?: string | null;
-  destination_hub?: string | null;
-  receiver_name?: string | null;
-  status: string;
-  lr_number?: string | null;
-  challan_number?: string | null;
-  created_at: string;
-  updated_at?: string;
-}
+export type { ArrivalReportRecord };
 
 export interface LinkedHireChallan {
   id: number;
@@ -146,6 +101,7 @@ export default function ArrivalReportsPage() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [editingReport, setEditingReport] = useState<ArrivalReportRecord | null>(null);
   const [selectedReport, setSelectedReport] = useState<ArrivalReportRecord | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -311,6 +267,7 @@ export default function ArrivalReportsPage() {
 
   // Reset form when drawer opens/closes
   const resetForm = () => {
+    setEditingReport(null);
     setFormDate(new Date().toISOString().split("T")[0]);
     setFormDeliveredDate(new Date().toISOString().split("T")[0]);
     setSelectedLrId("");
@@ -357,6 +314,44 @@ export default function ArrivalReportsPage() {
     }
   };
 
+  const openEditDrawer = (report: ArrivalReportRecord) => {
+    setEditingReport(report);
+    setFormDate(report.arrival_date ? report.arrival_date.split("T")[0] : new Date().toISOString().split("T")[0]);
+    setFormDeliveredDate(
+      report.delivered_date
+        ? report.delivered_date.split("T")[0]
+        : report.arrival_date
+        ? report.arrival_date.split("T")[0]
+        : new Date().toISOString().split("T")[0]
+    );
+    setFormArrivalNo(report.report_number);
+    if (report.series_id) {
+      setSelectedSeriesId(report.series_id);
+    }
+    setSelectedLrId(String(report.lr_id));
+    setSelectedHcId(report.hire_challan_id ? String(report.hire_challan_id) : "");
+
+    setDeliveredPkg(String(report.delivered_packages ?? 0));
+    setDeliveredWt(String(report.delivered_weight ?? "0.000"));
+    setShortagePkg(String(report.shortage_packages ?? 0));
+    setShortageWt(String(report.shortage_weight ?? "0.000"));
+    setDamagePkg(String(report.damage_packages ?? 0));
+    setDamageRemarks(report.damage_remarks || "");
+
+    setDedShortage(String(report.deduction_shortage ?? 0));
+    setDedOthers(String(report.deduction_others ?? 0));
+    setDedDamage(String(report.deduction_damage ?? 0));
+    setDedDelay(String(report.deduction_delay ?? 0));
+
+    setPayDetention(String(report.payable_detention ?? 0));
+    setPayMisOthers(String(report.payable_mis_others ?? 0));
+    setPayLabour(String(report.payable_labour ?? 0));
+    setPayBorderExpense(String(report.payable_border_expense ?? 0));
+
+    setConditionRemarks(report.condition_remarks || "");
+    setIsDrawerOpen(true);
+  };
+
   // ----------------------------------------------------------------------------
   // Submit Handler
   // ----------------------------------------------------------------------------
@@ -382,17 +377,17 @@ export default function ArrivalReportsPage() {
         lr_id: parseInt(selectedLrId, 10),
         hire_challan_id: selectedHcId ? parseInt(selectedHcId, 10) : undefined,
 
-        // Auto-filled snapshot from selected LR & HC
-        customer_name: currentLR?.customer_name,
-        from_location: currentLR?.from_location,
-        to_location: currentLR?.to_location,
-        lr_date: currentLR?.lr_date,
-        transit_days: currentLR?.transit_days || 0,
-        eta: currentLR?.eta,
-        booked_packages: currentLR?.package_count || 0,
-        booked_weight: currentLR?.weight || 0,
-        issued_by: currentHC?.issued_by || "Operations Executive",
-        vehicle_number: currentHC?.vehicle_number || currentLR?.hcs?.[0]?.vehicle_number || "",
+        // Auto-filled snapshot from selected LR & HC (fallback to existing report data if editing)
+        customer_name: currentLR?.customer_name || editingReport?.customer_name,
+        from_location: currentLR?.from_location || editingReport?.from_location,
+        to_location: currentLR?.to_location || editingReport?.to_location,
+        lr_date: currentLR?.lr_date || editingReport?.lr_date,
+        transit_days: currentLR?.transit_days ?? editingReport?.transit_days ?? 0,
+        eta: currentLR?.eta || editingReport?.eta,
+        booked_packages: currentLR?.package_count ?? editingReport?.booked_packages ?? 0,
+        booked_weight: currentLR?.weight ?? editingReport?.booked_weight ?? 0,
+        issued_by: currentHC?.issued_by || editingReport?.issued_by || "Operations Executive",
+        vehicle_number: currentHC?.vehicle_number || currentLR?.hcs?.[0]?.vehicle_number || editingReport?.vehicle_number || "",
 
         // Delivery details
         delivered_packages: parseInt(deliveredPkg, 10) || 0,
@@ -417,16 +412,25 @@ export default function ArrivalReportsPage() {
         condition_remarks: conditionRemarks || undefined,
       };
 
-      await apiClient("/api/v1/transport/arrival-reports", {
-        method: "POST",
-        body: JSON.stringify(payload),
-      });
+      if (editingReport) {
+        await apiClient(`/api/v1/transport/arrival-reports/${editingReport.id}`, {
+          method: "PUT",
+          body: JSON.stringify(payload),
+        });
+        toast.success(`Arrival Report ${editingReport.report_number} updated successfully.`);
+      } else {
+        await apiClient("/api/v1/transport/arrival-reports", {
+          method: "POST",
+          body: JSON.stringify(payload),
+        });
+        toast.success("Arrival Report recorded successfully.");
+      }
 
-      toast.success("Arrival Report recorded successfully.");
       setIsDrawerOpen(false);
+      setEditingReport(null);
       loadData();
     } catch (err: any) {
-      toast.error(err.message || "Failed to record arrival report.");
+      toast.error(err.message || (editingReport ? "Failed to update arrival report." : "Failed to record arrival report."));
     } finally {
       setIsSubmitting(false);
     }
@@ -505,7 +509,11 @@ export default function ArrivalReportsPage() {
       cell: (row) => (
         <div>
           <div className="flex items-center gap-1.5">
-            <span className="font-mono font-bold text-gray-900 dark:text-gray-100 text-sm">
+            <span
+              onClick={() => setSelectedReport(row)}
+              className="font-mono font-bold text-gray-900 dark:text-gray-100 text-sm hover:text-indigo-600 dark:hover:text-indigo-400 cursor-pointer hover:underline"
+              title="Click to preview & print"
+            >
               {row.report_number}
             </span>
             <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
@@ -674,19 +682,23 @@ export default function ArrivalReportsPage() {
           <button
             onClick={() => setSelectedReport(row)}
             className="p-1 text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-950 rounded transition-colors"
-            title="View Arrival Details"
+            title="View Details & Print Preview"
           >
             <Eye className="w-4 h-4" />
           </button>
           <button
-            onClick={() => {
-              setSelectedReport(row);
-              setTimeout(() => window.print(), 300);
-            }}
+            onClick={() => setSelectedReport(row)}
             className="p-1 text-gray-500 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950 rounded transition-colors"
             title="Print Arrival Slip"
           >
             <Printer className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => openEditDrawer(row)}
+            className="p-1 text-gray-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950 rounded transition-colors"
+            title="Edit Arrival Report"
+          >
+            <Pencil className="w-4 h-4" />
           </button>
           <button
             onClick={() => handleDelete(row.id, row.report_number)}
@@ -804,13 +816,20 @@ export default function ArrivalReportsPage() {
       />
 
       {/* ========================================================================= */}
-      {/* Create Arrival Report Form Drawer */}
+      {/* Create / Edit Arrival Report Form Drawer */}
       {/* ========================================================================= */}
       <EntityDrawer
         isOpen={isDrawerOpen}
-        onClose={() => setIsDrawerOpen(false)}
-        title="File Cargo Arrival Report"
-        description="Inspect destination unloading, record tally, and document cargo exceptions."
+        onClose={() => {
+          setIsDrawerOpen(false);
+          setEditingReport(null);
+        }}
+        title={editingReport ? `Edit Arrival Report: ${editingReport.report_number}` : "File Cargo Arrival Report"}
+        description={
+          editingReport
+            ? "Update destination unloading tally, shortages, damages, and transit deductions."
+            : "Inspect destination unloading, record tally, and document cargo exceptions."
+        }
         width="xl"
       >
         <form onSubmit={handleSaveArrivalReport} className="space-y-6 pb-20">
@@ -890,6 +909,11 @@ export default function ArrivalReportsPage() {
                   className="w-full px-3 py-2 text-xs rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 font-medium"
                 >
                   <option value="">-- Choose Consignment (LR/GR) --</option>
+                  {editingReport && !lrOptions.some((l) => String(l.id) === String(editingReport.lr_id)) && (
+                    <option value={editingReport.lr_id}>
+                      {editingReport.lr_number || `LR #${editingReport.lr_id}`} • {editingReport.customer_name || "Client"} (Current Record)
+                    </option>
+                  )}
                   {lrOptions.map((l) => (
                     <option key={l.id} value={l.id}>
                       {l.lr_number} • {l.customer_name || "Client"} • {l.from_location} → {l.to_location} ({l.package_count} pkgs)
@@ -905,17 +929,24 @@ export default function ArrivalReportsPage() {
                 </label>
                 <select
                   value={selectedHcId}
-                  disabled={!selectedLrId || availableHCs.length === 0}
+                  disabled={!selectedLrId || (availableHCs.length === 0 && !editingReport?.hire_challan_id)}
                   onChange={(e) => setSelectedHcId(e.target.value)}
                   className="w-full px-3 py-2 text-xs rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 disabled:opacity-50 disabled:bg-gray-100 dark:disabled:bg-gray-800/50"
                 >
                   {!selectedLrId ? (
                     <option value="">Please select LR first</option>
-                  ) : availableHCs.length === 0 ? (
+                  ) : availableHCs.length === 0 && !editingReport?.hire_challan_id ? (
                     <option value="">No Hire Challans tagged to this LR (Direct/Company vehicle)</option>
                   ) : (
                     <>
                       <option value="">-- Choose Tagged Hire Challan --</option>
+                      {editingReport &&
+                        editingReport.hire_challan_id &&
+                        !availableHCs.some((h) => String(h.id) === String(editingReport.hire_challan_id)) && (
+                          <option value={editingReport.hire_challan_id}>
+                            {editingReport.challan_number || `HC #${editingReport.hire_challan_id}`} • Truck: {editingReport.vehicle_number || "—"} (Current Record)
+                          </option>
+                        )}
                       {availableHCs.map((h) => (
                         <option key={h.id} value={h.id}>
                           {h.challan_number} • Truck: {h.vehicle_number} • Issued By: {h.issued_by}
@@ -928,7 +959,7 @@ export default function ArrivalReportsPage() {
             </div>
 
             {/* Auto-filled Snapshot Overview Grid Card */}
-            {currentLR && (
+            {(currentLR || editingReport) && (
               <div className="bg-slate-50 dark:bg-slate-800/40 rounded-xl p-4 border border-slate-200 dark:border-slate-700 space-y-3 mt-3">
                 <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300">
                   <Info className="w-3.5 h-3.5 text-indigo-500" />
@@ -939,42 +970,42 @@ export default function ArrivalReportsPage() {
                   <div>
                     <span className="block text-[11px] text-gray-500 dark:text-gray-400">Customer</span>
                     <span className="font-semibold text-gray-900 dark:text-gray-100">
-                      {currentLR.customer_name || "—"}
+                      {currentLR?.customer_name || editingReport?.customer_name || "—"}
                     </span>
                   </div>
 
                   <div>
                     <span className="block text-[11px] text-gray-500 dark:text-gray-400">Route (From → To)</span>
                     <span className="font-semibold text-gray-900 dark:text-gray-100">
-                      {currentLR.from_location || "Origin"} → {currentLR.to_location || "Dest"}
+                      {currentLR?.from_location || editingReport?.from_location || "Origin"} → {currentLR?.to_location || editingReport?.to_location || "Dest"}
                     </span>
                   </div>
 
                   <div>
                     <span className="block text-[11px] text-gray-500 dark:text-gray-400">LR Date</span>
                     <span className="font-semibold text-gray-900 dark:text-gray-100">
-                      {currentLR.lr_date ? formatDate(currentLR.lr_date) : "—"}
+                      {currentLR?.lr_date ? formatDate(currentLR.lr_date) : editingReport?.lr_date ? formatDate(editingReport.lr_date) : "—"}
                     </span>
                   </div>
 
                   <div>
                     <span className="block text-[11px] text-gray-500 dark:text-gray-400">Transit Days / ETA</span>
                     <span className="font-semibold text-gray-900 dark:text-gray-100">
-                      {currentLR.transit_days} Days {currentLR.eta ? `(ETA: ${currentLR.eta})` : ""}
+                      {currentLR?.transit_days ?? editingReport?.transit_days ?? 0} Days {currentLR?.eta || editingReport?.eta ? `(ETA: ${currentLR?.eta || editingReport?.eta})` : ""}
                     </span>
                   </div>
 
                   <div>
                     <span className="block text-[11px] text-gray-500 dark:text-gray-400">Booked Package Count</span>
                     <span className="font-mono font-bold text-gray-900 dark:text-gray-100">
-                      {currentLR.package_count} Pkgs
+                      {currentLR?.package_count ?? editingReport?.booked_packages ?? 0} Pkgs
                     </span>
                   </div>
 
                   <div>
                     <span className="block text-[11px] text-gray-500 dark:text-gray-400">Booked Weight</span>
                     <span className="font-mono font-bold text-gray-900 dark:text-gray-100">
-                      {currentLR.weight} MT
+                      {currentLR?.weight ?? editingReport?.booked_weight ?? 0} MT
                     </span>
                   </div>
 
@@ -983,7 +1014,7 @@ export default function ArrivalReportsPage() {
                     <span className="block text-[11px] text-gray-500 dark:text-gray-400">Issued By (HC Creator)</span>
                     <span className="font-semibold text-indigo-700 dark:text-indigo-300 flex items-center gap-1">
                       <User className="w-3 h-3" />
-                      {currentHC?.issued_by || currentLR.hcs?.[0]?.issued_by || "Operations Executive"}
+                      {currentHC?.issued_by || currentLR?.hcs?.[0]?.issued_by || editingReport?.issued_by || "Operations Executive"}
                     </span>
                   </div>
 
@@ -992,7 +1023,7 @@ export default function ArrivalReportsPage() {
                     <span className="block text-[11px] text-gray-500 dark:text-gray-400">Vehicle No (Non-editable)</span>
                     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-gray-200 dark:bg-gray-700 font-mono font-bold text-gray-900 dark:text-gray-100 text-xs">
                       <Truck className="w-3 h-3 text-gray-600 dark:text-gray-400" />
-                      {currentHC?.vehicle_number || currentLR.hcs?.[0]?.vehicle_number || "Direct"}
+                      {currentHC?.vehicle_number || currentLR?.hcs?.[0]?.vehicle_number || editingReport?.vehicle_number || "Direct"}
                     </span>
                   </div>
                 </div>
@@ -1321,7 +1352,10 @@ export default function ArrivalReportsPage() {
             <Button
               type="button"
               variant="outline"
-              onClick={() => setIsDrawerOpen(false)}
+              onClick={() => {
+                setIsDrawerOpen(false);
+                setEditingReport(null);
+              }}
               disabled={isSubmitting}
             >
               Cancel
@@ -1331,7 +1365,7 @@ export default function ArrivalReportsPage() {
               isLoading={isSubmitting}
               className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs px-6"
             >
-              Record Arrival Report
+              {editingReport ? "Update Arrival Report" : "Record Arrival Report"}
             </Button>
           </div>
         </form>
@@ -1340,199 +1374,15 @@ export default function ArrivalReportsPage() {
       {/* ========================================================================= */}
       {/* View Detail Modal / Printable Arrival Slip */}
       {/* ========================================================================= */}
-      {selectedReport && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white dark:bg-gray-900 rounded-2xl max-w-3xl w-full p-6 shadow-2xl border border-gray-200 dark:border-gray-800 space-y-6 my-8">
-            {/* Header */}
-            <div className="flex items-start justify-between border-b border-gray-100 dark:border-gray-800 pb-4">
-              <div>
-                <div className="flex items-center gap-2">
-                  <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100 font-mono">
-                    {selectedReport.report_number}
-                  </h2>
-                  <Badge variant="outline" className="text-emerald-600 border-emerald-300">
-                    {selectedReport.status}
-                  </Badge>
-                </div>
-                <p className="text-xs text-gray-500 mt-1">
-                  Destination Arrival & Cargo Unloading Inspection Slip
-                </p>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => window.print()}
-                  className="flex items-center gap-1.5 text-xs"
-                >
-                  <Printer className="w-3.5 h-3.5" />
-                  Print Slip
-                </Button>
-                <button
-                  onClick={() => setSelectedReport(null)}
-                  className="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
-                >
-                  ✕
-                </button>
-              </div>
-            </div>
-
-            {/* Consignment & Transport Metadata */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 p-4 rounded-xl bg-gray-50 dark:bg-gray-800/50 text-xs">
-              <div>
-                <span className="text-gray-400 block text-[11px]">Arrival Date</span>
-                <span className="font-semibold text-gray-900 dark:text-gray-100">
-                  {formatDate(selectedReport.arrival_date)}
-                </span>
-              </div>
-              <div>
-                <span className="text-gray-400 block text-[11px]">Delivered Date</span>
-                <span className="font-semibold text-gray-900 dark:text-gray-100">
-                  {formatDate(selectedReport.delivered_date)}
-                </span>
-              </div>
-              <div>
-                <span className="text-gray-400 block text-[11px]">LR / GR Number</span>
-                <span className="font-mono font-bold text-indigo-600 dark:text-indigo-400">
-                  {selectedReport.lr_number || `LR #${selectedReport.lr_id}`}
-                </span>
-              </div>
-              <div>
-                <span className="text-gray-400 block text-[11px]">Hire Challan (HC)</span>
-                <span className="font-mono font-semibold text-gray-900 dark:text-gray-100">
-                  {selectedReport.challan_number || (selectedReport.hire_challan_id ? `HC #${selectedReport.hire_challan_id}` : "Direct")}
-                </span>
-              </div>
-              <div>
-                <span className="text-gray-400 block text-[11px]">Vehicle Number</span>
-                <span className="font-mono font-bold text-gray-900 dark:text-gray-100">
-                  {selectedReport.vehicle_number || "—"}
-                </span>
-              </div>
-              <div>
-                <span className="text-gray-400 block text-[11px]">Issued By (HC Creator)</span>
-                <span className="font-semibold text-gray-900 dark:text-gray-100">
-                  {selectedReport.issued_by || "Operations"}
-                </span>
-              </div>
-              <div>
-                <span className="text-gray-400 block text-[11px]">Billing Client</span>
-                <span className="font-semibold text-gray-900 dark:text-gray-100 truncate block">
-                  {selectedReport.customer_name || "—"}
-                </span>
-              </div>
-              <div>
-                <span className="text-gray-400 block text-[11px]">Route</span>
-                <span className="font-semibold text-gray-900 dark:text-gray-100 truncate block">
-                  {selectedReport.from_location} → {selectedReport.to_location}
-                </span>
-              </div>
-            </div>
-
-            {/* Delivery Tally Comparison */}
-            <div className="border border-gray-200 dark:border-gray-800 rounded-xl overflow-hidden text-xs">
-              <table className="w-full text-left font-mono">
-                <thead className="bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300">
-                  <tr>
-                    <th className="py-2 px-3">Cargo Metric</th>
-                    <th className="py-2 px-3 text-right">Booked Quantity</th>
-                    <th className="py-2 px-3 text-right">Delivered Quantity</th>
-                    <th className="py-2 px-3 text-right">Shortage</th>
-                    <th className="py-2 px-3 text-right">Damaged</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-                  <tr>
-                    <td className="py-2.5 px-3 font-semibold text-gray-900 dark:text-gray-100">Package Units</td>
-                    <td className="py-2.5 px-3 text-right">{selectedReport.booked_packages || 0} Pkgs</td>
-                    <td className="py-2.5 px-3 text-right font-bold text-emerald-600">{selectedReport.delivered_packages} Pkgs</td>
-                    <td className="py-2.5 px-3 text-right text-amber-600 font-bold">{selectedReport.shortage_packages || 0}</td>
-                    <td className="py-2.5 px-3 text-right text-rose-600 font-bold">{selectedReport.damage_packages || 0}</td>
-                  </tr>
-                  <tr>
-                    <td className="py-2.5 px-3 font-semibold text-gray-900 dark:text-gray-100">Weight (MT)</td>
-                    <td className="py-2.5 px-3 text-right">{parseFloat(String(selectedReport.booked_weight || 0)).toFixed(3)} MT</td>
-                    <td className="py-2.5 px-3 text-right font-bold text-emerald-600">{parseFloat(String(selectedReport.delivered_weight || 0)).toFixed(3)} MT</td>
-                    <td className="py-2.5 px-3 text-right text-amber-600 font-bold">{parseFloat(String(selectedReport.shortage_weight || 0)).toFixed(3)} MT</td>
-                    <td className="py-2.5 px-3 text-right text-gray-400">—</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-
-            {/* Financial Details: Deductions & Additions */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs font-mono">
-              {/* Deductions breakdown */}
-              <div className="border border-rose-200 dark:border-rose-900 bg-rose-50/40 dark:bg-rose-950/20 rounded-xl p-4 space-y-2">
-                <div className="flex items-center justify-between font-bold text-rose-700 dark:text-rose-300 pb-2 border-b border-rose-200 dark:border-rose-900">
-                  <span>Deductions Applied</span>
-                  <span>{formatCurrency(parseFloat(String(selectedReport.total_deductions || 0)))}</span>
-                </div>
-                <div className="flex justify-between text-gray-600 dark:text-gray-400">
-                  <span>Shortage Deduction:</span>
-                  <span>{formatCurrency(parseFloat(String(selectedReport.deduction_shortage || 0)))}</span>
-                </div>
-                <div className="flex justify-between text-gray-600 dark:text-gray-400">
-                  <span>Damage Deduction:</span>
-                  <span>{formatCurrency(parseFloat(String(selectedReport.deduction_damage || 0)))}</span>
-                </div>
-                <div className="flex justify-between text-gray-600 dark:text-gray-400">
-                  <span>Delay in Transit:</span>
-                  <span>{formatCurrency(parseFloat(String(selectedReport.deduction_delay || 0)))}</span>
-                </div>
-                <div className="flex justify-between text-gray-600 dark:text-gray-400">
-                  <span>Other Deductions:</span>
-                  <span>{formatCurrency(parseFloat(String(selectedReport.deduction_others || 0)))}</span>
-                </div>
-              </div>
-
-              {/* Additional Payable breakdown */}
-              <div className="border border-emerald-200 dark:border-emerald-900 bg-emerald-50/40 dark:bg-emerald-950/20 rounded-xl p-4 space-y-2">
-                <div className="flex items-center justify-between font-bold text-emerald-700 dark:text-emerald-300 pb-2 border-b border-emerald-200 dark:border-emerald-900">
-                  <span>Additional Payable For</span>
-                  <span>{formatCurrency(parseFloat(String(selectedReport.total_additional_payable || 0)))}</span>
-                </div>
-                <div className="flex justify-between text-gray-600 dark:text-gray-400">
-                  <span>Detention:</span>
-                  <span>{formatCurrency(parseFloat(String(selectedReport.payable_detention || 0)))}</span>
-                </div>
-                <div className="flex justify-between text-gray-600 dark:text-gray-400">
-                  <span>Labour at Unloading:</span>
-                  <span>{formatCurrency(parseFloat(String(selectedReport.payable_labour || 0)))}</span>
-                </div>
-                <div className="flex justify-between text-gray-600 dark:text-gray-400">
-                  <span>Border Expense:</span>
-                  <span>{formatCurrency(parseFloat(String(selectedReport.payable_border_expense || 0)))}</span>
-                </div>
-                <div className="flex justify-between text-gray-600 dark:text-gray-400">
-                  <span>MIS / Others:</span>
-                  <span>{formatCurrency(parseFloat(String(selectedReport.payable_mis_others || 0)))}</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Condition Notes */}
-            {selectedReport.condition_remarks && (
-              <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg text-xs">
-                <span className="font-semibold text-gray-700 dark:text-gray-300 block mb-1">
-                  Condition / Gate Remarks:
-                </span>
-                <p className="text-gray-600 dark:text-gray-400">
-                  {selectedReport.condition_remarks}
-                </p>
-              </div>
-            )}
-
-            {/* Modal Footer */}
-            <div className="flex justify-end pt-3 border-t border-gray-100 dark:border-gray-800">
-              <Button variant="outline" onClick={() => setSelectedReport(null)}>
-                Close
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ArrivalReportViewModal
+        isOpen={Boolean(selectedReport)}
+        report={selectedReport}
+        onClose={() => setSelectedReport(null)}
+        onEdit={(rep) => {
+          setSelectedReport(null);
+          openEditDrawer(rep);
+        }}
+      />
     </div>
   );
 }
