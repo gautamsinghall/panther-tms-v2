@@ -534,7 +534,7 @@ export function GeneralInvoicePrintModal({
                     <img
                       src={companyLogoUrl}
                       alt={companyName}
-                      className="w-12 h-12 object-contain rounded-lg border border-slate-200"
+                      className="h-20 w-auto max-w-[150px] object-contain rounded-lg border border-slate-200"
                     />
                   ) : (
                     <div className="w-12 h-12 rounded-lg bg-[#1e40af] text-white flex items-center justify-center font-black text-2xl shadow-xs shrink-0">

@@ -703,7 +703,7 @@ export function JobOrderViewModal({
                           src={company.logo_url}
                           alt={companyName}
                           crossOrigin="anonymous"
-                          className="max-h-14 max-w-full object-contain mx-auto"
+                          className="max-h-[80px] max-w-full object-contain mx-auto"
                         />
                       ) : (
                         <div className="flex flex-col items-center justify-center">
@@ -711,7 +711,7 @@ export function JobOrderViewModal({
                             src="/panther-logo-transparent.png"
                             alt="Panther Logo"
                             crossOrigin="anonymous"
-                            className="h-9 sm:h-10 w-auto object-contain mx-auto"
+                            className="h-12 sm:h-14 w-auto object-contain mx-auto"
                           />
                           <div className="text-[10px] font-black text-[#0f2147] tracking-wider leading-tight text-center mt-0.5">
                             PANTHER

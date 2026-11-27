@@ -521,14 +521,14 @@ export function LoadingSlipViewModal({
                       src={company.logo_url}
                       alt={companyName}
                       crossOrigin="anonymous"
-                      className="max-h-14 max-w-full object-contain mx-auto"
+                      className="max-h-[80px] max-w-full object-contain mx-auto"
                     />
                   ) : (
                     <>
                       <img
                         src="/panther-logo-transparent.png"
                         alt="Panther Logo"
-                        className="h-10 sm:h-12 w-auto object-contain mx-auto"
+                        className="h-14 sm:h-16 w-auto object-contain mx-auto"
                       />
                       <div className="text-[10px] sm:text-[11px] font-black text-[#0f2147] tracking-wider leading-tight text-center mt-1">
                         PANTHER
