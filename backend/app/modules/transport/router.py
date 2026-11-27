@@ -7,7 +7,7 @@ from app.core.errors import AppException, ForbiddenException, ResourceNotFoundEx
 from app.tenant_db.session import get_tenant_db, get_current_tenant
 from app.auth.dependencies import require_permission, get_current_user, check_entitlement_limit, get_current_office
 from app.control.models import Tenant
-from app.tenant_db.models import User, Branch, LR, Job, Voucher
+from app.tenant_db.models import User, Branch, LR, Job, Voucher, ArrivalReport
 from app.modules.transport import service
 from app.services.activity_logger import log_activity
 from app.modules.transport.excel_import import (
@@ -24,7 +24,7 @@ from app.modules.transport.schemas import (
     JobCreate, JobUpdate, JobResponse, JobStatusTransitionRequest,
     LRCreate, LRUpdate, LRResponse, LRStatusTransitionRequest, LRSearchResult,
     HireChallanCreate, HireChallanUpdate, HireChallanResponse, HireChallanSettleRequest,
-    ArrivalReportCreate, ArrivalReportResponse,
+    ArrivalReportCreate, ArrivalReportResponse, ArrivalReportUpdate,
     PODRecordCreate, PODRecordVerifyRequest, PODRecordResponse,
     LoadingSlipCreate, LoadingSlipUpdate, LoadingSlipResponse,
     EWayBillCreate, EWayBillResponse,
@@ -1168,6 +1168,9 @@ def _build_hire_challan_response(c: Any) -> HireChallanResponse:
         lr_number=c.lr.lr_number if c.lr else None,
         owner_name=c.vendor.name if c.vendor else (c.owner.name if c.owner else None),
         vendor_name=c.vendor.name if c.vendor else (c.owner.name if c.owner else None),
+        created_by_user_id=getattr(c, "created_by_user_id", None),
+        created_by_user_name=getattr(c, "created_by_user_name", None),
+        issued_by=getattr(c, "created_by_user_name", None),
         created_at=c.created_at,
         updated_at=c.updated_at,
     )
@@ -1227,7 +1230,7 @@ async def create_hire_challan(
 ):
     await check_entitlement_limit(tenant, db, "max_hire_challans_per_month")
     eff_office_id = data.issuing_office_id or (current_office.id if current_office else None)
-    hc = await service.create_hire_challan(db, data, office_id=eff_office_id)
+    hc = await service.create_hire_challan(db, data, office_id=eff_office_id, current_user=current_user)
     target_office_id = hc.issuing_office_id or eff_office_id
     office_name = hc.issuing_office.name if getattr(hc, "issuing_office", None) else (current_office.name if current_office else None)
     office_code = hc.issuing_office.code if getattr(hc, "issuing_office", None) else (current_office.code if current_office else None)
@@ -1326,6 +1329,81 @@ async def delete_hire_challan(
 # ==============================================================================
 # 8. Arrival Reports
 # ==============================================================================
+def _build_arrival_report_response(r: ArrivalReport) -> ArrivalReportResponse:
+    arr_date = r.arrival_date
+    del_date = getattr(r, "delivered_date", None) or (arr_date.date() if isinstance(arr_date, datetime) else arr_date)
+    return ArrivalReportResponse(
+        id=r.id,
+        report_number=r.report_number,
+        series_id=r.series_id,
+        arrival_date=arr_date,
+        delivered_date=del_date,
+        lr_id=r.lr_id,
+        hire_challan_id=r.hire_challan_id,
+        job_id=r.job_id,
+        issuing_office_id=r.issuing_office_id,
+        customer_name=r.customer_name or (r.lr.billing_customer.name if r.lr and r.lr.billing_customer else (r.lr.consigner.name if r.lr and r.lr.consigner else None)),
+        from_location=r.from_location or (r.lr.origin_location.city_name if r.lr and r.lr.origin_location else None),
+        to_location=r.to_location or (r.lr.destination_location.city_name if r.lr and r.lr.destination_location else None),
+        lr_date=r.lr_date or (r.lr.lr_date if r.lr else None),
+        transit_days=r.transit_days or 0,
+        eta=r.eta or (r.lr.eta if r.lr else None),
+        booked_packages=r.booked_packages or (r.lr.package_count if r.lr else 0),
+        booked_weight=r.booked_weight or (r.lr.actual_weight_mt if r.lr else Decimal("0.000")),
+        issued_by=r.issued_by or (getattr(r.hire_challan, "created_by_user_name", None) if r.hire_challan else None),
+        vehicle_number=r.vehicle_number or (r.hire_challan.vehicle_number if r.hire_challan else (r.lr.vehicle_number if r.lr else None)),
+        delivered_packages=r.delivered_packages or r.packages_received or 0,
+        delivered_weight=r.delivered_weight or Decimal("0.000"),
+        shortage_packages=r.shortage_packages or r.packages_short or 0,
+        shortage_weight=r.shortage_weight or Decimal("0.000"),
+        damage_packages=r.damage_packages or r.packages_damaged or 0,
+        damage_remarks=r.damage_remarks or r.condition_remarks,
+        deduction_shortage=r.deduction_shortage or Decimal("0.00"),
+        deduction_others=r.deduction_others or Decimal("0.00"),
+        deduction_damage=r.deduction_damage or Decimal("0.00"),
+        deduction_delay=r.deduction_delay or Decimal("0.00"),
+        total_deductions=r.total_deductions or Decimal("0.00"),
+        payable_detention=r.payable_detention or Decimal("0.00"),
+        payable_mis_others=r.payable_mis_others or Decimal("0.00"),
+        payable_labour=r.payable_labour or Decimal("0.00"),
+        payable_border_expense=r.payable_border_expense or Decimal("0.00"),
+        total_additional_payable=r.total_additional_payable or Decimal("0.00"),
+        net_amount=r.net_amount or Decimal("0.00"),
+        destination_hub=r.destination_hub,
+        packages_received=r.delivered_packages or r.packages_received or 0,
+        packages_damaged=r.damage_packages or r.packages_damaged or 0,
+        packages_short=r.shortage_packages or r.packages_short or 0,
+        condition_remarks=r.condition_remarks,
+        unloaded_by=r.unloaded_by,
+        receiver_name=r.receiver_name,
+        status=r.status,
+        lr_number=r.lr.lr_number if r.lr else None,
+        challan_number=r.hire_challan.challan_number if r.hire_challan else None,
+        created_at=r.created_at,
+        updated_at=r.updated_at,
+    )
+
+@router.get("/arrival-reports/lr-options")
+async def get_arrival_lr_options(
+    current_user: User = Depends(require_permission("transport", "arrival_reports", "view")),
+    current_office: Optional[Branch] = Depends(get_current_office),
+    db: AsyncSession = Depends(get_tenant_db),
+):
+    office_id = current_office.id if current_office else None
+    include_unassigned = current_office.is_head_office if current_office else True
+    return await service.get_arrival_lr_options(db, office_id=office_id, include_unassigned=include_unassigned)
+
+@router.get("/arrival-reports/next-number")
+async def get_arrival_report_next_number(
+    series_id: Optional[int] = Query(None),
+    current_user: User = Depends(require_permission("transport", "arrival_reports", "view")),
+    current_office: Optional[Branch] = Depends(get_current_office),
+    db: AsyncSession = Depends(get_tenant_db),
+):
+    from app.modules.settings.series_service import check_series_status
+    target_office_id = current_office.id if current_office else None
+    return await check_series_status(db, "ARRIVAL_REPORT", office_id=target_office_id, series_id=series_id)
+
 @router.get("/arrival-reports", response_model=List[ArrivalReportResponse])
 async def list_arrival_reports(
     current_user: User = Depends(require_permission("transport", "arrival_reports", "view")),
@@ -1335,35 +1413,28 @@ async def list_arrival_reports(
     office_id = current_office.id if current_office else None
     include_unassigned = current_office.is_head_office if current_office else True
     reports = await service.get_all_arrival_reports(db, office_id=office_id, include_unassigned=include_unassigned)
-    return [
-        ArrivalReportResponse(
-            id=r.id,
-            report_number=r.report_number,
-            arrival_date=r.arrival_date,
-            lr_id=r.lr_id,
-            job_id=r.job_id,
-            destination_hub=r.destination_hub,
-            packages_received=r.packages_received,
-            packages_damaged=r.packages_damaged,
-            packages_short=r.packages_short,
-            condition_remarks=r.condition_remarks,
-            unloaded_by=r.unloaded_by,
-            receiver_name=r.receiver_name,
-            status=r.status,
-            lr_number=r.lr.lr_number if r.lr else None,
-            created_at=r.created_at,
-            updated_at=r.updated_at,
-        )
-        for r in reports
-    ]
+    return [_build_arrival_report_response(r) for r in reports]
+
+@router.get("/arrival-reports/{id}", response_model=ArrivalReportResponse)
+async def get_arrival_report(
+    id: int,
+    current_user: User = Depends(require_permission("transport", "arrival_reports", "view")),
+    db: AsyncSession = Depends(get_tenant_db),
+):
+    ar = await service.get_arrival_report_by_id(db, id)
+    if not ar:
+        raise HTTPException(status_code=404, detail="Arrival report not found.")
+    return _build_arrival_report_response(ar)
 
 @router.post("/arrival-reports", response_model=ArrivalReportResponse, status_code=status.HTTP_201_CREATED)
 async def create_arrival_report(
     data: ArrivalReportCreate,
     current_user: User = Depends(require_permission("transport", "arrival_reports", "create")),
+    current_office: Optional[Branch] = Depends(get_current_office),
     db: AsyncSession = Depends(get_tenant_db),
 ):
-    ar = await service.create_arrival_report(db, data)
+    eff_office_id = data.issuing_office_id or (current_office.id if current_office else None)
+    ar = await service.create_arrival_report(db, data, current_user=current_user, office_id=eff_office_id)
     await log_activity(
         db=db,
         user=current_user,
@@ -1372,34 +1443,63 @@ async def create_arrival_report(
         entity_type="ArrivalReport",
         entity_id=str(ar.id),
         entity_identifier=ar.report_number,
-        details=f"Created Arrival Report {ar.report_number}",
+        details=f"Created Arrival Report {ar.report_number} for LR #{ar.lr_id}",
         details_json={
             "report_number": ar.report_number,
             "lr_id": ar.lr_id,
-            "packages_received": ar.packages_received,
-            "packages_damaged": ar.packages_damaged,
-            "packages_short": ar.packages_short,
+            "hire_challan_id": ar.hire_challan_id,
+            "delivered_packages": ar.delivered_packages,
+            "shortage_packages": ar.shortage_packages,
+            "damage_packages": ar.damage_packages,
+            "total_deductions": float(ar.total_deductions or 0),
+            "total_additional_payable": float(ar.total_additional_payable or 0),
             "status": ar.status,
         },
     )
-    return ArrivalReportResponse(
-        id=ar.id,
-        report_number=ar.report_number,
-        arrival_date=ar.arrival_date,
-        lr_id=ar.lr_id,
-        job_id=ar.job_id,
-        destination_hub=ar.destination_hub,
-        packages_received=ar.packages_received,
-        packages_damaged=ar.packages_damaged,
-        packages_short=ar.packages_short,
-        condition_remarks=ar.condition_remarks,
-        unloaded_by=ar.unloaded_by,
-        receiver_name=ar.receiver_name,
-        status=ar.status,
-        lr_number=ar.lr.lr_number if ar.lr else None,
-        created_at=ar.created_at,
-        updated_at=ar.updated_at,
+    return _build_arrival_report_response(ar)
+
+@router.put("/arrival-reports/{id}", response_model=ArrivalReportResponse)
+async def update_arrival_report(
+    id: int,
+    data: ArrivalReportUpdate,
+    current_user: User = Depends(require_permission("transport", "arrival_reports", "edit")),
+    db: AsyncSession = Depends(get_tenant_db),
+):
+    ar = await service.update_arrival_report(db, id, data)
+    await log_activity(
+        db=db,
+        user=current_user,
+        action="ARRIVAL_REPORT_UPDATED",
+        module="transport",
+        entity_type="ArrivalReport",
+        entity_id=str(ar.id),
+        entity_identifier=ar.report_number,
+        details=f"Updated Arrival Report {ar.report_number}",
     )
+    return _build_arrival_report_response(ar)
+
+@router.delete("/arrival-reports/{id}")
+async def delete_arrival_report(
+    id: int,
+    current_user: User = Depends(require_permission("transport", "arrival_reports", "delete")),
+    db: AsyncSession = Depends(get_tenant_db),
+):
+    ar = await service.get_arrival_report_by_id(db, id)
+    if not ar:
+        raise HTTPException(status_code=404, detail="Arrival report not found.")
+    rep_num = ar.report_number
+    await service.delete_arrival_report(db, id)
+    await log_activity(
+        db=db,
+        user=current_user,
+        action="ARRIVAL_REPORT_DELETED",
+        module="transport",
+        entity_type="ArrivalReport",
+        entity_id=str(id),
+        entity_identifier=rep_num,
+        details=f"Deleted Arrival Report {rep_num}",
+    )
+    return {"message": f"Arrival report {rep_num} deleted successfully."}
 
 # ==============================================================================
 # 9. POD Records & Verification

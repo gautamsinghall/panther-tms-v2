@@ -15,21 +15,15 @@ from app.modules.settings.series_service import (
 
 @pytest.mark.asyncio
 async def test_standard_vouchers_catalog_and_mandatory_rules():
-    # 1. Total standard vouchers should be 17 (including LOADING_SLIP)
-    assert len(STANDARD_VOUCHER_METADATA) == 17
+    # 1. Total standard vouchers should be 18 (including LOADING_SLIP and ARRIVAL_REPORT)
+    assert len(STANDARD_VOUCHER_METADATA) == 18
     doc_types = {m["document_type"] for m in STANDARD_VOUCHER_METADATA}
     assert "LOADING_SLIP" in doc_types
+    assert "ARRIVAL_REPORT" in doc_types
 
-    # 2. Check 4 mandatory manual vouchers
-    mandatory_codes = {"LR", "HIRE_CHALLAN", "TRANSPORT_INVOICE", "GENERAL_INVOICE"}
     for meta in STANDARD_VOUCHER_METADATA:
-        code = meta["document_type"]
-        if code in mandatory_codes:
-            assert meta["is_mandatory_manual"] is True, f"{code} should be mandatory manual"
-            assert meta["series_mode"] == "MANUAL", f"{code} should default to MANUAL"
-        else:
-            assert meta["is_mandatory_manual"] is False, f"{code} should default to AUTOMATIC"
-            assert meta["series_mode"] == "AUTOMATIC", f"{code} should default to AUTOMATIC"
+        assert meta["series_mode"] == "AUTOMATIC", f"{meta['document_type']} should default to AUTOMATIC"
+        assert meta["is_mandatory_manual"] is False
 
 
 @pytest.mark.asyncio
@@ -51,7 +45,7 @@ async def test_series_allocation_and_manual_enforcement():
                 financial_year="2026-2027",
             )
         assert exc_info.value.status_code == 400
-        assert "Manual series is mandatory" in exc_info.value.message
+        assert "No active series configured" in exc_info.value.message
 
         # Case 2: Configure LR series as MANUAL with valid range
         lr_series = SeriesMaster(
@@ -156,15 +150,11 @@ async def test_initialize_all_standard_series():
 
     async with async_session() as session:
         created = await initialize_all_standard_series(session, financial_year="2026-2027", exclude_manual=False)
-        assert len(created) == 17
+        assert len(created) == 18
 
         for item in created:
-            if item["document_type"] in ["LR", "HIRE_CHALLAN", "TRANSPORT_INVOICE", "GENERAL_INVOICE"]:
-                assert item["series_mode"] == "MANUAL"
-                assert item["is_mandatory_manual"] is True
-            else:
-                assert item["series_mode"] == "AUTOMATIC"
-                assert item["is_mandatory_manual"] is False
+            assert item["series_mode"] == "AUTOMATIC"
+            assert item["is_mandatory_manual"] is False
             assert "prefix" in item
             assert "next_number_formatted" in item
 

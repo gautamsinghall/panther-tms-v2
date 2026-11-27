@@ -894,6 +894,8 @@ class HireChallan(TenantBase):
     tds_category = Column(String(100), nullable=True)
     loading_expenses = Column(JSON, default=list, nullable=True)
     unloading_expenses = Column(JSON, default=list, nullable=True)
+    created_by_user_id = Column(Integer, nullable=True)
+    created_by_user_name = Column(String(255), nullable=True)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
     updated_at = Column(
         DateTime(timezone=True),
@@ -916,17 +918,62 @@ class ArrivalReport(TenantBase):
 
     id = Column(Integer, primary_key=True, index=True)
     report_number = Column(String(50), unique=True, nullable=False, index=True)
+    series_id = Column(Integer, ForeignKey("settings_series_masters.id"), nullable=True)
     arrival_date = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
+    delivered_date = Column(Date, default=date.today, nullable=False)
     lr_id = Column(Integer, ForeignKey("transport_lrs.id"), nullable=False)
+    hire_challan_id = Column(Integer, ForeignKey("transport_hire_challans.id"), nullable=True)
     job_id = Column(Integer, ForeignKey("transport_jobs.id"), nullable=True)
-    destination_hub = Column(String(150), nullable=True)
-    packages_received = Column(Integer, default=0, nullable=False)
-    packages_damaged = Column(Integer, default=0, nullable=False)
-    packages_short = Column(Integer, default=0, nullable=False)
+    issuing_office_id = Column(Integer, ForeignKey("profile_branches.id"), nullable=True, index=True)
+    created_by_user_id = Column(Integer, nullable=True)
+
+    # Consignment Details (Auto-filled from LR & HC)
+    customer_name = Column(String(255), nullable=True)
+    from_location = Column(String(150), nullable=True)
+    to_location = Column(String(150), nullable=True)
+    lr_date = Column(Date, nullable=True)
+    transit_days = Column(Integer, default=0, nullable=True)
+    eta = Column(String(100), nullable=True)
+    booked_packages = Column(Integer, default=0, nullable=False)
+    booked_weight = Column(Numeric(12, 3), default=0.000, nullable=False)
+    issued_by = Column(String(150), nullable=True)
+    vehicle_number = Column(String(20), nullable=True, index=True)
+
+    # Delivery Details
+    delivered_packages = Column(Integer, default=0, nullable=False)
+    delivered_weight = Column(Numeric(12, 3), default=0.000, nullable=False)
+    shortage_packages = Column(Integer, default=0, nullable=False)
+    shortage_weight = Column(Numeric(12, 3), default=0.000, nullable=False)
+    damage_packages = Column(Integer, default=0, nullable=False)
+    damage_remarks = Column(Text, nullable=True)
+
+    # Deductions
+    deduction_shortage = Column(Numeric(12, 2), default=0.00, nullable=False)
+    deduction_others = Column(Numeric(12, 2), default=0.00, nullable=False)
+    deduction_damage = Column(Numeric(12, 2), default=0.00, nullable=False)
+    deduction_delay = Column(Numeric(12, 2), default=0.00, nullable=False)
+    total_deductions = Column(Numeric(12, 2), default=0.00, nullable=False)
+
+    # Additional Payable For
+    payable_detention = Column(Numeric(12, 2), default=0.00, nullable=False)
+    payable_mis_others = Column(Numeric(12, 2), default=0.00, nullable=False)
+    payable_labour = Column(Numeric(12, 2), default=0.00, nullable=False)
+    payable_border_expense = Column(Numeric(12, 2), default=0.00, nullable=False)
+    total_additional_payable = Column(Numeric(12, 2), default=0.00, nullable=False)
+
+    # Net / Condition
+    net_amount = Column(Numeric(12, 2), default=0.00, nullable=False)
     condition_remarks = Column(Text, nullable=True)
+    destination_hub = Column(String(150), nullable=True)
     unloaded_by = Column(String(100), nullable=True)
     receiver_name = Column(String(100), nullable=True)
-    status = Column(String(50), default="ARRIVED", nullable=False)
+    status = Column(String(50), default="COMPLETED", nullable=False)
+
+    # Compatibility columns preserved in database
+    packages_received = Column(Integer, default=0, nullable=True)
+    packages_damaged = Column(Integer, default=0, nullable=True)
+    packages_short = Column(Integer, default=0, nullable=True)
+
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
     updated_at = Column(
         DateTime(timezone=True),
@@ -936,6 +983,9 @@ class ArrivalReport(TenantBase):
     )
 
     lr = relationship("LR", lazy="selectin")
+    hire_challan = relationship("HireChallan", foreign_keys=[hire_challan_id], lazy="selectin")
+    series = relationship("SeriesMaster", foreign_keys=[series_id], lazy="selectin")
+    issuing_office = relationship("Branch", foreign_keys=[issuing_office_id], lazy="selectin")
 
 
 class PODRecord(TenantBase):

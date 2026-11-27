@@ -18,6 +18,9 @@ DOC_TYPE_ALIASES = {
     "HIRE_CHALLAN": "HIRE_CHALLAN",
     "LS": "LOADING_SLIP",
     "LOADING_SLIP": "LOADING_SLIP",
+    "AR": "ARRIVAL_REPORT",
+    "ARRIVAL": "ARRIVAL_REPORT",
+    "ARRIVAL_REPORT": "ARRIVAL_REPORT",
     "LR": "LR",
     "INVOICE": "TRANSPORT_INVOICE",
     "TRANSPORT_INVOICE": "TRANSPORT_INVOICE",
@@ -85,6 +88,20 @@ STANDARD_VOUCHER_METADATA: List[Dict[str, Any]] = [
         "series_mode": "AUTOMATIC",
         "is_mandatory_manual": False,
         "description": "Vehicle loading slip and freight dispatch agreement issued at loading point.",
+    },
+    {
+        "document_type": "ARRIVAL_REPORT",
+        "code": "AR",
+        "name": "Arrival Report (Unloading Inspection)",
+        "category_code": "TRANSPORT",
+        "category_name": "Transport Documents",
+        "prefix": "AR-",
+        "suffix": "",
+        "starting_number": 1,
+        "current_number": 0,
+        "series_mode": "AUTOMATIC",
+        "is_mandatory_manual": False,
+        "description": "Destination hub arrival, cargo unloading inspection, shortage/damage and detention report.",
     },
     # 2. Billing & Invoicing
     {
@@ -380,6 +397,18 @@ async def get_real_voucher_usage(db: AsyncSession, document_type: str, prefix: O
             last_voucher_no = res.scalar_one_or_none()
             cnt_res = await db.execute(cnt_stmt)
             real_count = cnt_res.scalar() or 0
+        elif norm in ("ARRIVAL_REPORT", "AR"):
+            from app.tenant_db.models import ArrivalReport
+            stmt = select(ArrivalReport.report_number)
+            cnt_stmt = select(func.count(ArrivalReport.id))
+            if prefix:
+                stmt = stmt.where(ArrivalReport.report_number.ilike(f"{prefix}%"))
+                cnt_stmt = cnt_stmt.where(ArrivalReport.report_number.ilike(f"{prefix}%"))
+            stmt = stmt.order_by(ArrivalReport.id.desc()).limit(1)
+            res = await db.execute(stmt)
+            last_voucher_no = res.scalar_one_or_none()
+            cnt_res = await db.execute(cnt_stmt)
+            real_count = cnt_res.scalar() or 0
         else:
             from app.tenant_db.models import Voucher
             v_types = [norm]
@@ -566,6 +595,12 @@ async def get_all_used_numbers_for_doc(db: AsyncSession, document_type: str) -> 
         elif norm in ("LOADING_SLIP", "LS"):
             from app.tenant_db.models import LoadingSlip
             res = await db.execute(select(LoadingSlip.slip_number))
+            for (no,) in res.all():
+                if no:
+                    used_numbers.add(str(no).strip())
+        elif norm in ("ARRIVAL_REPORT", "AR"):
+            from app.tenant_db.models import ArrivalReport
+            res = await db.execute(select(ArrivalReport.report_number))
             for (no,) in res.all():
                 if no:
                     used_numbers.add(str(no).strip())
@@ -761,6 +796,9 @@ async def _auto_provision_automatic_series(
     if doc_type == "LOADING_SLIP":
         prefix = f"{br_code}LS-" if br_code else "LS-"
         series_name = f"{br_code.rstrip('-')} LS".strip() if br_code else "Standard Loading Slip Series"
+    elif doc_type == "ARRIVAL_REPORT":
+        prefix = f"{br_code}AR-" if br_code else "AR-"
+        series_name = f"{br_code.rstrip('-')} Arrival Report".strip() if br_code else "Standard Arrival Report Series"
     else:
         prefix = f"JOB-{br_code}" if br_code else "JOB-2026-"
         series_name = f"Standard Job Series {br_code}".strip()
@@ -845,8 +883,8 @@ async def allocate_or_validate_voucher_number(
         res = await db.execute(fallback_stmt)
         series = res.scalars().first()
 
-    # Auto-provision standard automatic JOB / LOADING_SLIP series if not yet initialized in tenant or office
-    if not series and norm_type in ("JOB", "LOADING_SLIP"):
+    # Auto-provision standard automatic JOB / LOADING_SLIP / ARRIVAL_REPORT series if not yet initialized in tenant or office
+    if not series and norm_type in ("JOB", "LOADING_SLIP", "ARRIVAL_REPORT"):
         series = await _auto_provision_automatic_series(
             db, norm_type, issuing_office_id=issuing_office_id, financial_year=financial_year
         )
@@ -1041,9 +1079,9 @@ async def check_series_status(
     res = await db.execute(stmt)
     all_series = res.scalars().all()
 
-    if not all_series and norm_type == "LOADING_SLIP":
+    if not all_series and norm_type in ("LOADING_SLIP", "JOB", "ARRIVAL_REPORT"):
         auto_series = await _auto_provision_automatic_series(
-            db, "LOADING_SLIP", issuing_office_id=target_office_id
+            db, norm_type, issuing_office_id=target_office_id
         )
         await db.commit()
         await db.refresh(auto_series)

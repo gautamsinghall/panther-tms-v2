@@ -735,6 +735,9 @@ class HireChallanResponse(HireChallanBase):
     vendor_name: Optional[str] = None
     issuing_office_name: Optional[str] = None
     issuing_office_code: Optional[str] = None
+    created_by_user_id: Optional[int] = None
+    created_by_user_name: Optional[str] = None
+    issued_by: Optional[str] = None
     created_at: datetime
     updated_at: datetime
     model_config = ConfigDict(from_attributes=True)
@@ -744,13 +747,56 @@ class HireChallanResponse(HireChallanBase):
 # ---------------------------------------------------------------------------
 class ArrivalReportBase(BaseModel):
     report_number: Optional[str] = None
-    arrival_date: datetime = Field(default_factory=lambda: datetime.now())
+    series_id: Optional[int] = None
+    arrival_date: Union[date, datetime, str] = Field(default_factory=date.today)
+    delivered_date: Union[date, datetime, str] = Field(default_factory=date.today)
     lr_id: int
+    hire_challan_id: Optional[int] = None
     job_id: Optional[int] = None
+    issuing_office_id: Optional[int] = None
+
+    # Consignment Details (Auto-filled)
+    customer_name: Optional[str] = None
+    from_location: Optional[str] = None
+    to_location: Optional[str] = None
+    lr_date: Optional[Union[date, str]] = None
+    transit_days: Optional[int] = 0
+    eta: Optional[str] = None
+    booked_packages: Optional[int] = 0
+    booked_weight: Optional[Decimal] = Decimal("0.000")
+    issued_by: Optional[str] = None
+    vehicle_number: Optional[str] = None
+
+    # Delivery Details
+    delivered_packages: int = 0
+    delivered_weight: Decimal = Decimal("0.000")
+    shortage_packages: int = 0
+    shortage_weight: Decimal = Decimal("0.000")
+    damage_packages: int = 0
+    damage_remarks: Optional[str] = None
+
+    # Deductions
+    deduction_shortage: Decimal = Decimal("0.00")
+    deduction_others: Decimal = Decimal("0.00")
+    deduction_damage: Decimal = Decimal("0.00")
+    deduction_delay: Decimal = Decimal("0.00")
+    total_deductions: Decimal = Decimal("0.00")
+
+    # Additional Payable For
+    payable_detention: Decimal = Decimal("0.00")
+    payable_mis_others: Decimal = Decimal("0.00")
+    payable_labour: Decimal = Decimal("0.00")
+    payable_border_expense: Decimal = Decimal("0.00")
+    total_additional_payable: Decimal = Decimal("0.00")
+
+    # Financial Net
+    net_amount: Decimal = Decimal("0.00")
+
+    # Legacy fields
     destination_hub: Optional[str] = None
-    packages_received: int = 0
-    packages_damaged: int = 0
-    packages_short: int = 0
+    packages_received: Optional[int] = None
+    packages_damaged: Optional[int] = None
+    packages_short: Optional[int] = None
     condition_remarks: Optional[str] = None
     unloaded_by: Optional[str] = None
     receiver_name: Optional[str] = None
@@ -758,11 +804,49 @@ class ArrivalReportBase(BaseModel):
 class ArrivalReportCreate(ArrivalReportBase):
     pass
 
+class ArrivalReportUpdate(BaseModel):
+    arrival_date: Optional[Union[date, datetime, str]] = None
+    delivered_date: Optional[Union[date, datetime, str]] = None
+    customer_name: Optional[str] = None
+    from_location: Optional[str] = None
+    to_location: Optional[str] = None
+    lr_date: Optional[Union[date, str]] = None
+    transit_days: Optional[int] = None
+    eta: Optional[str] = None
+    booked_packages: Optional[int] = None
+    booked_weight: Optional[Decimal] = None
+    issued_by: Optional[str] = None
+    vehicle_number: Optional[str] = None
+
+    delivered_packages: Optional[int] = None
+    delivered_weight: Optional[Decimal] = None
+    shortage_packages: Optional[int] = None
+    shortage_weight: Optional[Decimal] = None
+    damage_packages: Optional[int] = None
+    damage_remarks: Optional[str] = None
+
+    deduction_shortage: Optional[Decimal] = None
+    deduction_others: Optional[Decimal] = None
+    deduction_damage: Optional[Decimal] = None
+    deduction_delay: Optional[Decimal] = None
+    total_deductions: Optional[Decimal] = None
+
+    payable_detention: Optional[Decimal] = None
+    payable_mis_others: Optional[Decimal] = None
+    payable_labour: Optional[Decimal] = None
+    payable_border_expense: Optional[Decimal] = None
+    total_additional_payable: Optional[Decimal] = None
+
+    net_amount: Optional[Decimal] = None
+    condition_remarks: Optional[str] = None
+    status: Optional[str] = None
+
 class ArrivalReportResponse(ArrivalReportBase):
     id: int
     report_number: str
     status: str
     lr_number: Optional[str] = None
+    challan_number: Optional[str] = None
     created_at: datetime
     updated_at: datetime
     model_config = ConfigDict(from_attributes=True)

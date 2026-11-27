@@ -238,6 +238,46 @@ async def lifespan(app: FastAPI):
                         await t_conn.execute(text("ALTER TABLE company_settings ALTER COLUMN logo_url TYPE TEXT;"))
                         await t_conn.execute(text("UPDATE company_settings SET ft_base_url = 'https://api.freighttiger.com/api/tether' WHERE ft_base_url LIKE '%integration.freighttiger.com%' OR ft_base_url IS NULL;"))
 
+                        # Hire Challan & Arrival Report Revamp Schema Evolution
+                        await t_conn.execute(text("ALTER TABLE transport_hire_challans ADD COLUMN IF NOT EXISTS created_by_user_id INTEGER;"))
+                        await t_conn.execute(text("ALTER TABLE transport_hire_challans ADD COLUMN IF NOT EXISTS created_by_user_name VARCHAR(255);"))
+
+                        for ar_col in [
+                            "series_id INTEGER REFERENCES settings_series_masters(id)",
+                            "delivered_date DATE DEFAULT CURRENT_DATE",
+                            "hire_challan_id INTEGER REFERENCES transport_hire_challans(id)",
+                            "issuing_office_id INTEGER REFERENCES profile_branches(id)",
+                            "created_by_user_id INTEGER",
+                            "customer_name VARCHAR(255)",
+                            "from_location VARCHAR(150)",
+                            "to_location VARCHAR(150)",
+                            "lr_date DATE",
+                            "transit_days INTEGER DEFAULT 0",
+                            "eta VARCHAR(100)",
+                            "booked_packages INTEGER DEFAULT 0",
+                            "booked_weight NUMERIC(12, 3) DEFAULT 0.000",
+                            "issued_by VARCHAR(150)",
+                            "vehicle_number VARCHAR(20)",
+                            "delivered_packages INTEGER DEFAULT 0",
+                            "delivered_weight NUMERIC(12, 3) DEFAULT 0.000",
+                            "shortage_packages INTEGER DEFAULT 0",
+                            "shortage_weight NUMERIC(12, 3) DEFAULT 0.000",
+                            "damage_packages INTEGER DEFAULT 0",
+                            "damage_remarks TEXT",
+                            "deduction_shortage NUMERIC(12, 2) DEFAULT 0.00",
+                            "deduction_others NUMERIC(12, 2) DEFAULT 0.00",
+                            "deduction_damage NUMERIC(12, 2) DEFAULT 0.00",
+                            "deduction_delay NUMERIC(12, 2) DEFAULT 0.00",
+                            "total_deductions NUMERIC(12, 2) DEFAULT 0.00",
+                            "payable_detention NUMERIC(12, 2) DEFAULT 0.00",
+                            "payable_mis_others NUMERIC(12, 2) DEFAULT 0.00",
+                            "payable_labour NUMERIC(12, 2) DEFAULT 0.00",
+                            "payable_border_expense NUMERIC(12, 2) DEFAULT 0.00",
+                            "total_additional_payable NUMERIC(12, 2) DEFAULT 0.00",
+                            "net_amount NUMERIC(12, 2) DEFAULT 0.00",
+                        ]:
+                            await t_conn.execute(text(f"ALTER TABLE transport_arrival_reports ADD COLUMN IF NOT EXISTS {ar_col};"))
+
                         # Freight Tiger SIM Tracking Schema Evolution
                         await t_conn.execute(text("""
                             CREATE TABLE IF NOT EXISTS transport_sim_trips (

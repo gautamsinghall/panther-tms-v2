@@ -2,6 +2,7 @@ import json
 import logging
 import time
 import httpx
+from collections import defaultdict
 from datetime import date, datetime, timezone, timedelta
 from decimal import Decimal
 from typing import Any, Dict, List, Optional, Tuple, Union
@@ -1000,7 +1001,13 @@ async def get_all_hire_challans(db: AsyncSession, office_id: Optional[int] = Non
     result = await db.execute(stmt)
     return list(result.scalars().all())
 
-async def create_hire_challan(db: AsyncSession, data: HireChallanCreate, office_id: Optional[int] = None, auto_commit: bool = True) -> HireChallan:
+async def create_hire_challan(
+    db: AsyncSession,
+    data: HireChallanCreate,
+    office_id: Optional[int] = None,
+    auto_commit: bool = True,
+    current_user: Optional[Any] = None,
+) -> HireChallan:
     target_office_id = data.issuing_office_id or office_id
     if not target_office_id:
         from app.tenant_db.models import Branch
@@ -1011,6 +1018,9 @@ async def create_hire_challan(db: AsyncSession, data: HireChallanCreate, office_
     hc_dict["challan_number"] = challan_number
     hc_dict["status"] = HireChallanStatus.ISSUED.value  # Confirmed on creation
     hc_dict["issuing_office_id"] = target_office_id
+    if current_user:
+        hc_dict["created_by_user_id"] = current_user.id
+        hc_dict["created_by_user_name"] = getattr(current_user, "full_name", None) or getattr(current_user, "email", "Operations Executive")
 
     # If driver_id is provided but driver_name is not, resolve from Driver model
     if hc_dict.get("driver_id") and not hc_dict.get("driver_name"):
@@ -1173,46 +1183,332 @@ async def settle_hire_challan(db: AsyncSession, hc_id: int, settlement_notes: Op
 # Arrival Report Services
 # ===========================================================================
 
+async def get_arrival_lr_options(
+    db: AsyncSession,
+    office_id: Optional[int] = None,
+    include_unassigned: bool = False,
+) -> List[Dict[str, Any]]:
+    """
+    Returns active LRs and their tagged Hire Challans with creator details for arrival report creation.
+    Allows frontend dropdowns to display only HCs tagged to the selected LR.
+    """
+    from app.tenant_db.models import UserActivity
+    from datetime import datetime as dt_datetime
+
+    stmt = (
+        select(LR)
+        .options(
+            selectinload(LR.billing_customer),
+            selectinload(LR.consigner),
+            selectinload(LR.origin_location),
+            selectinload(LR.destination_location),
+        )
+        .order_by(desc(LR.lr_date), desc(LR.id))
+    )
+    if office_id:
+        if include_unassigned:
+            stmt = stmt.where(or_(LR.issuing_office_id == office_id, LR.issuing_office_id.is_(None)))
+        else:
+            stmt = stmt.where(LR.issuing_office_id == office_id)
+
+    res = await db.execute(stmt)
+    lrs = list(res.scalars().all())
+
+    lr_ids = [l.id for l in lrs]
+    hcs_by_lr = defaultdict(list)
+    if lr_ids:
+        hc_stmt = (
+            select(HireChallan)
+            .where(HireChallan.lr_id.in_(lr_ids))
+            .order_by(desc(HireChallan.id))
+        )
+        hc_res = await db.execute(hc_stmt)
+        all_hcs = list(hc_res.scalars().all())
+
+        # Resolve user full name for HCs that don't have created_by_user_name stored yet
+        hc_ids_needing_name = [hc.id for hc in all_hcs if not hc.created_by_user_name]
+        hc_user_map = {}
+        if hc_ids_needing_name:
+            act_stmt = (
+                select(UserActivity.entity_id, UserActivity.user_name)
+                .where(
+                    UserActivity.entity_type == "HireChallan",
+                    UserActivity.action == "HIRE_CHALLAN_CREATED",
+                    UserActivity.entity_id.in_([str(i) for i in hc_ids_needing_name])
+                )
+            )
+            act_res = await db.execute(act_stmt)
+            for eid, uname in act_res.all():
+                if eid and uname:
+                    try:
+                        hc_user_map[int(eid)] = uname
+                    except Exception:
+                        pass
+
+        for hc in all_hcs:
+            issued_by_name = getattr(hc, "created_by_user_name", None) or hc_user_map.get(hc.id) or "Operations Executive"
+            hcs_by_lr[hc.lr_id].append({
+                "id": hc.id,
+                "challan_number": hc.challan_number,
+                "vehicle_number": hc.vehicle_number,
+                "driver_name": hc.driver_name,
+                "driver_phone": hc.driver_phone,
+                "issued_by": issued_by_name,
+                "challan_date": hc.challan_date.isoformat() if hc.challan_date else None,
+            })
+
+    output = []
+    for l in lrs:
+        transit_days = 0
+        if l.lr_date and l.eta:
+            try:
+                eta_dt = dt_datetime.strptime(str(l.eta).strip()[:10], "%Y-%m-%d").date()
+                transit_days = max(0, (eta_dt - l.lr_date).days)
+            except Exception:
+                pass
+
+        cust_name = ""
+        if l.billing_customer:
+            cust_name = l.billing_customer.name
+        elif l.consigner:
+            cust_name = l.consigner.name
+
+        from_loc = ""
+        if l.origin_location:
+            from_loc = l.origin_location.city_name or l.origin_location.name or ""
+
+        to_loc = ""
+        if l.destination_location:
+            to_loc = l.destination_location.city_name or l.destination_location.name or ""
+
+        output.append({
+            "id": l.id,
+            "lr_number": l.lr_number,
+            "lr_date": l.lr_date.isoformat() if l.lr_date else None,
+            "customer_name": cust_name,
+            "from_location": from_loc,
+            "to_location": to_loc,
+            "transit_days": transit_days,
+            "eta": str(l.eta or ""),
+            "package_count": l.package_count or 0,
+            "weight": float(l.actual_weight_mt or l.chargeable_weight_mt or 0),
+            "hcs": hcs_by_lr.get(l.id, []),
+        })
+
+    return output
+
+
 async def get_all_arrival_reports(
     db: AsyncSession,
     office_id: Optional[int] = None,
     include_unassigned: bool = False,
 ) -> List[ArrivalReport]:
-    stmt = select(ArrivalReport).options(selectinload(ArrivalReport.lr)).order_by(desc(ArrivalReport.created_at))
+    stmt = (
+        select(ArrivalReport)
+        .options(
+            selectinload(ArrivalReport.lr),
+            selectinload(ArrivalReport.hire_challan),
+            selectinload(ArrivalReport.issuing_office),
+            selectinload(ArrivalReport.series),
+        )
+        .order_by(desc(ArrivalReport.created_at))
+    )
     if office_id:
-        stmt = stmt.join(ArrivalReport.lr)
+        stmt = stmt.outerjoin(ArrivalReport.lr)
         if include_unassigned:
-            stmt = stmt.where(or_(LR.issuing_office_id == office_id, LR.issuing_office_id.is_(None)))
+            stmt = stmt.where(or_(ArrivalReport.issuing_office_id == office_id, LR.issuing_office_id == office_id, ArrivalReport.issuing_office_id.is_(None)))
         else:
-            stmt = stmt.where(LR.issuing_office_id == office_id)
+            stmt = stmt.where(or_(ArrivalReport.issuing_office_id == office_id, LR.issuing_office_id == office_id))
     result = await db.execute(stmt)
     return list(result.scalars().all())
 
-async def create_arrival_report(db: AsyncSession, data: ArrivalReportCreate) -> ArrivalReport:
-    report_number = data.report_number or await _generate_sequence(db, ArrivalReport, "AR")
+
+async def get_arrival_report_by_id(db: AsyncSession, report_id: int) -> Optional[ArrivalReport]:
+    stmt = (
+        select(ArrivalReport)
+        .options(
+            selectinload(ArrivalReport.lr),
+            selectinload(ArrivalReport.hire_challan),
+            selectinload(ArrivalReport.issuing_office),
+            selectinload(ArrivalReport.series),
+        )
+        .where(ArrivalReport.id == report_id)
+    )
+    res = await db.execute(stmt)
+    return res.scalar_one_or_none()
+
+
+async def create_arrival_report(
+    db: AsyncSession,
+    data: ArrivalReportCreate,
+    current_user: Optional[Any] = None,
+    office_id: Optional[int] = None,
+) -> ArrivalReport:
+    target_office_id = data.issuing_office_id or office_id
+    if not target_office_id:
+        from app.tenant_db.models import Branch
+        br_res = await db.execute(select(Branch.id).where(Branch.is_active == True).order_by(Branch.is_head_office.desc(), Branch.id.asc()).limit(1))
+        target_office_id = br_res.scalar_one_or_none()
+
+    from app.modules.settings.series_service import allocate_or_validate_voucher_number
+    report_number = await allocate_or_validate_voucher_number(
+        db,
+        "ARRIVAL_REPORT",
+        manual_number=data.report_number,
+        issuing_office_id=target_office_id,
+        series_id=data.series_id,
+    )
+
     ar_dict = data.model_dump()
     ar_dict["report_number"] = report_number
-    ar_dict["status"] = "ARRIVED"
+    ar_dict["status"] = "COMPLETED"
+    if target_office_id:
+        ar_dict["issuing_office_id"] = target_office_id
+    if current_user:
+        ar_dict["created_by_user_id"] = current_user.id
+
+    # Handle legacy fields if new fields were not provided
+    if ar_dict.get("packages_received") is not None and not ar_dict.get("delivered_packages"):
+        ar_dict["delivered_packages"] = ar_dict["packages_received"]
+    if ar_dict.get("packages_damaged") is not None and not ar_dict.get("damage_packages"):
+        ar_dict["damage_packages"] = ar_dict["packages_damaged"]
+    if ar_dict.get("packages_short") is not None and not ar_dict.get("shortage_packages"):
+        ar_dict["shortage_packages"] = ar_dict["packages_short"]
+
+    # Calculate Deductions
+    d_short = Decimal(str(ar_dict.get("deduction_shortage") or 0))
+    d_oth = Decimal(str(ar_dict.get("deduction_others") or 0))
+    d_dmg = Decimal(str(ar_dict.get("deduction_damage") or 0))
+    d_del = Decimal(str(ar_dict.get("deduction_delay") or 0))
+    tot_ded = d_short + d_oth + d_dmg + d_del
+    ar_dict["total_deductions"] = tot_ded
+
+    # Calculate Additional Payable
+    p_det = Decimal(str(ar_dict.get("payable_detention") or 0))
+    p_mis = Decimal(str(ar_dict.get("payable_mis_others") or 0))
+    p_lab = Decimal(str(ar_dict.get("payable_labour") or 0))
+    p_bor = Decimal(str(ar_dict.get("payable_border_expense") or 0))
+    tot_pay = p_det + p_mis + p_lab + p_bor
+    ar_dict["total_additional_payable"] = tot_pay
+    ar_dict["net_amount"] = tot_pay - tot_ded
 
     lr = await db.get(LR, data.lr_id)
     if not lr:
         raise AppException(status_code=404, error_code="NOT_FOUND", message="Referenced LR not found.")
 
+    if not ar_dict.get("customer_name"):
+        if lr.billing_customer:
+            ar_dict["customer_name"] = lr.billing_customer.name
+        elif lr.consigner:
+            ar_dict["customer_name"] = lr.consigner.name
+
+    if not ar_dict.get("from_location") and lr.origin_location:
+        ar_dict["from_location"] = lr.origin_location.city_name or lr.origin_location.name
+    if not ar_dict.get("to_location") and lr.destination_location:
+        ar_dict["to_location"] = lr.destination_location.city_name or lr.destination_location.name
+
+    if not ar_dict.get("lr_date"):
+        ar_dict["lr_date"] = lr.lr_date
+    if not ar_dict.get("eta"):
+        ar_dict["eta"] = lr.eta
+    if not ar_dict.get("booked_packages"):
+        ar_dict["booked_packages"] = lr.package_count or 0
+    if not ar_dict.get("booked_weight"):
+        ar_dict["booked_weight"] = lr.actual_weight_mt or lr.chargeable_weight_mt or Decimal("0.000")
+
+    # If hire_challan_id is provided, resolve vehicle_number and issued_by
+    if ar_dict.get("hire_challan_id"):
+        hc = await db.get(HireChallan, ar_dict["hire_challan_id"])
+        if hc:
+            if not ar_dict.get("vehicle_number"):
+                ar_dict["vehicle_number"] = hc.vehicle_number
+            if not ar_dict.get("issued_by"):
+                ar_dict["issued_by"] = getattr(hc, "created_by_user_name", None)
+
+    # Sync compatibility columns
+    ar_dict["packages_received"] = ar_dict.get("delivered_packages") or 0
+    ar_dict["packages_damaged"] = ar_dict.get("damage_packages") or 0
+    ar_dict["packages_short"] = ar_dict.get("shortage_packages") or 0
+
+    # Date normalization
+    arr_date = ar_dict.get("arrival_date")
+    if isinstance(arr_date, str):
+        try:
+            ar_dict["arrival_date"] = datetime.fromisoformat(arr_date)
+        except Exception:
+            ar_dict["arrival_date"] = datetime.now(timezone.utc)
+    elif isinstance(arr_date, date) and not isinstance(arr_date, datetime):
+        ar_dict["arrival_date"] = datetime.combine(arr_date, datetime.min.time(), tzinfo=timezone.utc)
+
+    del_date = ar_dict.get("delivered_date")
+    if isinstance(del_date, str):
+        try:
+            ar_dict["delivered_date"] = date.fromisoformat(del_date[:10])
+        except Exception:
+            ar_dict["delivered_date"] = date.today()
+
     ar = ArrivalReport(**ar_dict)
     db.add(ar)
 
-    # Automatic State Transition: LR -> ARRIVED (or DELIVERED if all packages intact)
-    if lr.status in (LRStatus.IN_TRANSIT.value, LRStatus.LOADED.value, LRStatus.BOOKED.value):
+    # Automatic State Transition: LR -> ARRIVED (or DELIVERED)
+    if lr.status in (LRStatus.IN_TRANSIT.value, LRStatus.LOADED.value, LRStatus.BOOKED.value, LRStatus.DRAFT.value):
         lr.status = LRStatus.ARRIVED.value
 
     if lr.job_id:
         job = await db.get(Job, lr.job_id)
-        if job and job.status == JobStatus.DISPATCHED.value:
+        if job and job.status in (JobStatus.DISPATCHED.value, JobStatus.LOADED.value):
             job.status = JobStatus.DELIVERED.value
 
     await db.commit()
     await db.refresh(ar)
     return ar
+
+
+async def update_arrival_report(
+    db: AsyncSession,
+    report_id: int,
+    data: Any,
+) -> ArrivalReport:
+    ar = await db.get(ArrivalReport, report_id)
+    if not ar:
+        raise AppException(status_code=404, error_code="NOT_FOUND", message="Arrival report not found.")
+
+    update_data = data.model_dump(exclude_unset=True)
+    for field, value in update_data.items():
+        if hasattr(ar, field) and value is not None:
+            setattr(ar, field, value)
+
+    # Re-calculate totals if financial columns changed
+    d_short = Decimal(str(ar.deduction_shortage or 0))
+    d_oth = Decimal(str(ar.deduction_others or 0))
+    d_dmg = Decimal(str(ar.deduction_damage or 0))
+    d_del = Decimal(str(ar.deduction_delay or 0))
+    ar.total_deductions = d_short + d_oth + d_dmg + d_del
+
+    p_det = Decimal(str(ar.payable_detention or 0))
+    p_mis = Decimal(str(ar.payable_mis_others or 0))
+    p_lab = Decimal(str(ar.payable_labour or 0))
+    p_bor = Decimal(str(ar.payable_border_expense or 0))
+    ar.total_additional_payable = p_det + p_mis + p_lab + p_bor
+    ar.net_amount = ar.total_additional_payable - ar.total_deductions
+
+    # Sync compatibility columns
+    ar.packages_received = ar.delivered_packages or 0
+    ar.packages_damaged = ar.damage_packages or 0
+    ar.packages_short = ar.shortage_packages or 0
+
+    await db.commit()
+    await db.refresh(ar)
+    return ar
+
+
+async def delete_arrival_report(db: AsyncSession, report_id: int) -> bool:
+    ar = await db.get(ArrivalReport, report_id)
+    if not ar:
+        raise AppException(status_code=404, error_code="NOT_FOUND", message="Arrival report not found.")
+    await db.delete(ar)
+    await db.commit()
+    return True
 
 # ===========================================================================
 # POD Record Services
