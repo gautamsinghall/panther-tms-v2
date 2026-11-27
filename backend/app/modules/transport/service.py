@@ -1472,7 +1472,7 @@ async def create_arrival_report(
 
     if lr.job_id:
         job = await db.get(Job, lr.job_id)
-        if job and job.status in (JobStatus.DISPATCHED.value, JobStatus.LOADED.value):
+        if job and job.status in (JobStatus.DISPATCHED.value, JobStatus.BOOKED.value, JobStatus.OPEN.value):
             job.status = JobStatus.DELIVERED.value
 
     await db.commit()

@@ -6,12 +6,15 @@ from sqlalchemy.orm import sessionmaker
 
 from app.tenant_db.models import (
     TenantBase,
+    Job,
     LR,
     HireChallan,
     ArrivalReport,
     Branch,
     Location,
     BillingClient,
+    Consigner,
+    Consignee,
     SeriesCategory,
     SeriesMaster,
 )
@@ -59,9 +62,24 @@ async def test_session():
         loc_mum = Location(id=2, city_name="Mumbai", state="Maharashtra", is_active=True)
         session.add_all([loc_del, loc_mum])
 
-        # 4. Billing Client
+        # 4. Billing Client, Consigner, Consignee & Job
         client = BillingClient(id=1, name="Tata Steel Ltd", is_active=True)
-        session.add(client)
+        consigner = Consigner(id=1, name="Tata Consigner", is_active=True)
+        consignee = Consignee(id=1, name="Tata Consignee", is_active=True)
+        session.add_all([client, consigner, consignee])
+        await session.flush()
+
+        job1 = Job(
+            id=1,
+            job_number="JOB-2026-0001",
+            job_date=date(2026, 11, 20),
+            consigner_id=consigner.id,
+            consignee_id=consignee.id,
+            billing_client_id=client.id,
+            status="DISPATCHED",
+            issuing_office_id=branch.id,
+        )
+        session.add(job1)
         await session.flush()
 
         # 5. LR 1
@@ -69,6 +87,7 @@ async def test_session():
             id=1,
             lr_number="LR-2026-0001",
             lr_date=date(2026, 11, 20),
+            job_id=job1.id,
             billing_customer_id=client.id,
             origin_location_id=loc_del.id,
             destination_location_id=loc_mum.id,
@@ -221,9 +240,11 @@ async def test_create_and_update_arrival_report(test_session: AsyncSession):
     # Net amount = 2100.00 - 1100.00 = 1000.00
     assert ar.net_amount == Decimal("1000.00")
 
-    # 5. Check LR status transition
+    # 5. Check LR & Job status transition
     lr = await test_session.get(LR, 1)
     assert lr.status == "ARRIVED"
+    job = await test_session.get(Job, 1)
+    assert job.status == "DELIVERED"
 
     # 6. Test list & get by id & router response builder
     from app.modules.transport.router import _build_arrival_report_response
