@@ -651,6 +651,12 @@ async def lifespan(app: FastAPI):
 
                         # Employee Master & Imprest Evolution
                         for emp_col in [
+                            "employee_code VARCHAR(50)",
+                            "designation_id INTEGER",
+                            "department VARCHAR(100)",
+                            "phone VARCHAR(50)",
+                            "email VARCHAR(255)",
+                            "pan VARCHAR(10)",
                             "aadhaar_number VARCHAR(20)",
                             "address TEXT",
                             "city VARCHAR(100)",
@@ -659,12 +665,19 @@ async def lifespan(app: FastAPI):
                             "emergency_contact_name VARCHAR(100)",
                             "emergency_contact_phone VARCHAR(50)",
                             "blood_group VARCHAR(10)",
+                            "bank_name VARCHAR(100)",
+                            "bank_account_number VARCHAR(50)",
+                            "ifsc_code VARCHAR(20)",
+                            "date_of_joining DATE",
+                            "salary NUMERIC(12, 2) DEFAULT 0.00",
                             "is_imprest_active BOOLEAN DEFAULT FALSE",
                             "imprest_limit NUMERIC(12, 2) DEFAULT 0.00",
                             "imprest_account_id INTEGER REFERENCES misc_accounts(id)",
+                            "is_active BOOLEAN DEFAULT TRUE",
                         ]:
                             await t_conn.execute(text(f"ALTER TABLE misc_employees ADD COLUMN IF NOT EXISTS {emp_col};"))
                         await t_conn.execute(text("ALTER TABLE misc_accounts ADD COLUMN IF NOT EXISTS employee_id INTEGER REFERENCES misc_employees(id);"))
+                        await t_conn.execute(text("CREATE INDEX IF NOT EXISTS ix_misc_employees_employee_code ON misc_employees (employee_code);"))
                         await t_conn.execute(text("CREATE INDEX IF NOT EXISTS ix_misc_employees_is_imprest_active ON misc_employees (is_imprest_active);"))
                         await t_conn.execute(text("CREATE INDEX IF NOT EXISTS ix_misc_accounts_employee_id ON misc_accounts (employee_id);"))
                         await t_conn.execute(text("""

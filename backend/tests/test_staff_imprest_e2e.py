@@ -156,3 +156,30 @@ async def test_staff_imprest_activation_and_ledger_creation(test_session: AsyncS
     assert summary.staff_imprest.total_outstanding == Decimal("5000.00")
     assert summary.staff_imprest.total_debit == Decimal("5000.00")
     assert summary.staff_imprest.pending_count == 1
+
+
+@pytest.mark.asyncio
+async def test_create_employee_with_banking_and_auto_code(test_session: AsyncSession):
+    from app.modules.misc.schemas import EmployeeMasterCreate
+
+    # Test creating employee without code (as sent by frontend form) and with banking details
+    emp_payload = EmployeeMasterCreate(
+        name="Vikram Verma",
+        department="Operations",
+        salary=Decimal("35000.00"),
+        bank_name="HDFC Bank",
+        bank_account_number="50100234567890",
+        ifsc_code="HDFC0001234",
+        pan="ABCDE1234F",
+        aadhaar_number="123456789012",
+        is_active=True,
+    )
+    created = await misc_service.create_employee(test_session, emp_payload)
+    assert created.id is not None
+    assert created.name == "Vikram Verma"
+    assert created.employee_code.startswith("EMP-")
+    assert created.bank_name == "HDFC Bank"
+    assert created.bank_account_number == "50100234567890"
+    assert created.ifsc_code == "HDFC0001234"
+    assert created.salary == Decimal("35000.00")
+

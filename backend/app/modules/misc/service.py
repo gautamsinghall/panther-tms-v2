@@ -225,6 +225,91 @@ async def delete_account(session: AsyncSession, item_id: int) -> bool:
 # ------------------------------------------------------------------------------
 # Employee Master Service
 # ------------------------------------------------------------------------------
+async def ensure_employee_schema(session: AsyncSession) -> None:
+    """
+    Idempotent schema healing for misc_employees table.
+    Ensures missing columns on misc_employees are safely created without data loss.
+    """
+    from sqlalchemy import text
+    try:
+        await session.rollback()
+    except Exception:
+        pass
+
+    ddl_statements = [
+        """
+        CREATE TABLE IF NOT EXISTS misc_employees (
+            id SERIAL PRIMARY KEY,
+            name VARCHAR(150) NOT NULL,
+            employee_code VARCHAR(50),
+            designation_id INTEGER,
+            department VARCHAR(100),
+            phone VARCHAR(50),
+            email VARCHAR(255),
+            pan VARCHAR(10),
+            aadhaar_number VARCHAR(20),
+            address TEXT,
+            city VARCHAR(100),
+            state VARCHAR(100),
+            pincode VARCHAR(20),
+            emergency_contact_name VARCHAR(100),
+            emergency_contact_phone VARCHAR(50),
+            blood_group VARCHAR(10),
+            bank_account_number VARCHAR(50),
+            bank_name VARCHAR(100),
+            ifsc_code VARCHAR(20),
+            date_of_joining DATE,
+            salary NUMERIC(12, 2) DEFAULT 0.00,
+            is_imprest_active BOOLEAN DEFAULT FALSE,
+            imprest_limit NUMERIC(12, 2) DEFAULT 0.00,
+            imprest_account_id INTEGER,
+            is_active BOOLEAN DEFAULT TRUE,
+            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        );
+        """,
+        "ALTER TABLE misc_employees ADD COLUMN IF NOT EXISTS employee_code VARCHAR(50);",
+        "ALTER TABLE misc_employees ADD COLUMN IF NOT EXISTS designation_id INTEGER;",
+        "ALTER TABLE misc_employees ADD COLUMN IF NOT EXISTS department VARCHAR(100);",
+        "ALTER TABLE misc_employees ADD COLUMN IF NOT EXISTS phone VARCHAR(50);",
+        "ALTER TABLE misc_employees ADD COLUMN IF NOT EXISTS email VARCHAR(255);",
+        "ALTER TABLE misc_employees ADD COLUMN IF NOT EXISTS pan VARCHAR(10);",
+        "ALTER TABLE misc_employees ADD COLUMN IF NOT EXISTS aadhaar_number VARCHAR(20);",
+        "ALTER TABLE misc_employees ADD COLUMN IF NOT EXISTS address TEXT;",
+        "ALTER TABLE misc_employees ADD COLUMN IF NOT EXISTS city VARCHAR(100);",
+        "ALTER TABLE misc_employees ADD COLUMN IF NOT EXISTS state VARCHAR(100);",
+        "ALTER TABLE misc_employees ADD COLUMN IF NOT EXISTS pincode VARCHAR(20);",
+        "ALTER TABLE misc_employees ADD COLUMN IF NOT EXISTS emergency_contact_name VARCHAR(100);",
+        "ALTER TABLE misc_employees ADD COLUMN IF NOT EXISTS emergency_contact_phone VARCHAR(50);",
+        "ALTER TABLE misc_employees ADD COLUMN IF NOT EXISTS blood_group VARCHAR(10);",
+        "ALTER TABLE misc_employees ADD COLUMN IF NOT EXISTS bank_account_number VARCHAR(50);",
+        "ALTER TABLE misc_employees ADD COLUMN IF NOT EXISTS bank_name VARCHAR(100);",
+        "ALTER TABLE misc_employees ADD COLUMN IF NOT EXISTS ifsc_code VARCHAR(20);",
+        "ALTER TABLE misc_employees ADD COLUMN IF NOT EXISTS date_of_joining DATE;",
+        "ALTER TABLE misc_employees ADD COLUMN IF NOT EXISTS salary NUMERIC(12, 2) DEFAULT 0.00;",
+        "ALTER TABLE misc_employees ADD COLUMN IF NOT EXISTS is_imprest_active BOOLEAN DEFAULT FALSE;",
+        "ALTER TABLE misc_employees ADD COLUMN IF NOT EXISTS imprest_limit NUMERIC(12, 2) DEFAULT 0.00;",
+        "ALTER TABLE misc_employees ADD COLUMN IF NOT EXISTS imprest_account_id INTEGER;",
+        "ALTER TABLE misc_employees ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE;",
+        "ALTER TABLE misc_employees ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW();",
+        "ALTER TABLE misc_employees ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW();",
+        "ALTER TABLE misc_accounts ADD COLUMN IF NOT EXISTS employee_id INTEGER;",
+        "CREATE INDEX IF NOT EXISTS ix_misc_employees_employee_code ON misc_employees (employee_code);",
+        "CREATE INDEX IF NOT EXISTS ix_misc_employees_is_imprest_active ON misc_employees (is_imprest_active);",
+        "CREATE INDEX IF NOT EXISTS ix_misc_accounts_employee_id ON misc_accounts (employee_id);",
+    ]
+
+    for stmt in ddl_statements:
+        try:
+            await session.execute(text(stmt))
+            await session.commit()
+        except Exception:
+            try:
+                await session.rollback()
+            except Exception:
+                pass
+
+
 async def get_employees(session: AsyncSession) -> List[EmployeeMaster]:
     stmt = (
         select(EmployeeMaster)
@@ -234,8 +319,13 @@ async def get_employees(session: AsyncSession) -> List[EmployeeMaster]:
         )
         .order_by(EmployeeMaster.id)
     )
-    res = await session.execute(stmt)
-    items = list(res.scalars().all())
+    try:
+        res = await session.execute(stmt)
+        items = list(res.scalars().all())
+    except Exception:
+        await ensure_employee_schema(session)
+        res = await session.execute(stmt)
+        items = list(res.scalars().all())
 
     # Calculate live imprest balances for employees with an active imprest account
     account_ids = [e.imprest_account_id for e in items if e.imprest_account_id]
@@ -290,8 +380,14 @@ async def get_employee_by_id(session: AsyncSession, item_id: int) -> EmployeeMas
         )
         .where(EmployeeMaster.id == item_id)
     )
-    res = await session.execute(stmt)
-    item = res.scalar_one_or_none()
+    try:
+        res = await session.execute(stmt)
+        item = res.scalar_one_or_none()
+    except Exception:
+        await ensure_employee_schema(session)
+        res = await session.execute(stmt)
+        item = res.scalar_one_or_none()
+
     if not item:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Employee not found")
 
@@ -326,23 +422,66 @@ async def get_employee_by_id(session: AsyncSession, item_id: int) -> EmployeeMas
     return item
 
 async def create_employee(session: AsyncSession, data: EmployeeMasterCreate) -> EmployeeMaster:
-    if data.employee_code:
-        stmt = select(EmployeeMaster).where(EmployeeMaster.employee_code == data.employee_code)
-        existing = (await session.execute(stmt)).scalar_one_or_none()
+    await ensure_employee_schema(session)
+    emp_data = data.model_dump()
+    if not emp_data.get("employee_code"):
+        stmt = select(func.max(EmployeeMaster.id))
+        try:
+            max_id = (await session.execute(stmt)).scalar() or 0
+        except Exception:
+            await ensure_employee_schema(session)
+            max_id = (await session.execute(stmt)).scalar() or 0
+        emp_code = f"EMP-{(max_id + 1):04d}"
+        chk_stmt = select(EmployeeMaster.id).where(EmployeeMaster.employee_code == emp_code)
+        while (await session.execute(chk_stmt)).scalar_one_or_none():
+            max_id += 1
+            emp_code = f"EMP-{(max_id + 1):04d}"
+            chk_stmt = select(EmployeeMaster.id).where(EmployeeMaster.employee_code == emp_code)
+        emp_data["employee_code"] = emp_code
+    else:
+        stmt = select(EmployeeMaster).where(EmployeeMaster.employee_code == emp_data["employee_code"])
+        try:
+            existing = (await session.execute(stmt)).scalar_one_or_none()
+        except Exception:
+            await ensure_employee_schema(session)
+            existing = (await session.execute(stmt)).scalar_one_or_none()
         if existing:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Employee code '{data.employee_code}' already exists")
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Employee code '{emp_data['employee_code']}' already exists")
 
-    item = EmployeeMaster(**data.model_dump())
+    item = EmployeeMaster(**emp_data)
     session.add(item)
-    await session.commit()
+    try:
+        await session.commit()
+    except Exception:
+        await session.rollback()
+        await ensure_employee_schema(session)
+        session.add(item)
+        await session.commit()
+
     return await get_employee_by_id(session, item.id)
 
 async def update_employee(session: AsyncSession, item_id: int, data: EmployeeMasterUpdate) -> EmployeeMaster:
     item = await get_employee_by_id(session, item_id)
     update_data = data.model_dump(exclude_unset=True)
+    if update_data.get("employee_code"):
+        stmt = select(EmployeeMaster).where(
+            EmployeeMaster.employee_code == update_data["employee_code"],
+            EmployeeMaster.id != item_id,
+        )
+        existing = (await session.execute(stmt)).scalar_one_or_none()
+        if existing:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Employee code '{update_data['employee_code']}' already exists")
+
     for field, value in update_data.items():
         setattr(item, field, value)
-    await session.commit()
+
+    try:
+        await session.commit()
+    except Exception:
+        await session.rollback()
+        await ensure_employee_schema(session)
+        await session.commit()
+
     return await get_employee_by_id(session, item.id)
 
 async def activate_employee_imprest(
