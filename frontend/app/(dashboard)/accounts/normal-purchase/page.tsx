@@ -1098,6 +1098,12 @@ export default function NormalPurchasePage() {
       hidden: (v) => v.is_void,
       danger: true,
       onClick: (v) => {
+        if (parseFloat(String(v.paid_amount || 0)) > 0) {
+          toast.error(
+            `Cannot void ${v.voucher_number} because payment(s) totaling ₹${v.paid_amount} exist. Please void the linked Payment Voucher in Accounts > Payment Voucher first.`
+          );
+          return;
+        }
         setVoidVoucherId(v.id);
         setVoidVoucherNumber(v.voucher_number);
         setVoidReason("");
