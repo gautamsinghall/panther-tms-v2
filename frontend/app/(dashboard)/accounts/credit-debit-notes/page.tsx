@@ -41,6 +41,7 @@ import { ColumnDef, RowAction } from "@/types/table";
 import { apiClient } from "@/lib/api-client";
 import { getActiveOffice } from "@/lib/auth";
 import { formatCurrency, formatDate, cn } from "@/lib/utils";
+import { AccountVoucherPrintModal } from "@/components/modals/account-voucher-print-modal";
 
 // Indian Rupees Number to Words helper
 function numberToWords(num: number): string {
@@ -1448,98 +1449,17 @@ export default function CreditDebitNotesPage() {
       </EntityDrawer>
 
       {/* =========================================================================
-          PRINTABLE NOTE MODAL (TALLY PRIME STYLE)
+          PRINTABLE NOTE MODAL (Corporate Standard with dynamic signature & edit)
           ========================================================================= */}
-      {printVoucher && (
-        <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4 print:p-0 print:bg-white print:overflow-visible print:static">
-          <div className="bg-card border border-border rounded-xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto p-6 flex flex-col gap-6 print:p-0 print:w-full print:shadow-none print:border-none print:m-0">
-            {/* Action Bar */}
-            <div className="flex items-center justify-between border-b border-border pb-4 print:hidden">
-              <span className="font-semibold text-sm text-foreground">Print / Preview Note Voucher</span>
-              <div className="flex items-center gap-2">
-                <Button size="sm" onClick={() => window.print()} className="gap-1.5 text-xs">
-                  <Printer className="w-3.5 h-3.5" /> Print Voucher
-                </Button>
-                <Button variant="ghost" size="sm" onClick={() => setPrintVoucher(null)}>
-                  <X className="w-4 h-4" />
-                </Button>
-              </div>
-            </div>
-
-            {/* Printable Document Body */}
-            <div className="printable-paper-sheet printable-document-sheet bg-white text-black p-8 rounded border border-gray-300 font-sans text-sm flex flex-col gap-6">
-              {/* Header */}
-              <div className="text-center border-b border-gray-300 pb-4">
-                <h1 className="text-xl font-bold uppercase tracking-wider text-black">
-                  {printVoucher.note_category?.replace(/_/g, " ") || printVoucher.voucher_type.replace(/_/g, " ")}
-                </h1>
-                <p className="text-xs text-gray-600 mt-1">
-                  Issued under Section 34 of the Central Goods and Services Tax Act, 2017
-                </p>
-              </div>
-
-              {/* Document Meta Table */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs border border-gray-300 p-3 rounded">
-                <div>
-                  <div><span className="font-semibold">Voucher Number:</span> {printVoucher.voucher_number}</div>
-                  <div><span className="font-semibold">Voucher Date:</span> {formatDate(printVoucher.voucher_date)}</div>
-                  <div><span className="font-semibold">Original Invoice #:</span> {printVoucher.against_voucher_number || printVoucher.reference_number || "N/A"}</div>
-                </div>
-                <div>
-                  <div><span className="font-semibold">Party Name:</span> {printVoucher.party_name || "N/A"}</div>
-                  <div><span className="font-semibold">Party GSTIN:</span> {printVoucher.party_gstin || "Unregistered"}</div>
-                  <div><span className="font-semibold">Place of Supply:</span> {printVoucher.place_of_supply || "Maharashtra"}</div>
-                </div>
-              </div>
-
-              {/* Item Details */}
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[500px] text-xs border-collapse border border-gray-300">
-                  <thead>
-                    <tr className="bg-gray-100">
-                      <th className="border border-gray-300 p-2 text-left">Description of Adjustment</th>
-                      <th className="border border-gray-300 p-2 text-right">Taxable Value</th>
-                      <th className="border border-gray-300 p-2 text-right">GST Rate</th>
-                      <th className="border border-gray-300 p-2 text-right">Tax Amount</th>
-                      <th className="border border-gray-300 p-2 text-right">Total Net (₹)</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr>
-                      <td className="border border-gray-300 p-2">
-                        <div className="font-semibold">{printVoucher.tax_breakup?.reason_description || `Reason Code ${printVoucher.reason_code || "04"}`}</div>
-                        <div className="text-gray-500 text-[10px]">{printVoucher.narration || "Operational freight adjustment"}</div>
-                      </td>
-                      <td className="border border-gray-300 p-2 text-right font-mono">{formatCurrency(parseFloat(String(printVoucher.total_amount || 0)))}</td>
-                      <td className="border border-gray-300 p-2 text-right font-mono">{printVoucher.tax_breakup?.tax_rate || 0}%</td>
-                      <td className="border border-gray-300 p-2 text-right font-mono">{formatCurrency(parseFloat(String(printVoucher.tax_amount || 0)))}</td>
-                      <td className="border border-gray-300 p-2 text-right font-mono font-bold">{formatCurrency(parseFloat(String(printVoucher.net_amount || 0)))}</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-
-              {/* Amount in Words */}
-              <div className="border border-gray-300 p-3 rounded text-xs bg-gray-50">
-                <span className="font-semibold">Amount Chargeable (in words):</span>
-                <div className="italic mt-0.5">{numberToWords(parseFloat(String(printVoucher.net_amount || 0)))}</div>
-              </div>
-
-              {/* Signatory Footer */}
-              <div className="flex justify-between items-end pt-12 text-xs">
-                <div>
-                  <div className="text-[10px] text-gray-500">Prepared by Accounts Department</div>
-                  <div>PantherTMS Integrated ERP</div>
-                </div>
-                <div className="text-right">
-                  <div className="font-semibold">For PantherTMS Transport Entity</div>
-                  <div className="border-t border-gray-400 mt-12 pt-1 text-gray-600">Authorized Signatory</div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      <AccountVoucherPrintModal
+        isOpen={Boolean(printVoucher)}
+        voucher={printVoucher}
+        onClose={() => setPrintVoucher(null)}
+        onEdit={(v) => {
+          setPrintVoucher(null);
+          handleEditNote(v as VoucherRecord);
+        }}
+      />
 
       {/* =========================================================================
           VIEW JOURNAL / LEDGER ENTRIES DRAWER

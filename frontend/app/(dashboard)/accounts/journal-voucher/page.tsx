@@ -45,6 +45,7 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { apiClient } from "@/lib/api-client";
 import { formatCurrency, formatDate, cn } from "@/lib/utils";
 import { toast } from "@/lib/toast";
+import { AccountVoucherPrintModal } from "@/components/modals/account-voucher-print-modal";
 
 // -----------------------------------------------------------------------------
 // Indian Rupees Number to Words Helper
@@ -1648,172 +1649,17 @@ export default function JournalVouchersPage() {
       {/* ======================================================================= */}
       {/* TallyPrime-Style Printable Voucher Modal                                */}
       {/* ======================================================================= */}
-      {viewVoucher && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs">
-          <div className="bg-white dark:bg-[#17171B] rounded-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-slate-200/90 dark:border-[#303036] flex flex-col">
-            {/* Modal Header */}
-            <div className="flex items-center justify-between p-4 border-b border-slate-200/90 dark:border-[#303036] print:hidden">
-              <div className="flex items-center gap-2">
-                <Scale className="w-5 h-5 text-indigo-600" />
-                <h3 className="font-bold text-gray-900 dark:text-white">
-                  Journal Voucher — #{viewVoucher.voucher_number}
-                </h3>
-              </div>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => window.print()}
-                  className="gap-1.5 text-xs font-semibold"
-                >
-                  <Printer className="w-3.5 h-3.5" />
-                  Print
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setViewVoucher(null)}
-                  className="text-xs"
-                >
-                  Close
-                </Button>
-              </div>
-            </div>
-
-            {/* Printable Voucher Body */}
-            <div className="p-6 space-y-6 text-gray-800 dark:text-gray-200">
-              {/* Header Box */}
-              <div className="text-center pb-4 border-b border-slate-200/90 dark:border-[#22232E]">
-                <h2 className="text-xl font-extrabold uppercase tracking-wide text-gray-900 dark:text-white">
-                  JOURNAL VOUCHER
-                </h2>
-                <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                  Issuing Office: {viewVoucher.issuing_office_name || "Headquarters"}
-                </div>
-              </div>
-
-              {/* Metadata Grid */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 p-4 bg-slate-50 dark:bg-[#101013] rounded-xl border border-slate-200/90 dark:border-[#303036] text-xs">
-                <div>
-                  <div className="text-gray-500 uppercase text-[10px]">Voucher Number</div>
-                  <div className="font-mono font-bold text-gray-900 dark:text-white mt-0.5">
-                    {viewVoucher.voucher_number}
-                  </div>
-                </div>
-                <div>
-                  <div className="text-gray-500 uppercase text-[10px]">Voucher Date</div>
-                  <div className="font-mono font-semibold text-gray-900 dark:text-white mt-0.5">
-                    {formatDate(viewVoucher.voucher_date)}
-                  </div>
-                </div>
-                <div>
-                  <div className="text-gray-500 uppercase text-[10px]">Adjustment Category</div>
-                  <div className="font-semibold text-indigo-600 dark:text-indigo-400 mt-0.5">
-                    {viewVoucher.note_category || "GENERAL"}
-                  </div>
-                </div>
-                <div>
-                  <div className="text-gray-500 uppercase text-[10px]">Status</div>
-                  <div className="mt-0.5">
-                    {viewVoucher.is_void ? (
-                      <span className="text-rose-600 font-bold uppercase text-xs">REVERSED / VOID</span>
-                    ) : viewVoucher.payment_status === "DRAFT" ? (
-                      <span className="text-amber-600 font-bold uppercase text-xs">DRAFT</span>
-                    ) : (
-                      <span className="text-emerald-600 font-bold uppercase text-xs">POSTED</span>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* Double-Entry Table */}
-              <div className="border border-slate-200/90 dark:border-[#303036] rounded-xl overflow-x-auto">
-                <table className="w-full text-left text-xs border-collapse">
-                  <thead className="bg-slate-50 dark:bg-[#101013] font-bold uppercase text-slate-700 dark:text-slate-300 border-b border-slate-200/90 dark:border-[#303036]">
-                    <tr>
-                      <th className="py-2.5 px-3">Particulars / Account Head</th>
-                      <th className="py-2.5 px-3 w-32 text-right">Debit (₹)</th>
-                      <th className="py-2.5 px-3 w-32 text-right">Credit (₹)</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 dark:divide-[#22232E]">
-                    {(viewVoucher.ledger_entries || []).map((le, idx) => (
-                      <tr key={idx} className={le.is_reversal ? "opacity-60 italic" : ""}>
-                        <td className="py-2.5 px-3">
-                          <div className="font-semibold text-gray-900 dark:text-white">
-                            {Number(le.debit_amount) > 0 ? "Dr. " : "    To "}
-                            {le.account_name || `Account #${le.account_id}`}
-                          </div>
-                          {le.narration && (
-                            <div className="text-[11px] text-gray-500 pl-4 mt-0.5">
-                              ({le.narration})
-                            </div>
-                          )}
-                        </td>
-                        <td className="py-2.5 px-3 text-right font-mono font-semibold">
-                          {Number(le.debit_amount) > 0 ? formatCurrency(le.debit_amount) : "—"}
-                        </td>
-                        <td className="py-2.5 px-3 text-right font-mono font-semibold">
-                          {Number(le.credit_amount) > 0 ? formatCurrency(le.credit_amount) : "—"}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                  <tfoot className="bg-slate-50 dark:bg-[#101013] font-bold border-t-2 border-slate-300 dark:border-[#303036] text-slate-900 dark:text-white">
-                    <tr>
-                      <td className="py-2.5 px-3 text-right uppercase">Total</td>
-                      <td className="py-2.5 px-3 text-right font-mono">
-                        {formatCurrency(viewVoucher.net_amount)}
-                      </td>
-                      <td className="py-2.5 px-3 text-right font-mono">
-                        {formatCurrency(viewVoucher.net_amount)}
-                      </td>
-                    </tr>
-                  </tfoot>
-                </table>
-              </div>
-
-              {/* Amount in words */}
-              <div className="text-xs bg-slate-50 dark:bg-[#101013] p-3 rounded-xl border border-slate-200/90 dark:border-[#303036]">
-                <span className="text-gray-500 font-medium">Amount in Words: </span>
-                <span className="font-bold text-gray-900 dark:text-white">
-                  {numberToWords(Number(viewVoucher.net_amount))}
-                </span>
-              </div>
-
-              {/* Main Narration */}
-              <div className="text-xs space-y-1">
-                <div className="font-bold text-gray-700 dark:text-gray-300 uppercase text-[10px]">
-                  Narration / Commercial Justification:
-                </div>
-                <div className="p-3.5 bg-slate-50 dark:bg-[#101013] rounded-xl border border-slate-200/90 dark:border-[#303036] text-slate-800 dark:text-slate-200">
-                  {viewVoucher.narration || "No narration provided."}
-                </div>
-              </div>
-
-              {/* Void Reason if reversed */}
-              {viewVoucher.is_void && (
-                <div className="p-3 bg-rose-50 dark:bg-rose-950/30 rounded-lg border border-rose-200 dark:border-rose-800 text-xs text-rose-800 dark:text-rose-200">
-                  <span className="font-bold">Reversal Audit Reason:</span> {viewVoucher.void_reason}
-                </div>
-              )}
-
-              {/* Signature Blocks */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 pt-10 text-center text-xs text-gray-500">
-                <div className="border-t border-slate-300 dark:border-slate-700 pt-2 font-medium">
-                  Prepared By
-                </div>
-                <div className="border-t border-slate-300 dark:border-slate-700 pt-2 font-medium">
-                  Verified / Checked By
-                </div>
-                <div className="border-t border-slate-300 dark:border-slate-700 pt-2 font-medium">
-                  Authorized Signatory
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Standard Accounts Voucher Print Preview with dynamic signature & edit option */}
+      {/* ======================================================================= */}
+      <AccountVoucherPrintModal
+        isOpen={Boolean(viewVoucher)}
+        voucher={viewVoucher}
+        onClose={() => setViewVoucher(null)}
+        onEdit={(v) => {
+          setViewVoucher(null);
+          handleEditVoucher(v as VoucherRecord);
+        }}
+      />
 
       {/* ======================================================================= */}
       {/* Reversal Confirmation Dialog                                            */}

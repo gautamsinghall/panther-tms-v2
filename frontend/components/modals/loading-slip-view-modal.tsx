@@ -783,23 +783,42 @@ export function LoadingSlipViewModal({
               </div>
 
               {/* 7. Signatures */}
-              <div className="grid grid-cols-3 border-t border-slate-300 text-center text-[10.5px] p-3 pt-8 pb-4">
+              <div className="grid grid-cols-3 border-t border-slate-300 text-center text-[10.5px] p-3 pt-6 pb-4">
                 <div className="flex flex-col justify-end items-center px-2">
+                  <div className="h-10 sm:h-12" />
                   <div className="w-40 border-b border-slate-400 mb-1"></div>
                   <span className="font-semibold text-slate-800">Driver / Vehicle Representative</span>
                   <span className="text-[9.5px] text-slate-500">Sign & Contact No.</span>
                 </div>
 
                 <div className="flex flex-col justify-end items-center px-2">
+                  <div className="h-10 sm:h-12" />
                   <div className="w-40 border-b border-slate-400 mb-1"></div>
                   <span className="font-semibold text-slate-800">Loading Supervisor / Prepared By</span>
                   <span className="text-[9.5px] text-slate-500">Dispatched & Verified</span>
                 </div>
 
                 <div className="flex flex-col justify-end items-center px-2">
+                  {company?.signature_url ? (
+                    <div className="flex justify-center mb-1 h-10 sm:h-12 items-end">
+                      <img
+                        src={company.signature_url}
+                        alt="Authorized Signature"
+                        crossOrigin="anonymous"
+                        className="max-h-10 sm:max-h-12 max-w-[140px] object-contain"
+                      />
+                    </div>
+                  ) : (
+                    <div className="h-10 sm:h-12 flex items-end justify-center">
+                      <span className="text-[9.5px] text-slate-400 italic">Authorized Signature / Seal</span>
+                    </div>
+                  )}
                   <div className="w-40 border-b border-slate-400 mb-1"></div>
                   <span className="font-bold text-slate-900">For {companyName}</span>
-                  <span className="text-[9.5px] text-slate-500">Authorized Signatory</span>
+                  <span className="text-[9.5px] text-slate-600 font-medium">
+                    {company?.signing_authority_name || "Authorized Signatory"}
+                    {company?.signing_authority_designation ? ` (${company.signing_authority_designation})` : ""}
+                  </span>
                 </div>
               </div>
             </div>

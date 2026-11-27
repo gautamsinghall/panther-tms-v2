@@ -42,6 +42,7 @@ import { ColumnDef, RowAction } from "@/types/table";
 import { apiClient } from "@/lib/api-client";
 import { getActiveOffice } from "@/lib/auth";
 import { formatCurrency, formatDate, cn } from "@/lib/utils";
+import { AccountVoucherPrintModal } from "@/components/modals/account-voucher-print-modal";
 
 // Indian Rupees Number to Words
 function numberToWords(num: number): string {
@@ -1331,113 +1332,16 @@ export default function ContraVoucherPage() {
         )}
       </EntityDrawer>
 
-      {/* MODAL 3: Print Contra Voucher (Indian Transport Standard) */}
-      {isPrintModalOpen && printVoucher && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 overflow-y-auto print:p-0 print:bg-white print:overflow-visible print:static">
-          <div className="printable-paper-sheet printable-document-sheet bg-white text-slate-900 rounded-2xl border border-slate-200 shadow-2xl max-w-2xl w-full p-6 space-y-6 relative print:m-0 print:p-0 print:w-full print:shadow-none">
-            {/* Header */}
-            <div className="border-b-2 border-slate-900 pb-4 flex justify-between items-start">
-              <div>
-                <h2 className="text-xl font-bold tracking-tight uppercase">PANTHER LOGISTICS &amp; TRANSPORT</h2>
-                <p className="text-xs text-slate-600">Enterprise Transport Management System</p>
-                <p className="text-xs text-slate-500 mt-0.5">Issuing Office: {printVoucher.issuing_office_name || "Head Office (MUM-HO)"}</p>
-              </div>
-              <div className="text-right">
-                <span className="inline-block px-3 py-1 bg-indigo-600 text-white text-xs font-bold uppercase rounded-lg">
-                  CONTRA VOUCHER
-                </span>
-                <p className="text-xs font-mono font-bold mt-1">{printVoucher.voucher_number}</p>
-                <p className="text-xs text-slate-600">{formatDate(printVoucher.voucher_date)}</p>
-              </div>
-            </div>
-
-            {/* Transfer Summary */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs bg-slate-50 p-4 rounded-xl border border-slate-200">
-              <div>
-                <p><strong>Transfer Nature:</strong> {printVoucher.party_name || "Internal Fund Movement"}</p>
-                <p><strong>Instrument / Mode:</strong> {printVoucher.tax_breakup?.transfer_mode || "BANK_TRANSFER"}</p>
-                {printVoucher.reference_number && (
-                  <p><strong>Slip / UTR Ref #:</strong> <span className="font-mono">{printVoucher.reference_number}</span></p>
-                )}
-                {printVoucher.tax_breakup?.cheque_number && (
-                  <p><strong>Cheque #:</strong> <span className="font-mono">{printVoucher.tax_breakup.cheque_number}</span></p>
-                )}
-              </div>
-              <div>
-                <p><strong>Source Account (Cr):</strong> {printVoucher.tax_breakup?.source_account_name || "Cash/Bank"}</p>
-                <p><strong>Destination Account (Dr):</strong> {printVoucher.tax_breakup?.destination_account_name || "Bank/Cash"}</p>
-                <p><strong>Amount:</strong> <span className="font-bold font-mono">{formatCurrency(parseFloat(String(printVoucher.net_amount)) || 0)}</span></p>
-              </div>
-            </div>
-
-            {/* Amount in Words */}
-            <div className="text-xs border-l-4 border-slate-900 pl-3 py-2 bg-slate-50 italic rounded-r-lg">
-              <strong>Amount in Words:</strong> {numberToWords(parseFloat(String(printVoucher.net_amount)) || 0)}
-            </div>
-
-            {/* Ledger Postings Table */}
-            <div className="overflow-x-auto">
-              <h4 className="text-xs font-bold uppercase mb-1">Double-Entry Journal Postings</h4>
-              <table className="w-full min-w-[440px] text-xs border border-slate-300 rounded-lg overflow-hidden">
-                <thead className="bg-slate-100 border-b border-slate-300 font-bold">
-                  <tr>
-                    <th className="p-2 text-left">Particulars</th>
-                    <th className="p-2 text-right">Debit (Dr) ₹</th>
-                    <th className="p-2 text-right">Credit (Cr) ₹</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-200 font-mono">
-                  {printVoucher.ledger_entries.map((le) => (
-                    <tr key={le.id}>
-                      <td className="p-2 font-sans">
-                        {le.account_name || `Account #${le.account_id}`}
-                        <span className="block text-[10px] text-slate-500 font-mono">{le.narration}</span>
-                      </td>
-                      <td className="p-2 text-right font-semibold">
-                        {parseFloat(String(le.debit_amount)) > 0 ? formatCurrency(parseFloat(String(le.debit_amount))) : "—"}
-                      </td>
-                      <td className="p-2 text-right font-semibold">
-                        {parseFloat(String(le.credit_amount)) > 0 ? formatCurrency(parseFloat(String(le.credit_amount))) : "—"}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Signatures */}
-            <div className="pt-8 border-t border-slate-300 grid grid-cols-2 sm:grid-cols-4 gap-4 text-center text-xs">
-              <div>
-                <div className="border-b border-slate-400 mb-1 h-10" />
-                <span className="text-slate-600 font-medium">Prepared By</span>
-              </div>
-              <div>
-                <div className="border-b border-slate-400 mb-1 h-10" />
-                <span className="text-slate-600 font-medium">Verified By</span>
-              </div>
-              <div>
-                <div className="border-b border-slate-400 mb-1 h-10" />
-                <span className="text-slate-600 font-medium">Authorized Signatory</span>
-              </div>
-              <div>
-                <div className="border-b border-slate-400 mb-1 h-10" />
-                <span className="text-slate-600 font-medium">Receiver / Depositor</span>
-              </div>
-            </div>
-
-            {/* Modal Actions */}
-            <div className="flex justify-end gap-3 pt-4 border-t border-slate-200 print:hidden">
-              <Button variant="outline" size="sm" onClick={() => setIsPrintModalOpen(false)} className="rounded-xl">
-                Close
-              </Button>
-              <Button size="sm" onClick={() => window.print()} className="bg-[#4F46E5] text-white hover:bg-[#4338CA] rounded-xl font-medium">
-                <Printer className="h-4 w-4 mr-1.5" />
-                Print Voucher
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* MODAL 3: Print Contra Voucher (Standard Accounts Format) */}
+      <AccountVoucherPrintModal
+        isOpen={isPrintModalOpen}
+        voucher={printVoucher}
+        onClose={() => setIsPrintModalOpen(false)}
+        onEdit={(v) => {
+          setIsPrintModalOpen(false);
+          handleEditVoucher(v as VoucherRecord);
+        }}
+      />
 
       {/* MODAL 4: Void Confirm Dialog */}
       <ConfirmDialog
