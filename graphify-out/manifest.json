@@ -264,9 +264,9 @@
     "semantic_hash": "8483392e7b1950ebaef3c70eeeb59371"
   },
   "backend/app/modules/accounts/master_ledger_service.py": {
-    "mtime": 1795530684.1105456,
-    "seen": 1795530949.8187516,
-    "ast_hash": "237ab3bf3357a909cb33ba27428da302",
+    "mtime": 1795782364.6679935,
+    "seen": 1795782447.0545354,
+    "ast_hash": "154024df9967f7997b61d6a424961afd",
     "semantic_hash": ""
   },
   "backend/app/modules/accounts/models.py": {
@@ -276,21 +276,21 @@
     "semantic_hash": "11b2684f21bab46177977cc6730932b9"
   },
   "backend/app/modules/accounts/router.py": {
-    "mtime": 1795778703.234461,
-    "seen": 1795779512.9632974,
+    "mtime": 1795779605.8251817,
+    "seen": 1795782447.0545406,
     "ast_hash": "84a153d44fe63c8390a57aab490fcd7e",
     "semantic_hash": ""
   },
   "backend/app/modules/accounts/schemas.py": {
-    "mtime": 1795778627.6829793,
-    "seen": 1795779512.9632983,
-    "ast_hash": "6b48f7887de89adda9810737ebd2c514",
+    "mtime": 1795781347.6423118,
+    "seen": 1795782447.0545423,
+    "ast_hash": "6e9f1e8fc401f14ca6cc4485797c40ce",
     "semantic_hash": ""
   },
   "backend/app/modules/accounts/service.py": {
-    "mtime": 1795778694.4341629,
-    "seen": 1795779512.9632993,
-    "ast_hash": "02c5a61c4d5b2c58cce2e3591ab7210e",
+    "mtime": 1795782341.5881891,
+    "seen": 1795782447.054544,
+    "ast_hash": "5c20d0e228adf7d07e3478d9135c1ec2",
     "semantic_hash": ""
   },
   "backend/app/modules/ai/__init__.py": {
@@ -540,16 +540,16 @@
     "semantic_hash": ""
   },
   "backend/app/modules/misc/service.py": {
-    "mtime": 1795530684.0532937,
-    "seen": 1795530949.8187978,
-    "ast_hash": "f2a5751dc68641e266296031621d1ad0",
+    "mtime": 1795781335.7009995,
+    "seen": 1795782447.0546246,
+    "ast_hash": "68cbc72851582f951877225f3f24e399",
     "semantic_hash": ""
   },
   "backend/app/modules/misc/tally_chart_of_accounts.py": {
-    "mtime": 1793638023.2759838,
-    "seen": 1794640624.0937963,
-    "ast_hash": "97c76af2d7575573bfef24619543e0c6",
-    "semantic_hash": "97c76af2d7575573bfef24619543e0c6"
+    "mtime": 1795781316.2232265,
+    "seen": 1795782447.0546262,
+    "ast_hash": "fe4bd28a6f2b2935240a09b1e2c1ea00",
+    "semantic_hash": ""
   },
   "backend/app/modules/profile/__init__.py": {
     "mtime": 1789904231.4596908,
@@ -810,10 +810,10 @@
     "semantic_hash": "159f536dae9ccba433242fb4e2aeccea"
   },
   "backend/app/tenant_db/migrations/phase3_accounts_migration.py": {
-    "mtime": 1792597810.5529945,
-    "seen": 1794640624.0938308,
-    "ast_hash": "428ad7958fbd6dda835728451b98a014",
-    "semantic_hash": "428ad7958fbd6dda835728451b98a014"
+    "mtime": 1795781360.7612302,
+    "seen": 1795782447.0547132,
+    "ast_hash": "d5a0849d39b0e95618c7a233f30132da",
+    "semantic_hash": ""
   },
   "backend/app/tenant_db/migrations/phase5_fleet_migration.py": {
     "mtime": 1790498604.9354205,
@@ -966,10 +966,10 @@
     "semantic_hash": ""
   },
   "backend/tests/test_company_bank_accounts_e2e.py": {
-    "mtime": 1793527859.5841181,
-    "seen": 1794640624.0938513,
-    "ast_hash": "9cc7ec146af460e6ba2397dc8ebe37e1",
-    "semantic_hash": "9cc7ec146af460e6ba2397dc8ebe37e1"
+    "mtime": 1795781804.402216,
+    "seen": 1795782447.0547688,
+    "ast_hash": "f7dfa3db737625af63829136a8a90c49",
+    "semantic_hash": ""
   },
   "backend/tests/test_company_vehicle_master_ledger.py": {
     "mtime": 1793638546.032622,
@@ -978,10 +978,10 @@
     "semantic_hash": "d83f417d30c633f72e4438ff5f3a346b"
   },
   "backend/tests/test_contra_voucher_e2e.py": {
-    "mtime": 1793527859.5841181,
-    "seen": 1794640624.093853,
-    "ast_hash": "7bf5a8f6e7e9aea212df51c6c102dfa4",
-    "semantic_hash": "7bf5a8f6e7e9aea212df51c6c102dfa4"
+    "mtime": 1795781814.425769,
+    "seen": 1795782447.0547724,
+    "ast_hash": "b5f736f566a10e3f57eab9136de642fd",
+    "semantic_hash": ""
   },
   "backend/tests/test_create_lr_defects.py": {
     "mtime": 1794476520.4860084,
@@ -1170,8 +1170,8 @@
     "semantic_hash": ""
   },
   "backend/tests/test_receipt_voucher_e2e.py": {
-    "mtime": 1795778726.9986055,
-    "seen": 1795779512.9634662,
+    "mtime": 1795779605.8291817,
+    "seen": 1795782447.054837,
     "ast_hash": "07ab0330a04a9a655840adf7318cd16d",
     "semantic_hash": ""
   },
@@ -1266,9 +1266,9 @@
     "semantic_hash": ""
   },
   "frontend/app/(dashboard)/accounts/contra-voucher/page.tsx": {
-    "mtime": 1795615059.2928646,
-    "seen": 1795615864.0982122,
-    "ast_hash": "f4d60d75b8ed7663e35ea68500b97863",
+    "mtime": 1795781824.2303627,
+    "seen": 1795782447.0548742,
+    "ast_hash": "5b59cc68edfa567ecd7767cb71fc8264",
     "semantic_hash": ""
   },
   "frontend/app/(dashboard)/accounts/credit-debit-notes/page.tsx": {
@@ -1278,9 +1278,9 @@
     "semantic_hash": ""
   },
   "frontend/app/(dashboard)/accounts/general-invoice/page.tsx": {
-    "mtime": 1795698576.9729173,
-    "seen": 1795779512.9634907,
-    "ast_hash": "73f994eb91af52361305e4f772bc5b25",
+    "mtime": 1795781832.2427227,
+    "seen": 1795782447.0548778,
+    "ast_hash": "7b22160b062a6d2fcfd7ae27b74e97a7",
     "semantic_hash": ""
   },
   "frontend/app/(dashboard)/accounts/journal-voucher/page.tsx": {
@@ -1302,9 +1302,9 @@
     "semantic_hash": ""
   },
   "frontend/app/(dashboard)/accounts/payment-voucher/page.tsx": {
-    "mtime": 1795615059.3029094,
-    "seen": 1795615864.0982199,
-    "ast_hash": "d69de574f766151d953090ddfb0779dc",
+    "mtime": 1795781975.241252,
+    "seen": 1795782447.0548882,
+    "ast_hash": "2db0db1a09b838b7f79a08f93aa60906",
     "semantic_hash": ""
   },
   "frontend/app/(dashboard)/accounts/proforma-invoice/page.tsx": {
@@ -1314,15 +1314,15 @@
     "semantic_hash": ""
   },
   "frontend/app/(dashboard)/accounts/receipt-voucher/page.tsx": {
-    "mtime": 1795779466.4864638,
-    "seen": 1795779512.9634995,
+    "mtime": 1795779605.830183,
+    "seen": 1795782447.0548918,
     "ast_hash": "627674f1ff090198ca1b9ab4c2c453cd",
     "semantic_hash": ""
   },
   "frontend/app/(dashboard)/accounts/transport-invoice/page.tsx": {
-    "mtime": 1795698576.9888546,
-    "seen": 1795779512.9635003,
-    "ast_hash": "4ba264559dc70840cbebecd8197e7f33",
+    "mtime": 1795781845.7851515,
+    "seen": 1795782447.0548935,
+    "ast_hash": "a7796eb0bb90b71f79f705ee23df7b2e",
     "semantic_hash": ""
   },
   "frontend/app/(dashboard)/api-center/dl/page.tsx": {
@@ -2670,15 +2670,15 @@
     "semantic_hash": ""
   },
   "frontend/app/(dashboard)/accounts/general-purchase/page.tsx": {
-    "mtime": 1795615059.299448,
-    "seen": 1795615864.0982153,
-    "ast_hash": "ab2fb13d85619f448c666d9765a443d2",
+    "mtime": 1795779605.267702,
+    "seen": 1795782447.0548794,
+    "ast_hash": "b4755ccf5fd09e33ce872bc9a3c43da8",
     "semantic_hash": ""
   },
   "frontend/app/(dashboard)/accounts/normal-purchase/page.tsx": {
-    "mtime": 1795615059.3029094,
-    "seen": 1795615864.098218,
-    "ast_hash": "4b3a012c7eb2a2ed3ec25fa8ecd5dc0b",
+    "mtime": 1795779605.2757,
+    "seen": 1795782447.054885,
+    "ast_hash": "18ae8cfdef3a7090d3e53fcd68dd21a6",
     "semantic_hash": ""
   },
   "backend/app/services/email_service.py": {

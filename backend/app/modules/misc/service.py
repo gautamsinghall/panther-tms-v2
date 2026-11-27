@@ -157,12 +157,33 @@ async def delete_subgroup(session: AsyncSession, item_id: int) -> bool:
 # Account Service
 # ------------------------------------------------------------------------------
 async def get_accounts(session: AsyncSession) -> List[Account]:
-    stmt = select(Account).options(
-        selectinload(Account.group),
-        selectinload(Account.subgroup)
-    ).order_by(Account.id)
+    stmt = (
+        select(Account)
+        .options(
+            selectinload(Account.group),
+            selectinload(Account.subgroup),
+            selectinload(Account.company_bank_account),
+        )
+        .where(
+            Account.is_active == True,
+            ~Account.code.in_(["ACC_HDFC_BANK", "ACC_ICICI_BANK", "ACC_SBI_BANK", "ACC_CHEQUE_CLEARING"]),
+        )
+        .order_by(Account.id)
+    )
     res = await session.execute(stmt)
-    return list(res.scalars().all())
+    accounts = list(res.scalars().all())
+
+    # For accounts under BANK group, only include real active created CompanyBankAccount records
+    filtered: List[Account] = []
+    for a in accounts:
+        grp_code = (a.group.code if a.group else "").upper()
+        if grp_code in ("BANK", "BANK_OD", "BANK_OCC"):
+            if a.company_bank_account and a.company_bank_account.is_active:
+                filtered.append(a)
+        else:
+            filtered.append(a)
+
+    return filtered
 
 async def get_account_by_id(session: AsyncSession, item_id: int) -> Account:
     stmt = select(Account).options(

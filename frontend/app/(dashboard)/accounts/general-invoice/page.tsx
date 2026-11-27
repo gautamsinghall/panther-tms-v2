@@ -1966,8 +1966,8 @@ export default function GeneralInvoicePage() {
                   onChange={(e) => setPaymentMode(e.target.value as "BANK" | "CASH")}
                   className="w-full h-9 px-3 text-xs font-semibold rounded-lg border border-slate-200 bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600"
                 >
-                  <option value="BANK">Bank Account (HDFC RTGS/NEFT)</option>
-                  <option value="CASH">Cash in Hand</option>
+                  <option value="BANK">Bank Account (NEFT / RTGS / IMPS / Cheque)</option>
+                  <option value="CASH">Cash</option>
                 </select>
               </div>
             </div>

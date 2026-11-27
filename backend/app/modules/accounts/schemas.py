@@ -174,7 +174,7 @@ class PurchasePaymentCreate(BaseModel):
     payment_date: Optional[date] = None
     payment_mode: str = Field(default="BANK")  # BANK or CASH
     bank_account_id: Optional[int] = None
-    bank_account_code: Optional[str] = "ACC_HDFC_BANK"
+    bank_account_code: Optional[str] = None
     reference_number: Optional[str] = None
     tds_section: Optional[str] = None  # 194C, 194J, 194Q
     tds_rate: Optional[Decimal] = Decimal("0.00")

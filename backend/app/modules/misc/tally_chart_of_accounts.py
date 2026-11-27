@@ -9,10 +9,10 @@ Pre-defined Chart of Accounts Hierarchy:
 import logging
 from decimal import Decimal
 from typing import Dict, Any, List, Optional
-from sqlalchemy import select, or_, func
+from sqlalchemy import select, or_, func, update, delete
 from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.tenant_db.models import PrimaryGroup, GroupInPrimary, SubgroupInGroup, Account, CompanyBankAccount
+from app.tenant_db.models import PrimaryGroup, GroupInPrimary, SubgroupInGroup, Account, CompanyBankAccount, LedgerEntry, Voucher
 
 logger = logging.getLogger("tally.chart_of_accounts")
 
@@ -661,11 +661,7 @@ DEFAULT_CORE_ACCOUNTS_DATA = [
     {"code": "ACC_SUNDRY_DEBTORS", "name": "General Trade Debtors", "group": "DEBTORS", "subgroup": "DEBTORS_CORP", "opening_balance_type": "DR"},
     {"code": "ACC_SUNDRY_CREDITORS", "name": "General Trade Creditors", "group": "CREDITORS", "subgroup": "CRED_GENERAL", "opening_balance_type": "CR"},
 
-    # --- Bank & Cash Liquidity ---
-    {"code": "ACC_HDFC_BANK", "name": "HDFC Bank Operating Account", "group": "BANK", "subgroup": "BANK_CURRENT", "opening_balance_type": "DR"},
-    {"code": "ACC_ICICI_BANK", "name": "ICICI Bank Operating Account", "group": "BANK", "subgroup": "BANK_CURRENT", "opening_balance_type": "DR"},
-    {"code": "ACC_SBI_BANK", "name": "State Bank of India (SBI) Account", "group": "BANK", "subgroup": "BANK_CURRENT", "opening_balance_type": "DR"},
-    {"code": "ACC_CHEQUE_CLEARING", "name": "Cheques in Hand / Clearing Account", "group": "BANK", "subgroup": "BANK_CURRENT", "opening_balance_type": "DR"},
+    # --- Bank & Cash Liquidity (Only real user-created bank accounts belong in BANK groups) ---
     {"code": "ACC_CASH", "name": "Cash-in-hand Account", "group": "CASH", "subgroup": "CASH_MAIN", "opening_balance_type": "DR"},
     {"code": "ACC_PETTY_CASH", "name": "Petty Cash Account", "group": "CASH", "subgroup": "CASH_BRANCH", "opening_balance_type": "DR"},
 
@@ -902,6 +898,39 @@ async def seed_indian_accounting_chart_of_accounts(session: AsyncSession) -> Dic
         if hasattr(veh, "account_id") and veh.account_id != v_acc.id:
             veh.account_id = v_acc.id
             accounts_healed += 1
+
+    # 7. Purge legacy hardcoded dummy bank accounts (ACC_HDFC_BANK, ACC_ICICI_BANK, ACC_SBI_BANK, ACC_CHEQUE_CLEARING)
+    # Ensure ONLY real bank accounts created by users exist under Bank Accounts.
+    dummy_codes = ["ACC_HDFC_BANK", "ACC_ICICI_BANK", "ACC_SBI_BANK", "ACC_CHEQUE_CLEARING"]
+    dummy_accs = (await session.execute(
+        select(Account)
+        .options(selectinload(Account.company_bank_account))
+        .where(Account.code.in_(dummy_codes))
+    )).scalars().all()
+
+    for d_acc in dummy_accs:
+        # If this account was explicitly linked to a real CompanyBankAccount, do not touch it
+        if d_acc.company_bank_account:
+            continue
+
+        # Reassign any orphaned ledger entries or vouchers to default CompanyBankAccount or Cash
+        real_ba = (await session.execute(
+            select(CompanyBankAccount).where(CompanyBankAccount.is_active == True).order_by(CompanyBankAccount.is_default.desc(), CompanyBankAccount.id.asc())
+        )).scalars().first()
+        target_acc_id = real_ba.account_id if (real_ba and real_ba.account_id) else None
+        if not target_acc_id:
+            cash_a = (await session.execute(select(Account).where(Account.code == "ACC_CASH"))).scalars().first()
+            target_acc_id = cash_a.id if cash_a else None
+
+        if target_acc_id:
+            await session.execute(
+                update(LedgerEntry).where(LedgerEntry.account_id == d_acc.id).values(account_id=target_acc_id)
+            )
+            await session.execute(
+                update(Voucher).where(Voucher.account_id == d_acc.id).values(account_id=target_acc_id)
+            )
+
+        await session.delete(d_acc)
 
     await session.commit()
     logger.info(

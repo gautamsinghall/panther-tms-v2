@@ -251,6 +251,23 @@ interface AllocationRow {
   discount_amount: string;
 }
 
+interface CompanyBankAccount {
+  id: number;
+  bank_name: string;
+  custom_bank_name?: string | null;
+  account_holder_name: string;
+  account_number: string;
+  account_number_masked: string;
+  account_type?: string;
+  ifsc_code: string;
+  branch_name?: string | null;
+  ledger_name?: string | null;
+  account_id?: number | null;
+  issuing_office_id?: number;
+  is_default?: boolean;
+  is_active: boolean;
+}
+
 export default function PaymentVoucherPage() {
   const [data, setData] = useState<VoucherRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -261,6 +278,7 @@ export default function PaymentVoucherPage() {
   const [vendorsWithDueBills, setVendorsWithDueBills] = useState<VendorOption[]>([]);
   const [drivers, setDrivers] = useState<DriverOption[]>([]);
   const [hireChallans, setHireChallans] = useState<HireChallanOption[]>([]);
+  const [companyBankAccounts, setCompanyBankAccounts] = useState<CompanyBankAccount[]>([]);
   const [bankAccounts, setBankAccounts] = useState<AccountOption[]>([]);
   const [expenseAccounts, setExpenseAccounts] = useState<AccountOption[]>([]);
   const [seriesInfo, setSeriesInfo] = useState<any>(null);
@@ -344,7 +362,7 @@ export default function PaymentVoucherPage() {
       const activeOffice = getActiveOffice();
       const officeParam = activeOffice?.id ? `?office_id=${activeOffice.id}` : "";
 
-      const [stdRes, athRes, bthRes, sInfo, vendorsRes, dueVendorsRes, driversRes, challansRes, accountsRes, compRes, branchesRes] = await Promise.all([
+      const [stdRes, athRes, bthRes, sInfo, vendorsRes, dueVendorsRes, driversRes, challansRes, accountsRes, realBanksRes, compRes, branchesRes] = await Promise.all([
         apiClient<VoucherRecord[]>("/api/v1/accounts/vouchers?voucher_type=PAYMENT_VOUCHER").catch(() => []),
         apiClient<VoucherRecord[]>("/api/v1/accounts/vouchers?voucher_type=PAYMENT_ATH").catch(() => []),
         apiClient<VoucherRecord[]>("/api/v1/accounts/vouchers?voucher_type=PAYMENT_BTH").catch(() => []),
@@ -354,6 +372,7 @@ export default function PaymentVoucherPage() {
         apiClient<DriverOption[]>("/api/v1/transport/drivers").catch(() => []),
         apiClient<HireChallanOption[]>("/api/v1/transport/hire-challans").catch(() => []),
         apiClient<AccountOption[]>("/api/v1/misc/accounts").catch(() => []),
+        apiClient<CompanyBankAccount[]>("/api/v1/accounts/bank-accounts").catch(() => []),
         apiClient<CompanySettingData>("/api/v1/profile/company").catch(() => null),
         apiClient<BranchOption[]>("/api/v1/profile/branches").catch(() => []),
       ]);
@@ -371,6 +390,15 @@ export default function PaymentVoucherPage() {
       setHireChallans(challansRes);
       if (compRes) setCompany(compRes);
       if (branchesRes) setBranches(Array.isArray(branchesRes) ? branchesRes : []);
+
+      const activeRealBanks = (realBanksRes || []).filter((b) => b.is_active);
+      setCompanyBankAccounts(activeRealBanks);
+
+      // Pre-select default bank account if none chosen
+      if (activeRealBanks.length > 0) {
+        const defaultBank = activeRealBanks.find((b) => b.is_default) || activeRealBanks[0];
+        setBankAccountId((prev) => (!prev ? String(defaultBank.id) : prev));
+      }
 
       // Separate bank/cash vs expense accounts
       const liquid = accountsRes.filter((a) => {
@@ -542,6 +570,18 @@ export default function PaymentVoucherPage() {
     return pmt;
   }, [amountToPay, allocatedTotals.sumNet, paymentType]);
 
+  const selectedBankName = useMemo(() => {
+    if (paymentMode === "CASH") {
+      const cashAcc = bankAccounts.find((a) => String(a.id) === bankAccountId);
+      return cashAcc ? cashAcc.name : "Cash Account";
+    }
+    const bankAcc = companyBankAccounts.find((b) => String(b.id) === bankAccountId);
+    if (bankAcc) {
+      return `${bankAcc.custom_bank_name || bankAcc.bank_name} (${bankAcc.account_number_masked || bankAcc.account_number})`;
+    }
+    return "Company Bank Account";
+  }, [paymentMode, bankAccountId, bankAccounts, companyBankAccounts]);
+
   // KPI Calculations
   const kpis = useMemo(() => {
     const nonVoid = data.filter((v) => !v.is_void);
@@ -617,7 +657,8 @@ export default function PaymentVoucherPage() {
     setSelectedExpenseAccountId("");
     setCustomPartyName("");
     setPaymentMode("BANK");
-    setBankAccountId("");
+    const def = companyBankAccounts.find((b) => b.is_default) || companyBankAccounts[0];
+    setBankAccountId(def ? String(def.id) : "");
     setVoucherDate(new Date().toISOString().split("T")[0]);
     setReferenceNumber("");
     setChequeNumber("");
@@ -1617,25 +1658,50 @@ export default function PaymentVoucherPage() {
                   <option value="BANK">Bank Transfer (NEFT / RTGS / IMPS)</option>
                   <option value="CHEQUE">Cheque</option>
                   <option value="UPI">UPI / Digital QR</option>
-                  <option value="CASH">Cash in Hand</option>
+                  <option value="CASH">Cash</option>
                 </select>
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 tracking-tight mb-1 font-semibold">
-                  Pay From Which Account? <span className="text-rose-400">*</span>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 tracking-tight mb-1">
+                  {paymentMode === "CASH" ? "Cash Account" : "Bank Account"} <span className="text-rose-400">*</span>
                 </label>
                 <select
                   value={bankAccountId}
                   onChange={(e) => setBankAccountId(e.target.value)}
                   className="w-full h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#303036] bg-white dark:bg-[#101013] text-slate-900 dark:text-[#F5F5F7] placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all shadow-2xs"
                 >
-                  <option value="">-- Standard Bank / Cash Account --</option>
-                  {bankAccounts.map((a) => (
-                    <option key={a.id} value={a.id}>
-                      {a.name} ({a.code})
-                    </option>
-                  ))}
+                  {paymentMode === "CASH" ? (
+                    <>
+                      <option value="">-- Standard Cash Account --</option>
+                      {bankAccounts
+                        .filter((a) => {
+                          const n = (a.name || "").toLowerCase();
+                          const c = (a.code || "").toUpperCase();
+                          return n.includes("cash") || c.includes("CASH");
+                        })
+                        .map((a) => (
+                          <option key={a.id} value={a.id}>
+                            {a.name} ({a.code})
+                          </option>
+                        ))}
+                    </>
+                  ) : (
+                    <>
+                      <option value="">-- Choose Real Bank Account --</option>
+                      {companyBankAccounts.map((b) => (
+                        <option key={b.id} value={b.id}>
+                          {b.custom_bank_name || b.bank_name} - {b.account_number_masked || b.account_number} ({b.ifsc_code})
+                        </option>
+                      ))}
+                      {companyBankAccounts.length === 0 &&
+                        bankAccounts.map((a) => (
+                          <option key={a.id} value={a.id}>
+                            {a.name} ({a.code})
+                          </option>
+                        ))}
+                    </>
+                  )}
                 </select>
               </div>
 
@@ -2039,7 +2105,7 @@ export default function PaymentVoucherPage() {
                 )}
 
                 <div className="flex justify-between text-rose-600 dark:text-rose-400 border-t border-slate-200 dark:border-[#303036] pt-1 font-semibold">
-                  <span>Cr. Bank / Cash Account (Funds disbursed)</span>
+                  <span>Cr. {selectedBankName} (Funds disbursed)</span>
                   <span>{formatCurrency(parseFloat(amountToPay) || 0)}</span>
                 </div>
 

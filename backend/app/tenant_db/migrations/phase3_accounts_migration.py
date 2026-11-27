@@ -69,7 +69,6 @@ async def run_migration():
         accounts_data = [
             {"code": "ACC_FREIGHT_REV", "name": "Freight Revenue Account", "group": "REV_DIRECT", "opening_balance": Decimal("0.00"), "opening_balance_type": "CR"},
             {"code": "ACC_CASH", "name": "Cash Account", "group": "CASH", "opening_balance": Decimal("50000.00"), "opening_balance_type": "DR"},
-            {"code": "ACC_HDFC_BANK", "name": "HDFC Bank Operating Account", "group": "BANK", "opening_balance": Decimal("250000.00"), "opening_balance_type": "DR"},
             {"code": "ACC_GST_OUT_CGST", "name": "GST Output CGST", "group": "TAX", "opening_balance": Decimal("0.00"), "opening_balance_type": "CR"},
             {"code": "ACC_GST_OUT_SGST", "name": "GST Output SGST", "group": "TAX", "opening_balance": Decimal("0.00"), "opening_balance_type": "CR"},
             {"code": "ACC_GST_OUT_IGST", "name": "GST Output IGST", "group": "TAX", "opening_balance": Decimal("0.00"), "opening_balance_type": "CR"},

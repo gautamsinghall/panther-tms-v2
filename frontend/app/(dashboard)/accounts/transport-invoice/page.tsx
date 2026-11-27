@@ -1639,7 +1639,7 @@ export default function TransportInvoicePage() {
                     className="w-full h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#2B2E42] bg-white dark:bg-[#0E0F15] text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 shadow-2xs"
                   >
                     <option value="BANK">Bank Account (NEFT / RTGS / IMPS / Cheque)</option>
-                    <option value="CASH">Cash in Hand</option>
+                    <option value="CASH">Cash</option>
                   </select>
                 </div>
               </div>

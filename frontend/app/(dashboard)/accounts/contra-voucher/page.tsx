@@ -899,7 +899,7 @@ export default function ContraVoucherPage() {
                   </div>
                   <h4 className="font-semibold text-slate-900 dark:text-white text-xs">Transfer Between Banks</h4>
                   <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 leading-snug">
-                    Move funds from Bank A to Bank B (e.g. HDFC to ICICI) via NEFT/RTGS.
+                    Move funds from one company bank account to another via NEFT/RTGS.
                   </p>
                 </div>
                 <span className="text-[10px] text-indigo-700 dark:text-indigo-400 mt-2 font-mono font-semibold">

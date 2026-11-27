@@ -53,8 +53,10 @@ async def e2e_session():
         session.add(s_cv)
         await session.flush()
 
-        # 3. Seed Standard Accounts
+        # 3. Seed Standard Accounts & Bank Ledgers
         await accounts_service.ensure_standard_accounts(session)
+        for b_code in ("ACC_HDFC_BANK", "ACC_ICICI_BANK", "ACC_SBI_BANK"):
+            await accounts_service.get_account_by_code(session, b_code)
         await session.commit()
 
     async with async_session() as session:

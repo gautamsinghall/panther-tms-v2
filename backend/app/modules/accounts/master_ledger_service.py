@@ -1317,6 +1317,7 @@ async def ensure_unified_creditor_vendors(session: AsyncSession) -> None:
 
     acc_stmt = select(Account).where(
         or_(*acc_conditions),
+        Account.code != "ACC_SUNDRY_CREDITORS",
         Account.is_active == True,
     )
     accs = list((await session.execute(acc_stmt)).scalars().all())
