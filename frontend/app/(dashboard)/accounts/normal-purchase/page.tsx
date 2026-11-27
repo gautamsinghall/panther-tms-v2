@@ -1922,13 +1922,31 @@ export default function NormalPurchasePage() {
       {/* MODAL 4: Void Confirmation */}
       <ConfirmDialog
         isOpen={isVoidOpen}
-        onClose={() => setIsVoidOpen(false)}
+        onClose={() => {
+          setIsVoidOpen(false);
+          setVoidVoucherId(null);
+          setVoidReason("");
+        }}
         title={`Void Purchase Bill ${voidVoucherNumber}`}
         message="Are you sure you want to void this purchase bill? All linked ledger debit and credit entries will be reversed."
         confirmText={isVoiding ? "Voiding..." : "Void Bill"}
         onConfirm={handleVoidVoucher}
         variant="danger"
-      />
+        isLoading={isVoiding}
+      >
+        <div className="mt-3">
+          <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+            Reason for Voiding <span className="text-rose-500">*</span> (Min 5 characters)
+          </label>
+          <textarea
+            rows={2}
+            placeholder="Enter reason for voiding purchase bill..."
+            value={voidReason}
+            onChange={(e) => setVoidReason(e.target.value)}
+            className="w-full px-3.5 py-2 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#303036] bg-white dark:bg-[#101013] text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 shadow-2xs"
+          />
+        </div>
+      </ConfirmDialog>
 
       {/* MODAL 5: Print Purchase Bill (Standard Fleet Logistics Document) */}
       {mounted && isPrintModalOpen && printVoucher && typeof document !== "undefined" && createPortal(

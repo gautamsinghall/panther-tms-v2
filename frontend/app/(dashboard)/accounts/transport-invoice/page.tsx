@@ -1056,6 +1056,7 @@ export default function TransportInvoicePage() {
           return;
         }
         setVoidVoucherId(row.id);
+        setVoidReason("");
         setIsVoidOpen(true);
       },
     },
@@ -1959,14 +1960,29 @@ export default function TransportInvoicePage() {
         isOpen={isVoidOpen}
         onClose={() => {
           setIsVoidOpen(false);
+          setVoidVoucherId(null);
           setVoidReason("");
         }}
         onConfirm={handleVoidVoucher}
         title="Void Freight Transport Invoice"
         consequence="Voiding this invoice will post automatic contra-reversal ledger entries, restore the linked LR to unbilled status, and maintain a permanent audit trail. Please provide a formal reason."
-        confirmLabel="Confirm & Void Invoice"
+        confirmLabel={isVoiding ? "Voiding..." : "Confirm & Void Invoice"}
+        variant="danger"
         isLoading={isVoiding}
-      />
+      >
+        <div className="mt-3">
+          <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+            Audit Reason for Voiding <span className="text-rose-500">*</span>
+          </label>
+          <textarea
+            rows={2}
+            placeholder="Explain why this invoice is being voided..."
+            value={voidReason}
+            onChange={(e) => setVoidReason(e.target.value)}
+            className="w-full px-3.5 py-2 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#303036] bg-white dark:bg-[#101013] text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 shadow-2xs"
+          />
+        </div>
+      </ConfirmDialog>
     </div>
   );
 }
