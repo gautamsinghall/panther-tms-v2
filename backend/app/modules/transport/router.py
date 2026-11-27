@@ -1,4 +1,5 @@
 from typing import List, Dict, Any, Optional
+from decimal import Decimal
 from fastapi import APIRouter, Depends, status, UploadFile, File, Query, Form, HTTPException
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession

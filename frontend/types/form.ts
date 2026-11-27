@@ -14,6 +14,7 @@ export interface FormFieldDef {
   placeholder?: string;
   required?: boolean | ((values: Record<string, any>) => boolean);
   options?: FormFieldOption[]; // for select
+  allowCustom?: boolean; // allow free-text / custom entry in SearchableSelect
   onSearch?: (query: string) => Promise<FormFieldOption[]>;
   countryFieldName?: string; // Optional field name of corresponding country
   disabled?: boolean;

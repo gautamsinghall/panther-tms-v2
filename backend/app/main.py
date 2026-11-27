@@ -535,6 +535,7 @@ async def lifespan(app: FastAPI):
                             "remark TEXT",
                             "total_freight NUMERIC(12, 2) DEFAULT 0.00 NOT NULL",
                             "advance_amount NUMERIC(12, 2) DEFAULT 0.00 NOT NULL",
+                            "advance_diesel_slip NUMERIC(12, 2) DEFAULT 0.00",
                             "detention_charge NUMERIC(12, 2) DEFAULT 0.00 NOT NULL",
                             "commission_amount NUMERIC(12, 2) DEFAULT 0.00 NOT NULL",
                             "mamul_hammali NUMERIC(12, 2) DEFAULT 0.00 NOT NULL",

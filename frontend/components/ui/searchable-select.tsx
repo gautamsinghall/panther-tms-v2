@@ -27,6 +27,7 @@ export interface SearchableSelectProps {
   className?: string;
   buttonClassName?: string;
   size?: "sm" | "md";
+  allowCustom?: boolean;
   onAddNew?: () => void;
   addNewLabel?: string;
   addNewTitle?: string;
@@ -58,6 +59,7 @@ export function SearchableSelect({
   className,
   buttonClassName,
   size = "md",
+  allowCustom = false,
   onAddNew,
   addNewLabel,
   addNewTitle,
@@ -80,6 +82,9 @@ export function SearchableSelect({
     [...availableOptions, ...options, ...(lastSelectedOption ? [lastSelectedOption] : [])].find((opt) => String(opt.value) === String(value)) ||
     (value !== undefined && value !== null && value !== ""
       ? [...availableOptions, ...options, ...(lastSelectedOption ? [lastSelectedOption] : [])].find((opt) => String(opt.value).toLowerCase() === String(value).toLowerCase().trim())
+      : undefined) ||
+    (allowCustom && value !== undefined && value !== null && String(value).trim() !== ""
+      ? { label: String(value), value: String(value), subLabel: "Custom Entry" }
       : undefined);
 
   // Filter options based on user text input (matches label, value, subLabel, and keywords)
@@ -293,6 +298,20 @@ export function SearchableSelect({
               >
                 <span>{placeholder}</span>
                 {(!value || value === "") && <Check className="w-3.5 h-3.5 text-slate-400" />}
+              </button>
+            )}
+
+            {allowCustom && searchQuery.trim().length > 0 && !filteredOptions.some((o) => String(o.value).toLowerCase() === searchQuery.trim().toLowerCase()) && (
+              <button
+                type="button"
+                onClick={() => handleSelect(searchQuery.trim().toUpperCase())}
+                className="w-full text-left px-2.5 py-2 rounded-lg text-xs font-semibold text-indigo-700 dark:text-indigo-300 bg-indigo-50/80 dark:bg-indigo-950/50 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 transition-colors flex items-center justify-between cursor-pointer border border-indigo-200 dark:border-indigo-800/60 mb-1"
+              >
+                <div className="flex items-center gap-1.5 truncate">
+                  <span className="font-normal text-slate-500 dark:text-slate-400">Use:</span>
+                  <span className="font-mono font-bold">{searchQuery.trim().toUpperCase()}</span>
+                </div>
+                <span className="text-[10px] uppercase font-mono px-1.5 py-0.5 rounded bg-indigo-100 dark:bg-indigo-900/80 text-indigo-800 dark:text-indigo-200 shrink-0">Select</span>
               </button>
             )}
 

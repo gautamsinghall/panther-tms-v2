@@ -894,7 +894,7 @@ class LoadingSlipBase(BaseModel):
     vehicle_number: str = Field(..., min_length=2, max_length=30)
     consigner_id: Optional[int] = None
     consigner_name: Optional[str] = None
-    phone: str = Field(..., min_length=5, max_length=50)
+    phone: str = Field(default="N/A", max_length=50)
     email: Optional[str] = None
     pan: Optional[str] = None
     lorry_coordinator: Optional[str] = None
@@ -914,6 +914,13 @@ class LoadingSlipBase(BaseModel):
     mamul_hammali: Decimal = Decimal("0.00")
     total_amount: Decimal = Decimal("0.00")
     hire_challan_id: Optional[int] = None
+
+    @field_validator("phone", mode="before")
+    @classmethod
+    def normalize_loading_slip_phone(cls, v):
+        if not v or not str(v).strip():
+            return "N/A"
+        return str(v).strip()
 
     @field_validator("loading_date", mode="before")
     @classmethod

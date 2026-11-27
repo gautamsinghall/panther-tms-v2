@@ -12,6 +12,7 @@ from app.modules.transport.service import (
     get_all_loading_slips,
     update_loading_slip,
 )
+from app.modules.transport.router import _build_loading_slip_response
 
 
 @pytest.mark.asyncio
@@ -91,5 +92,20 @@ async def test_loading_slip_series_and_lifecycle():
         all_slips = await get_all_loading_slips(session, office_id=branch.id, include_unassigned=True)
         assert len(all_slips) == 1
         assert all_slips[0].slip_number == "DEL-LS-0001"
+
+        # 5. Build Loading Slip response (verifies Decimal is defined and advance_diesel_slip is serialized)
+        resp = _build_loading_slip_response(all_slips[0])
+        assert resp.slip_number == "DEL-LS-0001"
+        assert resp.advance_diesel_slip == Decimal("0.00")
+        assert resp.vehicle_number == "MH12PQ4567"
+
+        # 6. Test phone normalization when empty/whitespace
+        payload_no_phone = LoadingSlipCreate(
+            slip_date=date(2026, 11, 26),
+            issuing_office_id=branch.id,
+            vehicle_number="KA01AB1234",
+            phone="",
+        )
+        assert payload_no_phone.phone == "N/A"
 
     await engine.dispose()

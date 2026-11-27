@@ -208,7 +208,7 @@ export default function LoadingSlipPage() {
         lrsRes,
         seriesRes,
       ] = await Promise.all([
-        apiClient<LoadingSlipRecord[]>(`/api/v1/transport/loading-slips${officeParam}`),
+        apiClient<LoadingSlipRecord[]>(`/api/v1/transport/loading-slips${officeParam}`).catch(() => []),
         apiClient<any[]>("/api/v1/transport/company-vehicles").catch(() => []),
         apiClient<any[]>("/api/v1/transport/market-vehicles").catch(() => []),
         apiClient<ConsignerOption[]>("/api/v1/general/consigners").catch(() => []),
@@ -317,7 +317,7 @@ export default function LoadingSlipPage() {
   const activeNextSlipNumber =
     editingSlip?.slip_number || activeSeries?.next_number_formatted || seriesInfo?.next_number_formatted || "";
 
-  // Combined Company & Market vehicles dropdown
+  // Combined Company & Market vehicles dropdown, plus LR and history vehicles
   const truckOptions = useMemo(() => {
     const seen = new Set<string>();
     const combined: Array<{ label: string; value: string; subLabel?: string; keywords?: string[] }> = [];
@@ -342,6 +342,38 @@ export default function LoadingSlipPage() {
     companyVehicles.forEach(addVehicle);
     marketVehicles.forEach(addVehicle);
 
+    // Also include vehicles from LR records
+    lrs.forEach((lr) => {
+      if (lr.vehicle_number) {
+        const key = lr.vehicle_number.trim().toUpperCase();
+        if (key && !seen.has(key)) {
+          seen.add(key);
+          combined.push({
+            label: key,
+            value: key,
+            subLabel: `From LR #${lr.lr_number}`,
+            keywords: ["LR", lr.lr_number],
+          });
+        }
+      }
+    });
+
+    // Also include vehicles from existing loading slips
+    data.forEach((slip) => {
+      if (slip.vehicle_number) {
+        const key = slip.vehicle_number.trim().toUpperCase();
+        if (key && !seen.has(key)) {
+          seen.add(key);
+          combined.push({
+            label: key,
+            value: key,
+            subLabel: "Loading Slip History",
+            keywords: ["History", slip.slip_number],
+          });
+        }
+      }
+    });
+
     if (editingSlip?.vehicle_number) {
       const editKey = editingSlip.vehicle_number.trim().toUpperCase();
       if (editKey && !seen.has(editKey)) {
@@ -349,7 +381,7 @@ export default function LoadingSlipPage() {
       }
     }
     return combined;
-  }, [companyVehicles, marketVehicles, editingSlip]);
+  }, [companyVehicles, marketVehicles, lrs, data, editingSlip]);
 
   const consignerOptions = useMemo(() => {
     const list = consigners
@@ -635,7 +667,8 @@ export default function LoadingSlipPage() {
           type: "select",
           required: true,
           options: truckOptions,
-          placeholder: "Select company or market truck",
+          allowCustom: true,
+          placeholder: "Select or type truck number",
           onAddNew: () => setIsVehicleTypePromptOpen(true),
           addNewLabel: "+ Add Truck",
           addNewTitle: "Add new Company or Market truck",
@@ -681,24 +714,23 @@ export default function LoadingSlipPage() {
           onChange: (val) => {
             const matched = lrs.find((l) => String(l.id) === String(val));
             if (!matched) return;
-            const cur = currentFormValuesRef.current || {};
-            if (!cur.vehicle_number && matched.vehicle_number) {
+            if (matched.vehicle_number) {
               formSetFieldValueRef.current?.("vehicle_number", matched.vehicle_number.trim().toUpperCase());
             }
-            if (!cur.origin_location_id && matched.origin_location_id) {
+            if (matched.origin_location_id) {
               formSetFieldValueRef.current?.("origin_location_id", String(matched.origin_location_id));
             }
-            if (!cur.destination_location_id && matched.destination_location_id) {
+            if (matched.destination_location_id) {
               formSetFieldValueRef.current?.("destination_location_id", String(matched.destination_location_id));
             }
-            if (!cur.consigner_id && matched.consigner_id) {
+            if (matched.consigner_id) {
               const cid = String(matched.consigner_id);
               formSetFieldValueRef.current?.("consigner_id", cid);
               const cons = consigners.find((c) => String(c.id) === cid);
               if (cons) {
-                if (!cur.phone && cons.phone) formSetFieldValueRef.current?.("phone", cons.phone);
-                if (!cur.email && cons.email) formSetFieldValueRef.current?.("email", cons.email);
-                if (!cur.pan && cons.pan) formSetFieldValueRef.current?.("pan", cons.pan.toUpperCase());
+                if (cons.phone) formSetFieldValueRef.current?.("phone", cons.phone);
+                if (cons.email) formSetFieldValueRef.current?.("email", cons.email);
+                if (cons.pan) formSetFieldValueRef.current?.("pan", cons.pan.toUpperCase());
               }
             }
           },

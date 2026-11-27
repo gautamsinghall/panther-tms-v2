@@ -1,17 +1,17 @@
 # Graph Report - panther-tms-v2  (2026-11-27)
 
 ## Corpus Check
-- 444 files · ~726,389 words
+- 444 files · ~726,647 words
 - Verdict: corpus is large enough that graph structure adds value.
 - Unclassified: 15 file(s) not represented in the graph (top: (none) 7, .example 2, .ini 2)
 
 ## Summary
-- 4972 nodes · 20017 edges · 196 communities (98 shown, 98 thin omitted)
-- Extraction: 87% EXTRACTED · 13% INFERRED · 0% AMBIGUOUS · INFERRED: 2687 edges (avg confidence: 0.94)
+- 4976 nodes · 20008 edges · 194 communities (97 shown, 97 thin omitted)
+- Extraction: 87% EXTRACTED · 13% INFERRED · 0% AMBIGUOUS · INFERRED: 2563 edges (avg confidence: 0.94)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `3e86bd2a`
+- Built from commit: `a710bc81`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -19,7 +19,7 @@
 - StructuredCard
 - GSPProviderInterface
 - sqlalchemy
-- LR
+- test_voucher_edit_e2e.py
 - button.tsx
 - transport/router.py
 - cn
@@ -30,7 +30,7 @@
 - transport/service.py
 - Accounts Voucher & Banking System (2)
 - AsyncSession
-- Consigner
+- LR
 - test_issuing_office_system.py
 - General Consignor & Consignee Masters
 - FreightTigerClient
@@ -38,22 +38,22 @@
 - errors.py
 - general/router.py
 - reports/router.py
-- chat_with_copilot
+- Consigner
 - react
 - general/schemas.py
 - getStoredAuth
 - tenant_db/models.py
 - general-invoice/page.tsx
-- knowledge.py
+- test_gps_tracking.py
 - home/service.py
-- series_service.py
-- AIDraftStore
+- test_purchase_register_voucher_e2e.py
+- test_transport_invoice_voucher_e2e.py
 - tenant_db/models.py
 - test_issuing_office_system.py
 - FASTag Toll & Tracking Service (6)
 - settings/router.py
 - accounts/service.py
-- Job
+- einvoicing/service.py
 - auth/service.py
 - FASTag Toll & Tracking Service (7)
 - settings/service.py
@@ -61,7 +61,7 @@
 - control/service.py
 - reports/service.py
 - get
-- create_general_invoice
+- CompanySetting
 - stream_chat_with_copilot
 - daybook/page.tsx
 - hc-register/page.tsx
@@ -70,40 +70,35 @@
 - state-select.tsx
 - Client Component Flow
 - CompanySetting
-- lr_draft_service.py
+- test_ai_phase3_lr_creation.py
 - AsyncSession
 - get_consignment_360
 - statements/service.py
 - transport/schemas.py
 - accounts/schemas.py
-- TestSIMTrackingWallet
-- RedisDraftBackend
+- transport/models.py
+- Any
 - package.json
-- BaseDraftBackend
+- create_user
 - Tsconfig.Json Component Flow
 - Components.Json Component Flow
 - tracking/fastag/page.tsx
 - master-ledger/page.tsx
-- InMemoryDraftBackend
 - Client Component Flow (2)
 - PantherKnowledgeEngine
 - Client Component Flow (3)
 - resolve_freight_tiger_token
 - Button
-- Any
 - job_draft_service.py
 - Docker Compose.Yml Component Flow
 - AI Hire Challan Service (3)
-- test_loading_slip.py
 - gps-tracking-map.tsx
-- auth/router.py
 - Multi-Tenant Auth & Permissions (7)
 - RazorpayClient
-- confirm_job_draft
 - main.py
 - Docker Compose.Yml Component Flow (2)
 - Docker Compose.Yml Component Flow (3)
-- Branch
+- test_ai_real_postgres_redis.py
 - test_loading_slip.py
 - Docker Compose.Yml Component Flow (4)
 - Docker Compose.Yml Component Flow (5)
@@ -111,7 +106,6 @@
 - Docker Compose.Yml Component Flow (6)
 - statements/router.py
 - Docker Compose.Yml Component Flow (7)
-- create_company_vehicle
 - Docker Compose.Yml Component Flow (8)
 - Multi-Tenant Auth & Permissions (9)
 - Docker Compose.Yml Component Flow (9)
@@ -167,7 +161,7 @@
 
 ## God Nodes (most connected - your core abstractions)
 1. `User` - 575 edges
-2. `Branch` - 332 edges
+2. `Branch` - 314 edges
 3. `Tenant` - 259 edges
 4. `PageHeader()` - 205 edges
 5. `apiClient()` - 200 edges
@@ -195,19 +189,19 @@
 ## Hyperedges (group relationships)
 - **Core Transport Execution & Billing Flow** — docs_architecture_transport_chain, docs_prd_transport_module, docs_ai_tms_knowledge_base_glossary_lr_gr_bilty, docs_ai_tms_knowledge_base_glossary_pod [EXTRACTED 1.00]
 
-## Communities (196 total, 98 thin omitted)
+## Communities (194 total, 97 thin omitted)
 
 ### Community 0 - "StructuredCard"
-Cohesion: 0.07
-Nodes (32): build_add_vehicle_driver_response(), _build_hc_idempotent_response(), build_how_to_lr_response(), _build_lr_idempotent_response(), get_ai_status(), get_context_suggestions(), get_lr_explanation_markdown(), get_lr_guide_response() (+24 more)
+Cohesion: 0.11
+Nodes (21): build_add_vehicle_driver_response(), _build_lr_idempotent_response(), NavigationSuggestion, StructuredCard, addConsigneePrompt(), driverBalance(), format_currency(), getHowTo() (+13 more)
 
 ### Community 2 - "sqlalchemy"
-Cohesion: 0.09
-Nodes (21): seed_plans_and_entitlements(), close_all_connections(), get_control_db(), get_tenant_engine(), get_tenant_session_maker(), lifespan(), normalize_tenant_locations_background(), seed_demo() (+13 more)
+Cohesion: 0.06
+Nodes (28): seed_plans_and_entitlements(), close_all_connections(), get_control_db(), get_tenant_engine(), get_tenant_session_maker(), lifespan(), normalize_tenant_locations_background(), _call_nvidia() (+20 more)
 
-### Community 3 - "LR"
-Cohesion: 0.11
-Nodes (26): get_arrival_report_register(), get_lr_booking_register(), get_unbilled_lrs(), get_unused_series(), get_all_jobs(), get_all_lrs(), get_lr_by_id(), LR (+18 more)
+### Community 3 - "test_voucher_edit_e2e.py"
+Cohesion: 0.07
+Nodes (36): ContraVoucherCreate, JournalEntryLineCreate, JournalVoucherCreate, create_contra_voucher(), create_journal_voucher(), generate_voucher_number(), get_account_by_code(), get_journal_adjustment_types_list() (+28 more)
 
 ### Community 4 - "button.tsx"
 Cohesion: 0.04
@@ -215,47 +209,47 @@ Nodes (61): ApiCenterData, DLApiPage(), TaxCounterData, TaxTransactionItem, ApiC
 
 ### Community 5 - "transport/router.py"
 Cohesion: 0.05
-Nodes (94): add_sim_trip_comment(), auto_sync_fastag_endpoint(), _build_arrival_report_response(), _build_hire_challan_response(), _build_loading_slip_response(), _build_lr_response(), close_sim_trip(), create_arrival_report() (+86 more)
+Nodes (99): add_sim_trip_comment(), auto_sync_fastag_endpoint(), _build_arrival_report_response(), _build_hire_challan_response(), _build_job_response(), _build_loading_slip_response(), _build_lr_response(), close_sim_trip() (+91 more)
 
 ### Community 6 - "cn"
 Cohesion: 0.04
 Nodes (73): ActiveTab, DashboardPage(), FunnelRow(), MetricKpiCard(), MetricKpiProps, GPSConfig, GPSTrackingPage(), TimelineItem (+65 more)
 
 ### Community 7 - "Fleet & Vehicle Maintenance Operations"
-Cohesion: 0.06
-Nodes (91): create_document(), create_service(), create_trip_advance(), create_trip_expense(), create_tyre(), delete_document(), delete_trip_expense(), delete_tyre() (+83 more)
+Cohesion: 0.05
+Nodes (94): create_document(), create_service(), create_trip_advance(), create_trip_expense(), create_tyre(), delete_document(), delete_trip_expense(), delete_tyre() (+86 more)
 
 ### Community 8 - "bank_statement_service.py"
-Cohesion: 0.06
-Nodes (35): answer_line_question(), bulk_confirm_ready_lines(), confirm_and_post_line(), find_bill_allocations_for_party(), get_skipped_entries_report(), ignore_statement_line(), import_and_queue_bank_statement(), map_party_and_reprocess() (+27 more)
+Cohesion: 0.07
+Nodes (31): answer_line_question(), bulk_confirm_ready_lines(), confirm_and_post_line(), find_bill_allocations_for_party(), get_skipped_entries_report(), ignore_statement_line(), import_and_queue_bank_statement(), map_party_and_reprocess() (+23 more)
 
 ### Community 9 - "classify_intent_and_entities"
-Cohesion: 0.06
-Nodes (24): classify_intent_and_entities(), clean_search_term(), extract_indian_vehicle_number(), extract_lr_number(), extract_raw_booking_slots(), extract_vehicle_prefix(), RouterResult, detect_language() (+16 more)
+Cohesion: 0.04
+Nodes (31): classify_intent_and_entities(), clean_search_term(), extract_indian_vehicle_number(), extract_lr_number(), extract_raw_booking_slots(), extract_vehicle_prefix(), RouterResult, detect_language() (+23 more)
 
 ### Community 10 - "sidebar.tsx"
 Cohesion: 0.08
 Nodes (34): ACTIONS, buildModuleDefinitionsFromNav(), FeatureDef, IndeterminateCheckbox(), ModuleDef, normalizeModuleId(), PermissionItem, RoleRecord (+26 more)
 
 ### Community 11 - "transport/service.py"
-Cohesion: 0.05
-Nodes (73): AppException, ArrivalReportCreate, add_sim_trip_comment(), auto_sync_all_in_transit_fastag(), check_and_deduct_fastag_credit(), check_and_deduct_sim_credit(), close_sim_trip(), create_arrival_report() (+65 more)
+Cohesion: 0.08
+Nodes (53): AppException, ArrivalReportCreate, add_sim_trip_comment(), create_arrival_report(), create_company_vehicle(), create_driver(), create_eway_bill(), create_manual_fastag_trip() (+45 more)
 
 ### Community 12 - "Accounts Voucher & Banking System (2)"
 Cohesion: 0.04
-Nodes (70): check_entitlement_limit(), bulk_confirm_ready_lines_endpoint(), confirm_and_post_statement_line_endpoint(), create_ath_payment(), create_bth_payment(), create_company_bank_account(), create_contra_voucher_endpoint(), create_credit_debit_note_endpoint() (+62 more)
+Nodes (74): check_entitlement_limit(), bulk_confirm_ready_lines_endpoint(), confirm_and_post_statement_line_endpoint(), create_ath_payment(), create_bth_payment(), create_company_bank_account(), create_contra_voucher_endpoint(), create_credit_debit_note_endpoint() (+66 more)
 
 ### Community 13 - "AsyncSession"
-Cohesion: 0.13
-Nodes (31): change_user_password(), create_new_branch(), delete_branch_record(), get_api_center(), get_company(), get_dl_counter(), get_dl_lookup(), get_email() (+23 more)
+Cohesion: 0.14
+Nodes (30): change_user_password(), create_new_branch(), get_api_center(), get_company(), get_dl_counter(), get_dl_lookup(), get_email(), get_fastag_wallet() (+22 more)
 
-### Community 14 - "Consigner"
-Cohesion: 0.06
-Nodes (39): generate_job_import_template(), generate_lr_import_template(), import_jobs_from_excel(), import_lrs_from_excel(), _normalize_header(), _normalize_lr_header(), _parse_date(), _resolve_or_create_location() (+31 more)
+### Community 14 - "LR"
+Cohesion: 0.03
+Nodes (84): allocate_or_validate_voucher_number(), _auto_provision_automatic_series(), check_series_status(), compute_series_display_data(), extract_sequence_number(), format_series_number(), get_all_used_numbers_for_doc(), get_manual_series_ranges() (+76 more)
 
 ### Community 15 - "test_issuing_office_system.py"
-Cohesion: 0.10
-Nodes (23): get_current_company_admin(), get_current_office(), ForbiddenException, require_accounts_permission(), _check(), require_reports_permission(), _check(), require_statements_permission() (+15 more)
+Cohesion: 0.11
+Nodes (16): build_readable_details(), extract_client_ip(), get_activity_filters(), get_activity_stats(), query_activity_logs(), UserOfficeAssignment, audit_db(), test_activity_logging_records_exact_details() (+8 more)
 
 ### Community 16 - "General Consignor & Consignee Masters"
 Cohesion: 0.07
@@ -263,27 +257,27 @@ Nodes (70): ensure_unified_creditor_vendors(), create_billing_client(), create_c
 
 ### Community 17 - "FreightTigerClient"
 Cohesion: 0.11
-Nodes (3): detect_telecom_operator(), FreightTigerClient, TestSIMTrackingFreightTiger
+Nodes (7): detect_telecom_operator(), FreightTigerClient, SIMTripCommentCreate, SIMTripCreate, SIMTripUpdate, TestSimOperatorAndRealData, TestSIMTrackingFreightTiger
 
 ### Community 18 - "fastag_provider/client.py"
-Cohesion: 0.14
-Nodes (4): FASTagProviderClient, haversine_distance_km(), parse_reader_read_time(), resolve_location_coordinates()
+Cohesion: 0.09
+Nodes (11): FASTagProviderClient, haversine_distance_km(), parse_reader_read_time(), resolve_location_coordinates(), FastagConfigResponse, FastagTrackingMetrics, FastagTrackResponse, FastagTripCreate (+3 more)
 
 ### Community 19 - "errors.py"
-Cohesion: 0.10
-Nodes (15): require_permission(), _check_permission(), _cors_headers_for_request(), DuplicateResourceException, EntitlementLockedException, InternalServerException, RateLimitException, register_error_handlers() (+7 more)
+Cohesion: 0.06
+Nodes (25): _cors_headers_for_request(), DuplicateResourceException, InternalServerException, RateLimitException, register_error_handlers(), app_exception_handler(), general_exception_handler(), http_exception_handler() (+17 more)
 
 ### Community 20 - "general/router.py"
 Cohesion: 0.10
 Nodes (54): create_billing_client(), create_consignee(), create_consigner(), create_designation(), create_group_company(), create_industry(), create_load_type(), create_location() (+46 more)
 
 ### Community 21 - "reports/router.py"
-Cohesion: 0.16
-Nodes (17): download_export_file(), get_account_ledger(), get_balance_sheet(), get_bank_reconciliation(), get_daybook(), get_export_job_status(), get_profit_and_loss(), get_purchase_register() (+9 more)
+Cohesion: 0.12
+Nodes (25): get_current_company_admin(), get_current_office(), require_permission(), _check_permission(), EntitlementLockedException, ForbiddenException, require_accounts_permission(), _check() (+17 more)
 
-### Community 22 - "chat_with_copilot"
-Cohesion: 0.07
-Nodes (40): chat_with_copilot(), ChatMessage, ChatRequest, anyio_backend(), copilot_env(), test_active_draft_destination_slot_filling(), test_cancel_discards_draft(), test_driver_advance_balance_lookup() (+32 more)
+### Community 22 - "Consigner"
+Cohesion: 0.04
+Nodes (70): ChatMessage, ChatRequest, CompanyVehicle, Consignee, Consigner, Location, MarketVehicle, Role (+62 more)
 
 ### Community 23 - "react"
 Cohesion: 0.04
@@ -299,87 +293,87 @@ Nodes (79): LoginPage(), PlanOption, PLANS, SignupPage(), BillAllocationItem, Br
 
 ### Community 26 - "tenant_db/models.py"
 Cohesion: 0.07
-Nodes (41): list_duties_and_taxes_ledgers(), list_vendor_ledgers(), verify_and_heal_chart_of_accounts(), activate_employee_imprest(), create_account(), create_group_in_primary(), delete_account(), delete_group_in_primary() (+33 more)
+Nodes (32): list_duties_and_taxes_ledgers(), list_vendor_ledgers(), verify_and_heal_chart_of_accounts(), seed_indian_accounting_chart_of_accounts(), Account, Driver, GroupInPrimary, GroupNature (+24 more)
 
 ### Community 27 - "general-invoice/page.tsx"
 Cohesion: 0.11
 Nodes (19): BillAllocationItem, BillingClientRecord, DEFAULT_TAX_CATEGORIES, INDIAN_STATES, LedgerEntry, LRRecord, SeriesRangeItem, ServiceLineInput (+11 more)
 
-### Community 28 - "knowledge.py"
-Cohesion: 0.12
-Nodes (13): build_system_prompt(), format_page_registry_entry(), get_page_registry_entry(), parse_page_context(), resolve_navigation_suggestions(), build_page_help_response(), get_greeting_response(), get_page_awareness_response() (+5 more)
+### Community 28 - "test_gps_tracking.py"
+Cohesion: 0.10
+Nodes (19): clean_vehicle_number(), GPSConfigResponse, GPSFleetCounts, GPSFleetResponse, GPSTrackResponse, GPSTripInfo, GPSVehicleItem, extract_location_text() (+11 more)
 
 ### Community 29 - "home/service.py"
 Cohesion: 0.13
 Nodes (30): get_business_overview(), get_financial_analysis(), get_fleet_operations(), get_own_fleet(), get_real_notifications(), ActiveTransitMovement, BusinessOverviewData, CorridorVolume (+22 more)
 
-### Community 30 - "series_service.py"
-Cohesion: 0.14
-Nodes (18): allocate_or_validate_voucher_number(), _auto_provision_automatic_series(), check_series_status(), compute_series_display_data(), ensure_series_table_schema(), extract_sequence_number(), format_series_number(), get_all_used_numbers_for_doc() (+10 more)
+### Community 30 - "test_purchase_register_voucher_e2e.py"
+Cohesion: 0.21
+Nodes (10): PurchaseBillCreate, PurchaseBillItemCreate, PurchasePaymentCreate, e2e_session(), test_hire_challan_integration_and_duplicate_prevention(), test_ineligible_blocked_itc_section_17_5(), test_inter_state_purchase_bill_and_payment_settlement(), test_intra_state_purchase_bill_fcm() (+2 more)
 
-### Community 31 - "AIDraftStore"
-Cohesion: 0.13
-Nodes (3): AIDraftStore, test_real_redis_draft_persistence_and_locking(), test_real_redis_multi_process_concurrency_lock()
+### Community 31 - "test_transport_invoice_voucher_e2e.py"
+Cohesion: 0.29
+Nodes (8): ReceiptAgainstInvoiceCreate, TransportInvoiceCreate, create_transport_invoice_from_lr(), test_gta_rcm_transport_invoice(), test_inter_state_transport_invoice_and_bill_wise_receipts(), test_intra_state_transport_invoice_fcm(), test_unbilled_and_invoice_register_reports(), test_voiding_protection_and_reversal()
 
 ### Community 32 - "tenant_db/models.py"
 Cohesion: 0.05
-Nodes (94): activate_employee_imprest_endpoint(), create_account(), create_charge_head(), create_employee(), create_group_in_primary(), create_primary_group(), create_subgroup(), create_tax_category() (+86 more)
+Nodes (109): activate_employee_imprest_endpoint(), create_account(), create_charge_head(), create_employee(), create_group_in_primary(), create_primary_group(), create_subgroup(), create_tax_category() (+101 more)
 
 ### Community 33 - "test_issuing_office_system.py"
-Cohesion: 0.15
-Nodes (24): get_arrival_register(), get_hc_register(), get_invoice_register(), get_lr_booking_register(), get_lr_client_wise(), get_pending_hc(), get_unbilled(), get_unused_series() (+16 more)
+Cohesion: 0.13
+Nodes (28): get_arrival_register(), get_hc_register(), get_invoice_register(), get_lr_booking_register(), get_lr_client_wise(), get_pending_hc(), get_unbilled(), get_unused_series() (+20 more)
 
 ### Community 34 - "FASTag Toll & Tracking Service (6)"
-Cohesion: 0.11
-Nodes (31): ApiCenterTestRequest, ApiCenterTestResponse, BranchBase, BranchCreate, BranchResponse, ChangePasswordRequest, CompanySettingResponse, DLLookupResponse (+23 more)
+Cohesion: 0.10
+Nodes (32): ApiCenterTestRequest, ApiCenterTestResponse, BranchBase, BranchCreate, BranchResponse, ChangePasswordRequest, CompanySettingResponse, DLLookupResponse (+24 more)
 
 ### Community 35 - "settings/router.py"
-Cohesion: 0.13
-Nodes (36): list_roles(), map_user_to_list_item(), ActivityFiltersResponse, ActivityOfficeOption, ActivityStatsResponse, ActivityUserOption, AdminSettingItem, AdminSettingResponse (+28 more)
+Cohesion: 0.14
+Nodes (33): create_role(), map_user_to_list_item(), ActivityFiltersResponse, ActivityOfficeOption, ActivityStatsResponse, ActivityUserOption, AdminSettingItem, AdminSettingResponse (+25 more)
 
 ### Community 36 - "accounts/service.py"
 Cohesion: 0.04
-Nodes (92): get_or_create_party_account(), CompanyBankAccountResponse, PaymentAllocationItem, PaymentVoucherCreate, PurchaseBillCreate, PurchaseBillItemCreate, PurchasePaymentCreate, ReceiptAgainstInvoiceCreate (+84 more)
+Nodes (93): CompanyBankAccountCreate, CompanyBankAccountResponse, CreditDebitNoteCreate, GeneralInvoiceCreate, GeneralInvoiceItemCreate, PaymentAllocationItem, PaymentVoucherCreate, ReceiptAllocationItem (+85 more)
 
-### Community 37 - "Job"
-Cohesion: 0.13
-Nodes (22): compute_canonical_hash(), _build_job_response(), JobCreate, JobUpdate, LRCreate, LRUpdate, create_job(), create_lr() (+14 more)
+### Community 37 - "einvoicing/service.py"
+Cohesion: 0.36
+Nodes (7): get_gsp_provider(), cancel_irn(), generate_irn_for_voucher(), get_einvoice_by_irn(), get_irn_list(), EInvoiceRecord, EInvoiceStatus
 
 ### Community 38 - "auth/service.py"
 Cohesion: 0.09
-Nodes (28): get_current_user(), build_user_navigation(), get_me(), get_user_navigation(), refresh_token(), LoginRequest, OfficeSummary, RefreshTokenRequest (+20 more)
+Nodes (31): get_current_user(), build_user_navigation(), get_me(), get_user_navigation(), login(), logout(), refresh_token(), LoginRequest (+23 more)
 
 ### Community 39 - "FASTag Toll & Tracking Service (7)"
-Cohesion: 0.17
-Nodes (34): get_gst_pan_client(), TaxApiCounterResponse, TaxApiTransactionItem, change_password(), check_and_deduct_tax_credit(), create_branch(), delete_branch(), get_branches() (+26 more)
+Cohesion: 0.19
+Nodes (32): get_gst_pan_client(), TaxApiCounterResponse, TaxApiTransactionItem, check_and_deduct_tax_credit(), create_branch(), delete_branch(), get_branches(), get_company_setting() (+24 more)
 
 ### Community 40 - "settings/service.py"
-Cohesion: 0.09
-Nodes (31): create_new_role(), create_new_user(), create_series_category(), create_staff_recipient(), delete_existing_role(), delete_series_category(), delete_series_master(), delete_staff_recipient() (+23 more)
+Cohesion: 0.10
+Nodes (29): ensure_series_table_schema(), create_series_category(), create_series_master(), create_staff_recipient(), delete_existing_role(), delete_series_category(), delete_series_master(), delete_staff_recipient() (+21 more)
 
 ### Community 41 - "sidebar.tsx"
 Cohesion: 0.03
 Nodes (74): DashboardLayout(), WorkspaceCanvas(), CompanyVehicleRecord, CompanyVehiclesPageProps, DriverOption, OwnerOption, BranchOption, ChargeHeadOption (+66 more)
 
 ### Community 42 - "control/service.py"
-Cohesion: 0.08
-Nodes (33): PlatformAdmin, WebhookEvent, create_subscription(), get_tenant_info(), list_plans(), provision_new_tenant(), razorpay_webhook(), signup_complete() (+25 more)
+Cohesion: 0.10
+Nodes (31): WebhookEvent, create_subscription(), get_tenant_info(), list_plans(), provision_new_tenant(), razorpay_webhook(), signup_complete(), signup_initiate() (+23 more)
 
 ### Community 43 - "reports/service.py"
-Cohesion: 0.14
-Nodes (36): BalanceSheetAccountItem, BalanceSheetGroupItem, BalanceSheetResponse, BankReconciliationResponse, BankReconTransaction, DaybookEntry, DaybookResponse, ExportJobCreate (+28 more)
+Cohesion: 0.13
+Nodes (38): trigger_report_export(), BalanceSheetAccountItem, BalanceSheetGroupItem, BalanceSheetResponse, BankReconciliationResponse, BankReconTransaction, DaybookEntry, DaybookResponse (+30 more)
 
 ### Community 44 - "get"
 Cohesion: 0.12
-Nodes (12): get_permissions_schema(), check_series(), get_activity_filters(), get_activity_stats(), get_manual_series_ranges(), get_permissions_schema_endpoint(), list_activity_logs(), list_admin_settings() (+4 more)
+Nodes (20): get_permissions_schema(), check_series(), create_series_category(), create_series_master(), create_staff_recipient(), get_activity_filters(), get_activity_stats(), get_email_settings() (+12 more)
 
-### Community 45 - "create_general_invoice"
-Cohesion: 0.12
-Nodes (25): CreditDebitNoteCreate, GeneralInvoiceCreate, GeneralInvoiceItemCreate, ReceiptAllocationItem, ReceiptVoucherCreate, create_general_invoice(), test_commercial_note_without_gst_adjustment(), test_credit_note_over_adjustment_prevention() (+17 more)
+### Community 45 - "CompanySetting"
+Cohesion: 0.29
+Nodes (4): get_email_setting(), update_email_setting(), CompanySetting, EmailSetting
 
 ### Community 46 - "stream_chat_with_copilot"
 Cohesion: 0.06
-Nodes (32): _matches_permission(), clean_vehicle_number(), get_active_lr_draft(), get_blocked_delete_message(), get_bulk_pii_refusal_message(), stream_chat_with_copilot(), execute_accounting_tool(), execute_branch_tool() (+24 more)
+Nodes (33): _matches_permission(), list_driver_ledgers(), sanitize_chat_history_for_external_llm(), scrub_user_message_pii(), get_active_lr_draft(), stream_chat_with_copilot(), execute_accounting_tool(), execute_branch_tool() (+25 more)
 
 ### Community 47 - "daybook/page.tsx"
 Cohesion: 0.18
@@ -391,11 +385,11 @@ Nodes (9): AVAILABLE_COLUMNS, ColumnConfig, formatDateDisplay(), formatOfficeNam
 
 ### Community 49 - "Tenant"
 Cohesion: 0.05
-Nodes (61): Plan, Tenant, get_authorized_navigation_catalog(), classify_operational_intent(), execute_lr_tool(), execute_tracking_tool(), execute_vehicle_tool(), test_api_chat_endpoint_live_mock_response() (+53 more)
+Nodes (65): Plan, PlatformAdmin, Tenant, get_authorized_navigation_catalog(), get_ai_tenant_db(), classify_operational_intent(), Branch, copilot_env() (+57 more)
 
 ### Community 50 - "einvoicing/service.py"
-Cohesion: 0.13
-Nodes (18): get_gsp_provider(), cancel_irn(), generate_irn(), get_einvoice(), get_taxpayer_details(), list_irns(), map_einvoice_response(), CancelIRNRequest (+10 more)
+Cohesion: 0.18
+Nodes (11): cancel_irn(), generate_irn(), get_einvoice(), get_taxpayer_details(), list_irns(), map_einvoice_response(), CancelIRNRequest, EInvoiceResponse (+3 more)
 
 ### Community 51 - "state-select.tsx"
 Cohesion: 0.27
@@ -409,37 +403,45 @@ Nodes (6): get_adaequare_client(), GstPanClient, test_live_search_when_env_crede
 Cohesion: 0.29
 Nodes (3): BranchUpdate, CompanySettingUpdate, EmailSettingUpdate
 
-### Community 54 - "lr_draft_service.py"
-Cohesion: 0.06
-Nodes (29): clean_party_name(), handle_conversational_lr_booking(), is_cancel_intent(), is_instructional_inquiry(), is_lr_booking_intent(), is_valid_indian_vehicle(), is_valid_location_name(), is_valid_party_name() (+21 more)
+### Community 54 - "test_ai_phase3_lr_creation.py"
+Cohesion: 0.04
+Nodes (48): QuotaExceededException, clean_party_name(), extract_booking_entities_via_llm(), handle_conversational_lr_booking(), is_cancel_intent(), is_grounded_in_text(), is_instructional_inquiry(), is_lr_booking_intent() (+40 more)
 
 ### Community 55 - "AsyncSession"
-Cohesion: 0.19
-Nodes (20): create_role(), create_series_category(), create_series_master(), create_staff_recipient(), create_user(), delete_role(), delete_series_category(), delete_series_master() (+12 more)
+Cohesion: 0.18
+Nodes (15): delete_role(), delete_series_category(), delete_series_master(), delete_staff_recipient(), update_admin_settings(), update_role(), update_series_category(), update_series_master() (+7 more)
 
 ### Community 56 - "get_consignment_360"
-Cohesion: 0.19
-Nodes (9): _build_search_variants(), _fmt_city(), _fmt_date(), _fmt_money(), _fmt_name(), get_arrival_lr_options(), get_consignment_360(), search_consignment_360_suggestions() (+1 more)
+Cohesion: 0.10
+Nodes (14): auto_sync_all_in_transit_fastag(), _build_search_variants(), check_and_deduct_fastag_credit(), _fmt_city(), _fmt_date(), _fmt_money(), _fmt_name(), get_arrival_lr_options() (+6 more)
 
 ### Community 57 - "statements/service.py"
 Cohesion: 0.24
 Nodes (21): GSTInputItem, GSTInputResponse, GSTOutputItem, GSTOutputResponse, OpeningBalanceAccount, OpeningBalanceResponse, OSCreditorItem, OSCreditorResponse (+13 more)
 
 ### Community 58 - "transport/schemas.py"
-Cohesion: 0.05
-Nodes (71): ArrivalReportBase, ArrivalReportResponse, ArrivalReportUpdate, CompanyVehicleBase, CompanyVehicleResponse, CompanyVehicleUpdate, Consignment360Response, Consignment360SearchResult (+63 more)
+Cohesion: 0.07
+Nodes (49): ArrivalReportBase, ArrivalReportResponse, ArrivalReportUpdate, CompanyVehicleBase, CompanyVehicleCreate, CompanyVehicleResponse, CompanyVehicleUpdate, Consignment360Response (+41 more)
 
 ### Community 59 - "accounts/schemas.py"
-Cohesion: 0.04
-Nodes (92): get_billing_client_ledger_detail(), get_company_bank_account_ledger_detail(), get_company_vehicle_ledger_detail(), get_driver_ledger_detail(), get_generic_account_ledger_detail(), get_master_ledger_summary(), get_staff_imprest_ledger_detail(), get_vendor_ledger_detail() (+84 more)
+Cohesion: 0.05
+Nodes (63): get_billing_client_ledger_detail(), get_company_bank_account_ledger_detail(), get_company_vehicle_ledger_detail(), get_driver_ledger_detail(), get_generic_account_ledger_detail(), get_master_ledger_summary(), get_or_create_party_account(), get_staff_imprest_ledger_detail() (+55 more)
 
-### Community 60 - "TestSIMTrackingWallet"
-Cohesion: 0.14
-Nodes (3): check_sim_wallet_balance(), SimWalletTransaction, TestSIMTrackingWallet
+### Community 60 - "transport/models.py"
+Cohesion: 0.07
+Nodes (19): check_and_deduct_sim_credit(), check_sim_wallet_balance(), close_sim_trip(), create_sim_trip(), parse_iso_or_utc(), record_tracking_ping(), simulate_sim_consent(), sync_all_active_sim_trips() (+11 more)
+
+### Community 61 - "Any"
+Cohesion: 0.06
+Nodes (4): BaseDraftBackend, InMemoryDraftBackend, json_serial(), RedisDraftBackend
 
 ### Community 62 - "package.json"
 Cohesion: 0.06
 Nodes (44): dependencies, class-variance-authority@^0.7.1, clsx@^2.1.1, framer-motion@^13.4.1, html2canvas@^1.4.1, jspdf@^4.2.1, lucide-react@^0.428.0, next@^14.2.10 (+36 more)
+
+### Community 63 - "create_user"
+Cohesion: 1.00
+Nodes (3): create_user(), UserCreate, create_new_user()
 
 ### Community 64 - "Tsconfig.Json Component Flow"
 Cohesion: 0.11
@@ -462,24 +464,24 @@ Cohesion: 0.24
 Nodes (5): DlClient, get_dl_client(), hunt_for_driver_data(), normalize_dl_date(), normalize_dl_dob()
 
 ### Community 70 - "PantherKnowledgeEngine"
-Cohesion: 0.07
-Nodes (14): _dynamic_navigation_chunks(), KnowledgeChunk, PantherKnowledgeEngine, rewrite_followup_query(), sanitize_chunk_text(), _tms_knowledge_chunks(), test_bilingual_glossary_enrichment(), test_frontend_pages_knowledge_chunks() (+6 more)
+Cohesion: 0.11
+Nodes (7): _dynamic_navigation_chunks(), KnowledgeChunk, PantherKnowledgeEngine, rewrite_followup_query(), sanitize_chunk_text(), _tms_knowledge_chunks(), test_rag_engine_retrieves_new_chunks()
 
 ### Community 71 - "Client Component Flow (3)"
 Cohesion: 0.22
 Nodes (4): flatten_rc_payload(), get_rc_client(), normalize_rc_date(), RcClient
 
 ### Community 72 - "resolve_freight_tiger_token"
-Cohesion: 0.22
-Nodes (10): resolve_freight_tiger_token(), sanitize_ft_base_url(), ApiCenterSettingResponse, ApiCenterSettingUpdate, WheelsEyeTestRequest, WheelsEyeTestResponse, get_api_center_setting(), test_wheelseye_connection() (+2 more)
+Cohesion: 0.25
+Nodes (8): resolve_freight_tiger_token(), sanitize_ft_base_url(), ApiCenterSettingResponse, ApiCenterSettingUpdate, WheelsEyeTestRequest, get_api_center_setting(), update_api_center_setting(), test_api_center_wheelseye_schema()
 
 ### Community 73 - "Button"
 Cohesion: 0.03
 Nodes (148): Branch, CompanyBankAccount, CompanyBankAccountsPage(), INDIAN_BANKS, ContraAccountOption, ContraType, ContraVoucherPage(), LedgerEntry (+140 more)
 
 ### Community 75 - "job_draft_service.py"
-Cohesion: 0.07
-Nodes (22): build_job_preview_card(), handle_conversational_job_booking(), is_job_cancel_intent(), parse_job_entities_from_text(), resolve_or_create_job_location(), resolve_or_create_job_party(), validate_and_update_job_draft(), extract_booking_entities_via_llm() (+14 more)
+Cohesion: 0.20
+Nodes (6): build_job_preview_card(), handle_conversational_job_booking(), parse_job_entities_from_text(), resolve_or_create_job_location(), resolve_or_create_job_party(), validate_and_update_job_draft()
 
 ### Community 76 - "Docker Compose.Yml Component Flow"
 Cohesion: 0.18
@@ -489,25 +491,13 @@ Nodes (14): interval, retries, test, timeout, healthcheck, command, container_na
 Cohesion: 0.14
 Nodes (14): Glossary: FTL vs LTL / Part-Load Operations, Glossary: LR (Lorry Receipt), GR and Bilty, Glossary: Trip Manifest & Consignment List, Glossary: Proof of Delivery (POD) & ePOD, Glossary: POD vs Delivery Status Updates, Transport Core Chain (Job -> LR -> HireChallan -> Trip -> POD -> Invoice), Phase 2: Transport Module Core Operations, Phase 7: AI Knowledge Base Foundation (+6 more)
 
-### Community 78 - "test_loading_slip.py"
-Cohesion: 0.33
-Nodes (9): LoadingSlipCreate, _calculate_loading_slip_total(), create_loading_slip(), get_all_loading_slips(), get_loading_slip_by_id(), _populate_loading_slip_relations(), update_loading_slip(), LoadingSlip (+1 more)
-
 ### Community 79 - "gps-tracking-map.tsx"
 Cohesion: 0.09
 Nodes (26): dynamic, metadata, RootLayout(), viewport, buildFleetVehicleMarkerHtml(), buildSelectedTruckMarkerHtml(), DARK_MAP_STYLE, decodeOSRMPolyline() (+18 more)
 
-### Community 80 - "auth/router.py"
-Cohesion: 0.11
-Nodes (15): login(), logout(), TenantNotFoundException, get_tenant_by_company_code(), get_tenant_by_id(), get_tenant_id_from_request(), invalidate_tenant_cache(), sanitize_company_code() (+7 more)
-
-### Community 83 - "confirm_job_draft"
-Cohesion: 0.18
-Nodes (5): _build_job_idempotent_response(), clear_chat_session(), confirm_job_draft(), get_ai_tenant_db(), log_blocked_rbac_attempt()
-
 ### Community 84 - "main.py"
-Cohesion: 0.04
-Nodes (22): CacheControlMiddleware, health_check(), preflight_handler(), root(), test_accounts_double_entry_reconciliation_and_void(), test_einvoicing_lifecycle_and_taxpayer_lookup(), test_free_plan_limits_and_feature_locks(), test_misc_accounting_masters_crud() (+14 more)
+Cohesion: 0.03
+Nodes (29): CacheControlMiddleware, health_check(), preflight_handler(), root(), compute_canonical_hash(), normalize_val(), _call_groq(), _stream_groq() (+21 more)
 
 ### Community 85 - "Docker Compose.Yml Component Flow (2)"
 Cohesion: 0.18
@@ -517,13 +507,13 @@ Nodes (12): build, context, dockerfile, build, container_name, depends_on, envir
 Cohesion: 0.17
 Nodes (12): POSTGRES_DB, POSTGRES_PASSWORD, POSTGRES_USER, command, container_name, environment, image, networks (+4 more)
 
-### Community 87 - "Branch"
-Cohesion: 0.03
-Nodes (91): Entitlement, QuotaExceededException, AIDraft, normalize_vehicle_number(), validate_and_update_hc_draft(), confirm_hire_challan_draft(), confirm_lr_draft(), ConfirmHireChallanDraftRequest (+83 more)
+### Community 87 - "test_ai_real_postgres_redis.py"
+Cohesion: 0.04
+Nodes (53): Entitlement, AIDraft, AIDraftStore, build_hc_preview_card(), handle_conversational_hc_booking(), normalize_vehicle_number(), parse_hc_entities_from_text(), validate_and_update_hc_draft() (+45 more)
 
 ### Community 88 - "test_loading_slip.py"
-Cohesion: 0.12
-Nodes (6): LoadingSlipBase, LoadingSlipResponse, LoadingSlipUpdate, LRBase, LRInvoiceItem, LRResponse
+Cohesion: 0.10
+Nodes (14): LoadingSlipBase, LoadingSlipCreate, LoadingSlipUpdate, LRBase, LRInvoiceItem, LRUpdate, _calculate_loading_slip_total(), create_loading_slip() (+6 more)
 
 ### Community 89 - "Docker Compose.Yml Component Flow (4)"
 Cohesion: 0.18
@@ -538,16 +528,12 @@ Cohesion: 0.20
 Nodes (10): container_name, depends_on, environment, image, networks, ports, restart, redis (+2 more)
 
 ### Community 93 - "statements/router.py"
-Cohesion: 0.47
-Nodes (7): get_gst_input(), get_gst_output(), get_opening_balance_details(), get_os_creditor(), get_os_debtor(), get_tds_payable(), get_tds_return()
+Cohesion: 0.36
+Nodes (8): get_gst_input(), get_gst_output(), get_opening_balance_details(), get_os_creditor(), get_os_debtor(), get_tds_payable(), get_tds_return(), get_tenant_db()
 
 ### Community 94 - "Docker Compose.Yml Component Flow (7)"
 Cohesion: 0.22
 Nodes (8): networks, panther-net, driver, services, volumes, pgadmin_data, postgres_data, redis_data
-
-### Community 95 - "create_company_vehicle"
-Cohesion: 0.52
-Nodes (5): create_company_vehicle(), CompanyVehicleCreate, create_company_vehicle(), test_company_vehicle_automatic_ledger_creation(), test_company_vehicle_master_ledger_listing_and_summary()
 
 ### Community 96 - "Docker Compose.Yml Component Flow (8)"
 Cohesion: 0.33
@@ -582,32 +568,36 @@ Cohesion: 0.43
 Nodes (4): test_auth_login_and_me(), test_control_plans_and_tenant(), test_cross_tenant_token_rejection(), test_health_and_root()
 
 ### Community 198 - "update_email_settings"
-Cohesion: 0.20
-Nodes (6): get_email_settings(), update_email_settings(), EmailSettingUpdate, get_email_setting(), update_email_setting(), EmailSetting
+Cohesion: 0.33
+Nodes (3): update_email_settings(), EmailSettingUpdate, update_email_setting()
+
+### Community 200 - "email_service.py"
+Cohesion: 0.17
+Nodes (6): test_email_gateway(), EmailTestRequest, send_test_email_service(), build_test_email_html(), send_smtp_email(), _sync_send_smtp_email()
 
 ### Community 216 - "ai/router.py"
 Cohesion: 0.04
-Nodes (40): build_hc_preview_card(), handle_conversational_hc_booking(), is_hc_cancel_intent(), is_hire_challan_intent(), is_instructional_hc_inquiry(), parse_hc_entities_from_text(), is_instructional_job_inquiry(), is_job_booking_intent() (+32 more)
+Nodes (55): is_hc_cancel_intent(), is_hire_challan_intent(), is_instructional_hc_inquiry(), is_instructional_job_inquiry(), is_job_booking_intent(), is_job_cancel_intent(), build_system_prompt(), format_page_registry_entry() (+47 more)
 
 ## Knowledge Gaps
 - **55 isolated node(s):** `Razorpay Subscriptions & Webhook Processing`, `Double-Entry Ledger Accounts Model`, `Phase 3: Accounts, Misc & E-Invoicing`, `Fleet Cost, Tyre & Vehicle Maintenance Model`, `Phase 5: Fleet Management` (+50 more)
-  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 1668 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
-- **98 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 1671 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
+- **97 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `User` connect `transport/router.py` to `StructuredCard`, `LR`, `Fleet & Vehicle Maintenance Operations`, `bank_statement_service.py`, `Accounts Voucher & Banking System (2)`, `AsyncSession`, `Consigner`, `test_issuing_office_system.py`, `errors.py`, `general/router.py`, `reports/router.py`, `chat_with_copilot`, `tenant_db/models.py`, `knowledge.py`, `home/service.py`, `tenant_db/models.py`, `test_issuing_office_system.py`, `settings/router.py`, `accounts/service.py`, `Job`, `auth/service.py`, `FASTag Toll & Tracking Service (7)`, `settings/service.py`, `control/service.py`, `get`, `stream_chat_with_copilot`, `Tenant`, `lr_draft_service.py`, `AsyncSession`, `accounts/schemas.py`, `update_email_settings`, `PantherKnowledgeEngine`, `job_draft_service.py`, `auth/router.py`, `confirm_job_draft`, `Branch`, `ai/router.py`, `statements/router.py`, `create_company_vehicle`?**
-  _High betweenness centrality (0.113) - this node is a cross-community bridge._
-- **Are the 514 inferred relationships involving `User` (e.g. with `check_entitlement_limit()` and `get_current_company_admin()`) actually correct?**
-  _`User` has 514 INFERRED edges - model-reasoned connections that need verification._
+- **Why does `User` connect `transport/router.py` to `StructuredCard`, `test_voucher_edit_e2e.py`, `Fleet & Vehicle Maintenance Operations`, `bank_statement_service.py`, `classify_intent_and_entities`, `Accounts Voucher & Banking System (2)`, `AsyncSession`, `LR`, `test_issuing_office_system.py`, `general/router.py`, `reports/router.py`, `Consigner`, `tenant_db/models.py`, `home/service.py`, `tenant_db/models.py`, `test_issuing_office_system.py`, `settings/router.py`, `accounts/service.py`, `auth/service.py`, `FASTag Toll & Tracking Service (7)`, `settings/service.py`, `control/service.py`, `reports/service.py`, `get`, `CompanySetting`, `stream_chat_with_copilot`, `Tenant`, `test_ai_phase3_lr_creation.py`, `AsyncSession`, `create_user`, `update_email_settings`, `email_service.py`, `job_draft_service.py`, `test_ai_real_postgres_redis.py`, `ai/router.py`, `statements/router.py`?**
+  _High betweenness centrality (0.109) - this node is a cross-community bridge._
+- **Are the 428 inferred relationships involving `User` (e.g. with `check_entitlement_limit()` and `get_current_company_admin()`) actually correct?**
+  _`User` has 428 INFERRED edges - model-reasoned connections that need verification._
 - **What connects `Razorpay Subscriptions & Webhook Processing`, `Double-Entry Ledger Accounts Model`, `Phase 3: Accounts, Misc & E-Invoicing` to the rest of the system?**
   _55 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `StructuredCard` be split into smaller, more focused modules?**
-  _Cohesion score 0.07407407407407407 - nodes in this community are weakly interconnected._
-- **Why does `Branch` connect `Branch` to `StructuredCard`, `LR`, `transport/router.py`, `bank_statement_service.py`, `transport/service.py`, `Accounts Voucher & Banking System (2)`, `Consigner`, `test_issuing_office_system.py`, `general/router.py`, `reports/router.py`, `chat_with_copilot`, `tenant_db/models.py`, `knowledge.py`, `home/service.py`, `series_service.py`, `test_issuing_office_system.py`, `FASTag Toll & Tracking Service (6)`, `settings/router.py`, `accounts/service.py`, `Job`, `auth/service.py`, `FASTag Toll & Tracking Service (7)`, `settings/service.py`, `control/service.py`, `get`, `create_general_invoice`, `stream_chat_with_copilot`, `Tenant`, `lr_draft_service.py`, `AsyncSession`, `accounts/schemas.py`, `PantherKnowledgeEngine`, `job_draft_service.py`, `test_loading_slip.py`, `confirm_job_draft`, `ai/router.py`?**
-  _High betweenness centrality (0.039) - this node is a cross-community bridge._
-- **Are the 260 inferred relationships involving `Branch` (e.g. with `get_current_office()` and `get_user_office_context()`) actually correct?**
-  _`Branch` has 260 INFERRED edges - model-reasoned connections that need verification._
+  _Cohesion score 0.11201079622132254 - nodes in this community are weakly interconnected._
+- **Why does `Branch` connect `Tenant` to `StructuredCard`, `test_voucher_edit_e2e.py`, `transport/router.py`, `bank_statement_service.py`, `classify_intent_and_entities`, `transport/service.py`, `Accounts Voucher & Banking System (2)`, `LR`, `test_issuing_office_system.py`, `general/router.py`, `reports/router.py`, `Consigner`, `tenant_db/models.py`, `home/service.py`, `test_purchase_register_voucher_e2e.py`, `test_transport_invoice_voucher_e2e.py`, `test_issuing_office_system.py`, `FASTag Toll & Tracking Service (6)`, `settings/router.py`, `accounts/service.py`, `auth/service.py`, `FASTag Toll & Tracking Service (7)`, `settings/service.py`, `control/service.py`, `get`, `CompanySetting`, `stream_chat_with_copilot`, `test_ai_phase3_lr_creation.py`, `AsyncSession`, `create_user`, `job_draft_service.py`, `test_ai_real_postgres_redis.py`, `ai/router.py`, `test_loading_slip.py`?**
+  _High betweenness centrality (0.048) - this node is a cross-community bridge._
+- **Are the 241 inferred relationships involving `Branch` (e.g. with `get_current_office()` and `get_user_office_context()`) actually correct?**
+  _`Branch` has 241 INFERRED edges - model-reasoned connections that need verification._
 - **Should `sqlalchemy` be split into smaller, more focused modules?**
-  _Cohesion score 0.09417249417249417 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.06327006327006326 - nodes in this community are weakly interconnected._
