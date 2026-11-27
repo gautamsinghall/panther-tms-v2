@@ -467,6 +467,15 @@ async def lifespan(app: FastAPI):
                                     END IF;
                                 END $$;
                             """))
+                        await t_conn.execute(text("""
+                            DO $$
+                            BEGIN
+                                IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='transport_loading_slips' AND column_name='advance_diesel_slip') THEN
+                                    ALTER TABLE transport_loading_slips ALTER COLUMN advance_diesel_slip DROP NOT NULL;
+                                    ALTER TABLE transport_loading_slips ALTER COLUMN advance_diesel_slip SET DEFAULT 0.00;
+                                END IF;
+                            END $$;
+                        """))
                         for ls_col in [
                             "slip_series_id INTEGER REFERENCES settings_series_masters(id)",
                             "issuing_office_id INTEGER REFERENCES profile_branches(id)",

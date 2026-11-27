@@ -117,6 +117,7 @@ class GeneralInvoiceCreate(BaseModel):
     due_date: Optional[date] = None
     credit_period_days: Optional[int] = 30
     billing_client_id: Optional[int] = None
+    lr_id: Optional[int] = None
     party_name: Optional[str] = None
     party_gstin: Optional[str] = None
     place_of_supply: Optional[str] = None

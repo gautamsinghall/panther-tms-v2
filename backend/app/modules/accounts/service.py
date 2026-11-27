@@ -1330,6 +1330,7 @@ async def create_general_invoice(
         account_id=debtor_acc_id,
         issuing_office_id=target_office,
         billing_client_id=b_client_id,
+        lr_id=data.lr_id,
     )
     session.add(voucher)
     await session.flush()

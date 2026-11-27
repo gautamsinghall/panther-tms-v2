@@ -167,10 +167,23 @@ interface VoucherRecord {
   due_date?: string;
   credit_period_days?: number;
   billing_client_id?: number;
+  lr_id?: number;
   ledger_entries: LedgerEntry[];
   items?: VoucherItem[];
   bill_allocations?: BillAllocationItem[];
   created_at: string;
+}
+
+interface LRRecord {
+  id: number;
+  lr_number: string;
+  lr_date: string;
+  status?: string;
+  billing_client_id?: number;
+  billing_customer_name?: string;
+  consigner_name?: string;
+  consignee_name?: string;
+  vehicle_number?: string;
 }
 
 interface BillingClientRecord {
@@ -260,6 +273,7 @@ export default function GeneralInvoicePage() {
   const router = useRouter();
   const [data, setData] = useState<VoucherRecord[]>([]);
   const [clients, setClients] = useState<BillingClientRecord[]>([]);
+  const [lrs, setLrs] = useState<LRRecord[]>([]);
   const [taxCategories, setTaxCategories] = useState<TaxCategoryRecord[]>(DEFAULT_TAX_CATEGORIES);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -274,7 +288,7 @@ export default function GeneralInvoicePage() {
   // Create General Invoice Drawer state
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [selectedClientId, setSelectedClientId] = useState<string>("");
-  const [customPartyName, setCustomPartyName] = useState<string>("");
+  const [selectedLrId, setSelectedLrId] = useState<string>("");
   const [customPartyGstin, setCustomPartyGstin] = useState<string>("");
   const [placeOfSupply, setPlaceOfSupply] = useState<string>("Maharashtra");
   const [gstTreatment, setGstTreatment] = useState<string>("FCM");
@@ -353,15 +367,17 @@ export default function GeneralInvoicePage() {
     try {
       const activeOffice = getActiveOffice();
       const officeParam = activeOffice?.id ? `?office_id=${activeOffice.id}` : "";
-      const [vouchersRes, clientsRes, taxesRes, sInfo, manualRangesRes] = await Promise.all([
+      const [vouchersRes, clientsRes, taxesRes, sInfo, manualRangesRes, lrsRes] = await Promise.all([
         apiClient<VoucherRecord[]>("/api/v1/accounts/vouchers?voucher_type=GENERAL_INVOICE"),
         apiClient<BillingClientRecord[]>("/api/v1/general/billing-clients").catch(() => []),
         apiClient<TaxCategoryRecord[]>("/api/v1/misc/tax-categories").catch(() => []),
         apiClient<any>(`/api/v1/settings/series/check/GENERAL_INVOICE${officeParam}`).catch(() => null),
         apiClient<any>(`/api/v1/settings/series/manual-ranges/GENERAL_INVOICE${officeParam}`).catch(() => null),
+        apiClient<LRRecord[]>("/api/v1/transport/lrs").catch(() => []),
       ]);
       setData(Array.isArray(vouchersRes) ? vouchersRes : []);
       setClients(Array.isArray(clientsRes) ? clientsRes : []);
+      setLrs(Array.isArray(lrsRes) ? lrsRes : []);
 
       // Build comprehensive tax categories ensuring 0%, 5%, and 18% are present
       const rawTaxes: TaxCategoryRecord[] = Array.isArray(taxesRes) && taxesRes.length > 0 ? taxesRes : DEFAULT_TAX_CATEGORIES;
@@ -430,6 +446,21 @@ export default function GeneralInvoicePage() {
       if (client.credit_period_days) setCreditPeriodDays(client.credit_period_days);
     }
   }, [selectedClientId, clients]);
+
+  // When an LR is selected, optionally auto-suggest billing customer and reference number
+  useEffect(() => {
+    if (!selectedLrId) return;
+    const lr = lrs.find((l) => String(l.id) === String(selectedLrId));
+    if (lr) {
+      if (lr.billing_client_id && !selectedClientId) {
+        const clientExists = clients.some((c) => c.id === lr.billing_client_id);
+        if (clientExists) setSelectedClientId(String(lr.billing_client_id));
+      }
+      if (!refNumber && lr.lr_number) {
+        setRefNumber(lr.lr_number);
+      }
+    }
+  }, [selectedLrId, lrs, clients, selectedClientId, refNumber]);
 
   const seriesOptions = useMemo(() => {
     if (seriesInfo?.series_options && seriesInfo.series_options.length > 0) {
@@ -575,10 +606,15 @@ export default function GeneralInvoicePage() {
       return;
     }
 
+    if (!selectedClientId) {
+      toast.warning("Please select a billing customer.");
+      return;
+    }
+
     const client = clients.find((c) => String(c.id) === String(selectedClientId));
-    const finalPartyName = client ? client.name : customPartyName.trim();
+    const finalPartyName = client ? (client.company_name || client.name) : "";
     if (!finalPartyName) {
-      toast.warning("Please select a billing client or enter customer name.");
+      toast.warning("Please select a valid billing customer.");
       return;
     }
 
@@ -594,8 +630,9 @@ export default function GeneralInvoicePage() {
           voucher_number: effectiveNumber || undefined,
           invoice_number: effectiveNumber || undefined,
           series_id: parsedSeriesId,
-          billing_client_id: selectedClientId ? parseInt(selectedClientId, 10) : undefined,
+          billing_client_id: parseInt(selectedClientId, 10),
           party_name: finalPartyName,
+          lr_id: selectedLrId ? parseInt(selectedLrId, 10) : undefined,
           party_gstin: customPartyGstin.trim() || undefined,
           place_of_supply: placeOfSupply,
           gst_treatment: gstTreatment,
@@ -629,7 +666,7 @@ export default function GeneralInvoicePage() {
       setSuccessMessage("General Invoice generated and balanced in customer & revenue ledgers.");
       setIsCreateOpen(false);
       setSelectedClientId("");
-      setCustomPartyName("");
+      setSelectedLrId("");
       setCustomPartyGstin("");
       setRefNumber("");
       setCostCenter("");
@@ -1474,21 +1511,21 @@ export default function GeneralInvoicePage() {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 dark:text-slate-300 mb-1">
-                  Select Customer (Billing Client Ledger)
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  Billing Customer <span className="text-red-500">*</span>
                 </label>
                 <select
+                  required
                   value={selectedClientId}
                   onChange={(e) => {
                     setSelectedClientId(e.target.value);
                     if (!e.target.value) {
-                      setCustomPartyName("");
                       setCustomPartyGstin("");
                     }
                   }}
-                  className="w-full h-9 px-3 text-xs font-medium rounded-lg border border-slate-200 bg-white text-slate-900 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600"
+                  className="w-full h-9 px-3 text-xs font-medium rounded-lg border border-slate-200 dark:border-[#22232E] bg-white dark:bg-[#12131A] text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600"
                 >
-                  <option value="">-- Manual / Direct Customer Entry --</option>
+                  <option value="">Select Billing Customer</option>
                   {clients.map((c) => (
                     <option key={c.id} value={c.id}>
                       {c.name} {c.code ? `(${c.code})` : ""} {c.gstin ? `[GSTIN: ${c.gstin}]` : ""}
@@ -1496,30 +1533,29 @@ export default function GeneralInvoicePage() {
                   ))}
                 </select>
                 <span className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 block">
-                  Select existing debtor ledger, or type custom customer name below.
+                  Select registered billing customer ledger for invoicing.
                 </span>
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 dark:text-slate-300 mb-1">
-                  Customer / Debtor Name <span className="text-red-500">*</span>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  Lorry Receipt (LR)
                 </label>
-                <input
-                  type="text"
-                  required
-                  placeholder="Enter customer / debtor name"
-                  value={
-                    selectedClientId
-                      ? clients.find((c) => String(c.id) === selectedClientId)?.name || customPartyName
-                      : customPartyName
-                  }
-                  onChange={(e) => setCustomPartyName(e.target.value)}
-                  disabled={Boolean(selectedClientId)}
-                  className={cn(
-                    "w-full h-9 px-3 text-xs rounded-lg border border-slate-200 bg-white text-slate-900 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600",
-                    Boolean(selectedClientId) && "bg-slate-100 text-slate-600 dark:text-slate-400"
-                  )}
-                />
+                <select
+                  value={selectedLrId}
+                  onChange={(e) => setSelectedLrId(e.target.value)}
+                  className="w-full h-9 px-3 text-xs font-medium rounded-lg border border-slate-200 dark:border-[#22232E] bg-white dark:bg-[#12131A] text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600"
+                >
+                  <option value="">-- Select LR (Optional) --</option>
+                  {lrs.map((lr) => (
+                    <option key={lr.id} value={lr.id}>
+                      {lr.lr_number} ({formatDate(lr.lr_date)}){lr.billing_customer_name || lr.consigner_name ? ` — ${lr.billing_customer_name || lr.consigner_name}` : ""}{lr.vehicle_number ? ` | ${lr.vehicle_number}` : ""}
+                    </option>
+                  ))}
+                </select>
+                <span className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 block">
+                  Optionally link this general invoice to a consignment LR.
+                </span>
               </div>
             </div>
 
@@ -1635,23 +1671,23 @@ export default function GeneralInvoicePage() {
 
             <div className="border border-slate-200/90 dark:border-[#22232E] rounded-xl overflow-x-auto bg-white dark:bg-[#12131A]">
               <table className="w-full text-xs text-left">
-                <thead className="bg-slate-50 dark:bg-[#17171B] text-slate-700 dark:text-slate-300 dark:text-slate-300 font-semibold border-b border-slate-200/90 dark:border-[#22232E]">
+                <thead className="bg-slate-50 dark:bg-[#17171B] text-slate-700 dark:text-slate-300 font-semibold border-b border-slate-200/90 dark:border-[#22232E]">
                   <tr>
                     <th className="px-3 py-2 w-8">#</th>
                     <th className="px-3 py-2 min-w-[200px]">Service Description</th>
-                    <th className="px-3 py-2 w-28">SAC Code</th>
-                    <th className="px-3 py-2 w-24 text-right">Quantity</th>
-                    <th className="px-3 py-2 w-28 text-right">Rate (₹)</th>
+                    <th className="px-3 py-2 w-24">SAC Code</th>
+                    <th className="px-3 py-2 w-20 text-right">Quantity</th>
+                    <th className="px-3 py-2 w-24 text-right">Rate (₹)</th>
                     <th className="px-3 py-2 w-24 text-right">Discount (₹)</th>
-                    <th className="px-3 py-2 w-32">GST Category</th>
-                    <th className="px-3 py-2 w-28 text-right">Taxable</th>
+                    <th className="px-3 py-2 w-48 min-w-[175px]">GST Category</th>
+                    <th className="px-3 py-2 w-24 text-right">Taxable</th>
                     <th className="px-3 py-2 w-28 text-right">Total (₹)</th>
                     <th className="px-2 py-2 w-10 text-center"></th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                   {calculationSummary.computedLines.map((line, idx) => (
-                    <tr key={line.id} className="hover:bg-slate-50/50">
+                    <tr key={line.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40">
                       <td className="px-3 py-2 font-mono text-slate-500 dark:text-slate-400">{idx + 1}</td>
                       <td className="px-3 py-2">
                         <input
@@ -1660,7 +1696,7 @@ export default function GeneralInvoicePage() {
                           placeholder="Enter description of goods / services"
                           value={line.description}
                           onChange={(e) => handleLineChange(line.id, "description", e.target.value)}
-                          className="w-full h-8 px-2 text-xs rounded border border-slate-200 bg-white"
+                          className="w-full h-8 px-2.5 text-xs rounded-lg border border-slate-200 dark:border-[#22232E] bg-white dark:bg-[#12131A] text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600"
                         />
                       </td>
                       <td className="px-3 py-2">
@@ -1669,7 +1705,7 @@ export default function GeneralInvoicePage() {
                           placeholder="9967"
                           value={line.hsn_sac}
                           onChange={(e) => handleLineChange(line.id, "hsn_sac", e.target.value)}
-                          className="w-full h-8 px-2 text-xs font-mono rounded border border-slate-200 bg-white"
+                          className="w-full h-8 px-2.5 text-xs font-mono rounded-lg border border-slate-200 dark:border-[#22232E] bg-white dark:bg-[#12131A] text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600"
                         />
                       </td>
                       <td className="px-3 py-2">
@@ -1680,7 +1716,7 @@ export default function GeneralInvoicePage() {
                           required
                           value={line.quantity}
                           onChange={(e) => handleLineChange(line.id, "quantity", e.target.value)}
-                          className="w-full h-8 px-2 text-xs font-mono text-right rounded border border-slate-200 bg-white"
+                          className="w-full h-8 px-2 text-xs font-mono text-right rounded-lg border border-slate-200 dark:border-[#22232E] bg-white dark:bg-[#12131A] text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600"
                         />
                       </td>
                       <td className="px-3 py-2">
@@ -1691,7 +1727,7 @@ export default function GeneralInvoicePage() {
                           required
                           value={line.rate}
                           onChange={(e) => handleLineChange(line.id, "rate", e.target.value)}
-                          className="w-full h-8 px-2 text-xs font-mono text-right rounded border border-slate-200 bg-white"
+                          className="w-full h-8 px-2 text-xs font-mono text-right rounded-lg border border-slate-200 dark:border-[#22232E] bg-white dark:bg-[#12131A] text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600"
                         />
                       </td>
                       <td className="px-3 py-2">
@@ -1701,18 +1737,18 @@ export default function GeneralInvoicePage() {
                           min="0"
                           value={line.discount}
                           onChange={(e) => handleLineChange(line.id, "discount", e.target.value)}
-                          className="w-full h-8 px-2 text-xs font-mono text-right rounded border border-slate-200 bg-white"
+                          className="w-full h-8 px-2 text-xs font-mono text-right rounded-lg border border-slate-200 dark:border-[#22232E] bg-white dark:bg-[#12131A] text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600"
                         />
                       </td>
-                      <td className="px-3 py-2">
+                      <td className="px-3 py-2 min-w-[175px]">
                         <select
                           value={line.tax_category_id || String(taxCategories.find((t) => Number(t.igst_rate) === 18)?.id || "")}
                           onChange={(e) => handleLineChange(line.id, "tax_category_id", e.target.value)}
-                          className="w-full h-8 px-2 text-xs rounded border border-slate-200 bg-white"
+                          className="w-full h-8 px-2.5 text-xs font-medium rounded-lg border border-slate-200 dark:border-[#22232E] bg-white dark:bg-[#12131A] text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 cursor-pointer"
                         >
                           {taxCategories.map((tc) => (
                             <option key={tc.id} value={String(tc.id)}>
-                              {tc.name} ({tc.igst_rate}%)
+                              {tc.name.includes("%") ? tc.name : `${tc.name} (${tc.igst_rate}%)`}
                             </option>
                           ))}
                         </select>
@@ -1720,14 +1756,14 @@ export default function GeneralInvoicePage() {
                       <td className="px-3 py-2 font-mono text-right font-medium">
                         {formatCurrency(line.lineTaxable)}
                       </td>
-                      <td className="px-3 py-2 font-mono text-right font-bold text-slate-900">
+                      <td className="px-3 py-2 font-mono text-right font-bold text-slate-900 dark:text-white">
                         {formatCurrency(line.lineTotal)}
                       </td>
                       <td className="px-2 py-2 text-center">
                         <button
                           type="button"
                           onClick={() => handleRemoveLine(line.id)}
-                          className="text-slate-400 hover:text-red-600 p-1 rounded"
+                          className="text-slate-400 hover:text-red-600 dark:hover:text-red-400 p-1 rounded"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
@@ -1735,15 +1771,15 @@ export default function GeneralInvoicePage() {
                     </tr>
                   ))}
                 </tbody>
-                <tfoot className="bg-slate-50 border-t border-slate-200 font-semibold text-slate-900 dark:text-white">
+                <tfoot className="bg-slate-50 dark:bg-[#17171B] border-t border-slate-200 dark:border-[#22232E] font-semibold text-slate-900 dark:text-white">
                   <tr>
                     <td colSpan={7} className="px-3 py-2 text-right">
                       Subtotals:
                     </td>
-                    <td className="px-3 py-2 text-right font-mono text-indigo-700">
+                    <td className="px-3 py-2 text-right font-mono text-indigo-700 dark:text-indigo-400">
                       {formatCurrency(calculationSummary.taxableTotal)}
                     </td>
-                    <td className="px-3 py-2 text-right font-mono text-indigo-700 font-bold">
+                    <td className="px-3 py-2 text-right font-mono text-indigo-700 dark:text-indigo-400 font-bold">
                       {formatCurrency(calculationSummary.netReceivable)}
                     </td>
                     <td></td>
@@ -1793,8 +1829,8 @@ export default function GeneralInvoicePage() {
                     <td className="px-3 py-2 font-medium text-slate-900 dark:text-white">
                       <span className="font-bold text-blue-700 dark:text-blue-400 mr-1.5">[Dr.]</span>
                       {selectedClientId
-                        ? clients.find((c) => String(c.id) === String(selectedClientId))?.name || customPartyName.trim() || "Sundry Debtors Account"
-                        : customPartyName.trim() || "Sundry Debtors Account"}
+                        ? clients.find((c) => String(c.id) === String(selectedClientId))?.name || "Sundry Debtors Account"
+                        : "Sundry Debtors Account"}
                     </td>
                     <td className="px-3 py-2 text-slate-500 dark:text-slate-400">Sundry Debtors (Asset)</td>
                     <td className="px-3 py-2 font-mono text-right text-emerald-700 dark:text-emerald-400 font-bold">

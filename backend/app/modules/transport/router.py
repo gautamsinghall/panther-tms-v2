@@ -1549,6 +1549,7 @@ def _build_loading_slip_response(s: Any) -> LoadingSlipResponse:
         remark=s.remark,
         total_freight=s.total_freight,
         advance_amount=s.advance_amount,
+        advance_diesel_slip=getattr(s, "advance_diesel_slip", Decimal("0.00")) or Decimal("0.00"),
         detention_charge=s.detention_charge,
         commission_amount=s.commission_amount,
         mamul_hammali=s.mamul_hammali,

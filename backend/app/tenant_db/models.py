@@ -992,6 +992,7 @@ class LoadingSlip(TenantBase):
     remark = Column(Text, nullable=True)
     total_freight = Column(Numeric(12, 2), default=0, nullable=False)
     advance_amount = Column(Numeric(12, 2), default=0, nullable=False)
+    advance_diesel_slip = Column(Numeric(12, 2), default=0, server_default="0.00", nullable=True)
     detention_charge = Column(Numeric(12, 2), default=0, nullable=False)
     commission_amount = Column(Numeric(12, 2), default=0, nullable=False)
     mamul_hammali = Column(Numeric(12, 2), default=0, nullable=False)

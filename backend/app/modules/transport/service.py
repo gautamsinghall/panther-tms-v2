@@ -1388,6 +1388,8 @@ async def create_loading_slip(
     slip_dict["issuing_office_id"] = target_office_id
     slip_dict["created_by_user_id"] = user_id
     slip_dict["vehicle_number"] = data.vehicle_number.strip().upper()
+    if not slip_dict.get("advance_diesel_slip"):
+        slip_dict["advance_diesel_slip"] = Decimal("0.00")
 
     await _populate_loading_slip_relations(db, slip_dict)
 

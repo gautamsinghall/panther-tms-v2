@@ -824,6 +824,7 @@ class LoadingSlipBase(BaseModel):
     remark: Optional[str] = None
     total_freight: Decimal = Decimal("0.00")
     advance_amount: Decimal = Decimal("0.00")
+    advance_diesel_slip: Optional[Decimal] = Decimal("0.00")
     detention_charge: Decimal = Decimal("0.00")
     commission_amount: Decimal = Decimal("0.00")
     mamul_hammali: Decimal = Decimal("0.00")
@@ -844,7 +845,7 @@ class LoadingSlipBase(BaseModel):
             return None
         return v
 
-    @field_validator("total_freight", "advance_amount", "detention_charge", "commission_amount", "mamul_hammali", "total_amount", mode="before")
+    @field_validator("total_freight", "advance_amount", "detention_charge", "commission_amount", "mamul_hammali", "total_amount", "advance_diesel_slip", mode="before")
     @classmethod
     def coerce_empty_loading_slip_decimals(cls, v):
         if v == "" or v is None or (isinstance(v, str) and not v.strip()):
@@ -884,6 +885,7 @@ class LoadingSlipUpdate(BaseModel):
     remark: Optional[str] = None
     total_freight: Optional[Decimal] = None
     advance_amount: Optional[Decimal] = None
+    advance_diesel_slip: Optional[Decimal] = None
     detention_charge: Optional[Decimal] = None
     commission_amount: Optional[Decimal] = None
     mamul_hammali: Optional[Decimal] = None
@@ -903,7 +905,7 @@ class LoadingSlipUpdate(BaseModel):
             return None
         return v
 
-    @field_validator("total_freight", "advance_amount", "detention_charge", "commission_amount", "mamul_hammali", mode="before")
+    @field_validator("total_freight", "advance_amount", "detention_charge", "commission_amount", "mamul_hammali", "advance_diesel_slip", mode="before")
     @classmethod
     def coerce_empty_update_decimals(cls, v):
         if v == "" or (isinstance(v, str) and not v.strip()):

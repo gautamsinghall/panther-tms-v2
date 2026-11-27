@@ -71,6 +71,7 @@ async def test_loading_slip_series_and_lifecycle():
         assert slip.pan == "AAACA1234B"
         assert slip.loading_point == "Delhi"
         assert slip.unloading_point == "Mumbai"
+        assert slip.advance_diesel_slip == Decimal("0.00")
         # Total = (50000 + 2000) - (15000 + 1500 + 500) = 35000.00
         assert slip.total_amount == Decimal("35000.00")
 
