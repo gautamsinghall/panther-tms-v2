@@ -369,6 +369,13 @@ export default function MasterLedgerPage() {
   const [isLoadingDetail, setIsLoadingDetail] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
+  // Universal Direct Ledger Search State
+  const [universalSearch, setUniversalSearch] = useState("");
+  const [universalCategoryFilter, setUniversalCategoryFilter] = useState<string>("ALL");
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
+  const [openedFromUniversalSearch, setOpenedFromUniversalSearch] = useState(false);
+  const searchContainerRef = useRef<HTMLDivElement>(null);
+
   // Filters for Listing
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
@@ -395,21 +402,21 @@ export default function MasterLedgerPage() {
   const loadOverviewAndLists = async () => {
     try {
       setIsLoading(true);
-      // Fetch master ledger summaries as well as primary entity masters in parallel
-      const [sumRes, bcRes, vendRes, drvRes, vehRes, bankRes, rawClients, rawVendors, rawDrivers, rawVehicles, dutiesRes, staffImpRes] = await Promise.all([
+      // Fetch master ledger summaries as well as category lists in parallel
+      const [sumRes, bcRes, vendRes, drvRes, vehRes, bankRes, dutiesRes, staffImpRes] = await Promise.all([
         apiClient<MasterLedgerOverview>("/api/v1/accounts/master-ledger/summary").catch(() => null),
         apiClient<BillingClientLedgerItem[]>("/api/v1/accounts/master-ledger/billing-clients").catch(() => []),
         apiClient<VendorLedgerItem[]>("/api/v1/accounts/master-ledger/vendors").catch(() => []),
         apiClient<DriverLedgerItem[]>("/api/v1/accounts/master-ledger/drivers").catch(() => []),
         apiClient<CompanyVehicleLedgerItem[]>("/api/v1/accounts/master-ledger/company-vehicles").catch(() => []),
         apiClient<CompanyBankAccountLedgerItem[]>("/api/v1/accounts/master-ledger/company-bank-accounts").catch(() => []),
-        apiClient<any[]>("/api/v1/general/billing-clients").catch(() => []),
-        apiClient<any[]>("/api/v1/general/vendors").catch(() => []),
-        apiClient<any[]>("/api/v1/transport/drivers").catch(() => []),
-        apiClient<any[]>("/api/v1/transport/company-vehicles").catch(() => []),
         apiClient<DutiesAndTaxesLedgerItem[]>("/api/v1/accounts/master-ledger/duties-and-taxes").catch(() => []),
         apiClient<StaffImprestLedgerItem[]>("/api/v1/accounts/master-ledger/staff-imprest").catch(() => []),
       ]);
+      const rawClients: any[] = [];
+      const rawVendors: any[] = [];
+      const rawDrivers: any[] = [];
+      const rawVehicles: any[] = [];
       setBankAccounts(bankRes || []);
       setDutiesAndTaxes(dutiesRes || []);
       setStaffImprests(staffImpRes || []);
@@ -677,11 +684,23 @@ export default function MasterLedgerPage() {
 
   useEffect(() => {
     loadOverviewAndLists();
-    const handleFocus = () => {
-      loadOverviewAndLists();
+
+    const handleClickOutside = (event: MouseEvent) => {
+      if (searchContainerRef.current && !searchContainerRef.current.contains(event.target as Node)) {
+        setIsSearchFocused(false);
+      }
     };
-    window.addEventListener("focus", handleFocus);
-    return () => window.removeEventListener("focus", handleFocus);
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setIsSearchFocused(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
   }, []);
 
   // ----------------------------------------------------------------------------
@@ -1195,6 +1214,205 @@ export default function MasterLedgerPage() {
     });
   }, [staffImprests, searchQuery, statusFilter]);
 
+  // ----------------------------------------------------------------------------
+  // Universal Direct Ledger Search Memo & Indexing
+  // ----------------------------------------------------------------------------
+  interface UniversalLedgerItem {
+    id: number;
+    name: string;
+    code: string;
+    category: LedgerCategory;
+    categoryLabel: string;
+    badgeClass: string;
+    icon: any;
+    group: string;
+    subgroup?: string;
+    balance: number | string;
+    balanceType: string;
+    extraInfo?: string;
+  }
+
+  const allUniversalLedgers = useMemo<UniversalLedgerItem[]>(() => {
+    const items: UniversalLedgerItem[] = [];
+
+    // 1. Billing Clients
+    billingClients.forEach((c) => {
+      items.push({
+        id: c.id,
+        name: c.name,
+        code: c.code || `BC-${String(c.id).padStart(4, "0")}`,
+        category: "BILLING_CLIENT",
+        categoryLabel: "Billing Client",
+        badgeClass: "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/60 dark:text-blue-300 dark:border-blue-800",
+        icon: Building2,
+        group: "Current Assets",
+        subgroup: "Sundry Debtors • Corporate Debtors",
+        balance: c.outstanding_balance,
+        balanceType: c.balance_type || "DR",
+        extraInfo: [c.company_name, c.phone, c.gstin ? `GST: ${c.gstin}` : null, c.pan ? `PAN: ${c.pan}` : null].filter(Boolean).join(" • "),
+      });
+    });
+
+    // 2. Vendors
+    vendors.forEach((v) => {
+      items.push({
+        id: v.id,
+        name: v.name,
+        code: v.code || `VEND-${String(v.id).padStart(4, "0")}`,
+        category: "VENDOR",
+        categoryLabel: "Vendor",
+        badgeClass: "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800",
+        icon: Truck,
+        group: "Current Liabilities",
+        subgroup: "Sundry Creditors • Suppliers / Creditors",
+        balance: v.outstanding_payable,
+        balanceType: v.balance_type || "CR",
+        extraInfo: [v.phone, v.pan ? `PAN: ${v.pan}` : null, v.gstin ? `GST: ${v.gstin}` : null].filter(Boolean).join(" • "),
+      });
+    });
+
+    // 3. Drivers
+    drivers.forEach((d) => {
+      items.push({
+        id: d.id,
+        name: d.name,
+        code: d.driver_id || `DRV-${String(d.id).padStart(4, "0")}`,
+        category: "DRIVER",
+        categoryLabel: "Driver",
+        badgeClass: "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800",
+        icon: Users,
+        group: "Current Assets",
+        subgroup: "Loans & Advances (Asset) • Driver Advances",
+        balance: d.current_balance,
+        balanceType: d.balance_type || "DR",
+        extraInfo: [d.phone, d.license_number ? `DL: ${d.license_number}` : null].filter(Boolean).join(" • "),
+      });
+    });
+
+    // 4. Company Vehicles
+    companyVehicles.forEach((veh) => {
+      items.push({
+        id: veh.id,
+        name: veh.vehicle_number,
+        code: veh.ledger_code || veh.vehicle_type || `VEH-${String(veh.id).padStart(4, "0")}`,
+        category: "COMPANY_VEHICLE",
+        categoryLabel: "Vehicle Fleet",
+        badgeClass: "bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950/60 dark:text-purple-300 dark:border-purple-800",
+        icon: Truck,
+        group: veh.group_name || "Fixed Assets",
+        subgroup: veh.subgroup_name || "Company Owned Fleet Vehicles",
+        balance: veh.current_balance,
+        balanceType: veh.balance_type || "DR",
+        extraInfo: [veh.vehicle_type, veh.capacity_mt ? `${veh.capacity_mt} MT` : null, veh.default_driver_name ? `Driver: ${veh.default_driver_name}` : null].filter(Boolean).join(" • "),
+      });
+    });
+
+    // 5. Company Bank & Cash Accounts
+    bankAccounts.forEach((b) => {
+      items.push({
+        id: b.id,
+        name: b.bank_name || b.custom_bank_name || b.ledger_name || "Bank Account",
+        code: b.account_number_masked ? `A/C: ${b.account_number_masked}` : (b.ledger_name || b.account_type),
+        category: "COMPANY_BANK_ACCOUNT",
+        categoryLabel: "Bank / Cash",
+        badgeClass: "bg-cyan-50 text-cyan-700 border-cyan-200 dark:bg-cyan-950/60 dark:text-cyan-300 dark:border-cyan-800",
+        icon: Landmark,
+        group: "Current Assets",
+        subgroup: b.account_type === "CASH" ? "Cash-in-hand" : "Bank Accounts",
+        balance: b.current_balance,
+        balanceType: b.balance_type || "DR",
+        extraInfo: [b.branch_name, b.ifsc_code ? `IFSC: ${b.ifsc_code}` : null].filter(Boolean).join(" • "),
+      });
+    });
+
+    // 6. Duties & Taxes
+    dutiesAndTaxes.forEach((t) => {
+      items.push({
+        id: t.id,
+        name: t.name,
+        code: t.code,
+        category: "DUTIES_AND_TAXES",
+        categoryLabel: "Duties & Taxes",
+        badgeClass: "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/60 dark:text-rose-300 dark:border-rose-800",
+        icon: Receipt,
+        group: t.group_name || "Current Liabilities",
+        subgroup: t.subgroup_name || "Duties & Taxes",
+        balance: t.current_balance,
+        balanceType: t.balance_type || "CR",
+        extraInfo: [t.group_name, t.subgroup_name].filter(Boolean).join(" • "),
+      });
+    });
+
+    // 7. Staff Imprest
+    staffImprests.forEach((s) => {
+      items.push({
+        id: s.id,
+        name: s.name,
+        code: s.employee_code || s.account_code || `EMP-${s.id}`,
+        category: "STAFF_IMPREST",
+        categoryLabel: "Staff Imprest",
+        badgeClass: "bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950/60 dark:text-indigo-300 dark:border-indigo-800",
+        icon: Wallet,
+        group: "Current Assets",
+        subgroup: s.subgroup_name || "Staff Imprest & Operating Float",
+        balance: s.current_balance,
+        balanceType: s.balance_type || "DR",
+        extraInfo: [s.department, s.designation_title, s.phone].filter(Boolean).join(" • "),
+      });
+    });
+
+    return items;
+  }, [billingClients, vendors, drivers, companyVehicles, bankAccounts, dutiesAndTaxes, staffImprests]);
+
+  const categoryCounts = useMemo(() => {
+    const counts: Record<string, number> = {
+      ALL: allUniversalLedgers.length,
+      BILLING_CLIENT: 0,
+      VENDOR: 0,
+      DRIVER: 0,
+      COMPANY_BANK_ACCOUNT: 0,
+      COMPANY_VEHICLE: 0,
+      DUTIES_AND_TAXES: 0,
+      STAFF_IMPREST: 0,
+    };
+    allUniversalLedgers.forEach((item) => {
+      if (counts[item.category] !== undefined) {
+        counts[item.category]++;
+      }
+    });
+    return counts;
+  }, [allUniversalLedgers]);
+
+  const filteredUniversalLedgers = useMemo(() => {
+    let list = allUniversalLedgers;
+
+    if (universalCategoryFilter !== "ALL") {
+      list = list.filter((item) => item.category === universalCategoryFilter);
+    }
+
+    const q = universalSearch.trim().toLowerCase();
+    if (!q) {
+      return list.slice(0, 10);
+    }
+
+    return list.filter((item) => {
+      return (
+        item.name.toLowerCase().includes(q) ||
+        item.code.toLowerCase().includes(q) ||
+        (item.subgroup && item.subgroup.toLowerCase().includes(q)) ||
+        (item.group && item.group.toLowerCase().includes(q)) ||
+        (item.extraInfo && item.extraInfo.toLowerCase().includes(q))
+      );
+    });
+  }, [allUniversalLedgers, universalSearch, universalCategoryFilter]);
+
+  const handleSelectUniversalLedger = (item: UniversalLedgerItem) => {
+    setIsSearchFocused(false);
+    setOpenedFromUniversalSearch(true);
+    setActiveCategory(item.category);
+    loadDetailedLedger(item.category, item.id);
+  };
+
   return (
     <div className="space-y-6 pb-12">
       {/* Page Header */}
@@ -1235,6 +1453,178 @@ export default function MasterLedgerPage() {
       {/* ------------------------------------------------------------------------ */}
       {activeCategory === "OVERVIEW" && !selectedAccountId && (
         <div className="space-y-6">
+          {/* Universal Direct Ledger Search Box */}
+          <div ref={searchContainerRef} className="relative z-30">
+            <div className="bg-white dark:bg-[#17171B] rounded-2xl border border-indigo-100 dark:border-indigo-950/60 p-4 shadow-[0_4px_20px_-4px_rgba(79,70,229,0.08)] dark:shadow-none transition-all focus-within:border-indigo-500 focus-within:ring-4 focus-within:ring-indigo-500/10">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                {/* Search Input */}
+                <div className="relative flex-1">
+                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-indigo-500 dark:text-indigo-400">
+                    <Search className="w-5 h-5" />
+                  </div>
+                  <input
+                    type="text"
+                    value={universalSearch}
+                    onChange={(e) => {
+                      setUniversalSearch(e.target.value);
+                      setIsSearchFocused(true);
+                    }}
+                    onFocus={() => setIsSearchFocused(true)}
+                    placeholder="Search any ledger directly across Billing Clients, Vendors, Drivers, Bank Accounts, Vehicles, Duties & Taxes..."
+                    className="w-full pl-11 pr-10 py-2.5 text-sm bg-slate-50 dark:bg-[#101013] border border-slate-200/90 dark:border-[#303036] rounded-xl text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:bg-white dark:focus:bg-[#17171B] focus:border-indigo-500 transition-all font-medium"
+                  />
+                  {universalSearch && (
+                    <button
+                      type="button"
+                      onClick={() => setUniversalSearch("")}
+                      className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+
+                {/* Quick Category Indicator / Count */}
+                <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 shrink-0">
+                  <Badge variant="outline" className="text-xs font-semibold px-2.5 py-1 text-indigo-600 dark:text-indigo-400 border-indigo-200 dark:border-indigo-800 bg-indigo-50/50 dark:bg-indigo-950/40">
+                    {allUniversalLedgers.length} Ledgers Available
+                  </Badge>
+                </div>
+              </div>
+
+              {/* Dropdown Results Box */}
+              {isSearchFocused && (
+                <div className="absolute left-0 right-0 top-full mt-2 bg-white dark:bg-[#17171B] rounded-2xl border border-slate-200 dark:border-[#303036] shadow-2xl overflow-hidden z-50 animate-in fade-in-0 zoom-in-95 duration-150">
+                  {/* Category Filter Pills */}
+                  <div className="px-4 py-2.5 bg-slate-50/80 dark:bg-[#121215] border-b border-slate-100 dark:border-[#303036] flex items-center gap-1.5 overflow-x-auto scrollbar-none text-xs">
+                    <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mr-1">Filter:</span>
+                    {[
+                      { key: "ALL", label: "All" },
+                      { key: "BILLING_CLIENT", label: "Clients" },
+                      { key: "VENDOR", label: "Vendors" },
+                      { key: "DRIVER", label: "Drivers" },
+                      { key: "COMPANY_BANK_ACCOUNT", label: "Banks" },
+                      { key: "COMPANY_VEHICLE", label: "Vehicles" },
+                      { key: "DUTIES_AND_TAXES", label: "Taxes" },
+                      { key: "STAFF_IMPREST", label: "Imprest" },
+                    ].map((tab) => {
+                      const count = categoryCounts[tab.key] || 0;
+                      const isSelected = universalCategoryFilter === tab.key;
+                      return (
+                        <button
+                          key={tab.key}
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setUniversalCategoryFilter(tab.key);
+                          }}
+                          className={cn(
+                            "px-2.5 py-1 rounded-lg text-xs font-medium whitespace-nowrap transition-colors flex items-center gap-1.5",
+                            isSelected
+                              ? "bg-indigo-600 text-white shadow-xs"
+                              : "bg-white dark:bg-[#1E1E24] text-slate-600 dark:text-slate-300 border border-slate-200/80 dark:border-[#303036] hover:bg-slate-100 dark:hover:bg-slate-800"
+                          )}
+                        >
+                          <span>{tab.label}</span>
+                          <span className={cn("text-[10px] px-1.5 py-0.2 rounded-full font-bold", isSelected ? "bg-white/20 text-white" : "bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400")}>
+                            {count}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Results List */}
+                  <div className="max-h-[380px] overflow-y-auto divide-y divide-slate-100 dark:divide-[#303036]/60">
+                    {filteredUniversalLedgers.length === 0 ? (
+                      <div className="p-8 text-center">
+                        <FolderOpen className="w-8 h-8 text-slate-300 dark:text-slate-600 mx-auto mb-2" />
+                        <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+                          No ledger found matching &ldquo;{universalSearch}&rdquo;
+                        </p>
+                        <p className="text-xs text-slate-400 mt-1">
+                          Try searching by client name, vendor PAN, driver name, vehicle number, or bank IFSC.
+                        </p>
+                      </div>
+                    ) : (
+                      filteredUniversalLedgers.map((item) => {
+                        const ItemIcon = item.icon;
+                        const isDr = item.balanceType === "DR";
+                        const isCr = item.balanceType === "CR";
+                        const isNil = item.balanceType === "NIL" || Number(item.balance) === 0;
+
+                        return (
+                          <div
+                            key={`${item.category}-${item.id}`}
+                            onClick={() => handleSelectUniversalLedger(item)}
+                            className="p-3.5 px-4 hover:bg-indigo-50/60 dark:hover:bg-indigo-950/30 cursor-pointer transition-colors flex items-center justify-between gap-4 group"
+                          >
+                            <div className="flex items-center gap-3.5 min-w-0">
+                              <div className="w-9 h-9 rounded-xl bg-slate-100 dark:bg-[#202026] flex items-center justify-center shrink-0 group-hover:scale-105 group-hover:bg-indigo-100 dark:group-hover:bg-indigo-900/40 text-slate-600 dark:text-slate-300 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-all">
+                                <ItemIcon className="w-4 h-4" />
+                              </div>
+                              <div className="min-w-0">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <span className="font-semibold text-sm text-slate-900 dark:text-white truncate group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+                                    {item.name}
+                                  </span>
+                                  <span className={cn("text-[10px] font-bold px-2 py-0.5 rounded-md border whitespace-nowrap", item.badgeClass)}>
+                                    {item.categoryLabel}
+                                  </span>
+                                  {item.code && (
+                                    <span className="text-[11px] font-mono text-slate-400 dark:text-slate-500">
+                                      {item.code}
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-2 mt-0.5 text-xs text-slate-500 dark:text-slate-400 truncate">
+                                  <span className="font-medium text-slate-600 dark:text-slate-300">{item.subgroup || item.group}</span>
+                                  {item.extraInfo && (
+                                    <>
+                                      <span>•</span>
+                                      <span className="truncate">{item.extraInfo}</span>
+                                    </>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="text-right shrink-0 flex items-center gap-3">
+                              <div>
+                                <div className="font-bold text-sm text-slate-900 dark:text-white font-mono">
+                                  {formatCurrency(item.balance || 0)}
+                                </div>
+                                <span
+                                  className={cn(
+                                    "text-[10px] font-bold uppercase tracking-wider inline-block",
+                                    isDr
+                                      ? "text-blue-600 dark:text-blue-400"
+                                      : isCr
+                                      ? "text-emerald-600 dark:text-emerald-400"
+                                      : "text-slate-400 dark:text-slate-500"
+                                  )}
+                                >
+                                  {isNil ? "Settled" : isDr ? "Dr (Receivable / Advance)" : "Cr (Payable)"}
+                                </span>
+                              </div>
+                              <ChevronRight className="w-4 h-4 text-slate-300 dark:text-slate-600 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 group-hover:translate-x-0.5 transition-all" />
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+
+                  {/* Dropdown Footer */}
+                  <div className="px-4 py-2 bg-slate-50 dark:bg-[#121215] border-t border-slate-100 dark:border-[#303036] flex items-center justify-between text-[11px] text-slate-400">
+                    <span>Click any ledger to open complete double-entry statement</span>
+                    <span className="font-mono">Showing {filteredUniversalLedgers.length} of {allUniversalLedgers.length} ledgers</span>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
           {/* Section 1: 4 Operational Master Ledger Categories (4 by 4 Grid) */}
           <div>
             <div className="flex items-center justify-between mb-3">
@@ -2999,25 +3389,33 @@ export default function MasterLedgerPage() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setSelectedAccountId(null)}
+              onClick={() => {
+                setSelectedAccountId(null);
+                if (openedFromUniversalSearch) {
+                  setActiveCategory("OVERVIEW");
+                  setOpenedFromUniversalSearch(false);
+                }
+              }}
               className="gap-1.5 text-xs font-semibold"
             >
               <ArrowLeft className="w-3.5 h-3.5" />
-              Back to {
-                activeCategory === "BILLING_CLIENT"
-                  ? "Clients"
-                  : activeCategory === "VENDOR"
-                  ? "Vendors"
-                  : activeCategory === "DRIVER"
-                  ? "Drivers"
-                  : activeCategory === "COMPANY_VEHICLE"
-                  ? "Company Vehicles"
-                  : activeCategory === "COMPANY_BANK_ACCOUNT"
-                  ? "Bank Accounts"
-                  : activeCategory === "STAFF_IMPREST"
-                  ? "Staff Imprest"
-                  : "Duties & Taxes"
-              } List
+              {openedFromUniversalSearch
+                ? "Back to Master Ledger Overview"
+                : `Back to ${
+                    activeCategory === "BILLING_CLIENT"
+                      ? "Clients"
+                      : activeCategory === "VENDOR"
+                      ? "Vendors"
+                      : activeCategory === "DRIVER"
+                      ? "Drivers"
+                      : activeCategory === "COMPANY_VEHICLE"
+                      ? "Company Vehicles"
+                      : activeCategory === "COMPANY_BANK_ACCOUNT"
+                      ? "Bank Accounts"
+                      : activeCategory === "STAFF_IMPREST"
+                      ? "Staff Imprest"
+                      : "Duties & Taxes"
+                  } List`}
             </Button>
 
             <div className="flex items-center gap-2">

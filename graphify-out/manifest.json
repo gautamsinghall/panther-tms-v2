@@ -264,9 +264,9 @@
     "semantic_hash": "8483392e7b1950ebaef3c70eeeb59371"
   },
   "backend/app/modules/accounts/master_ledger_service.py": {
-    "mtime": 1795782364.6679935,
-    "seen": 1795782447.0545354,
-    "ast_hash": "154024df9967f7997b61d6a424961afd",
+    "mtime": 1795786499.3477726,
+    "seen": 1795787098.2744305,
+    "ast_hash": "9de055091bc7e5da9ff5d0ba0e0cc354",
     "semantic_hash": ""
   },
   "backend/app/modules/accounts/models.py": {
@@ -1290,9 +1290,9 @@
     "semantic_hash": ""
   },
   "frontend/app/(dashboard)/accounts/master-ledger/page.tsx": {
-    "mtime": 1795615059.301905,
-    "seen": 1795615864.098217,
-    "ast_hash": "194549e262ccbeddaa415d854ccef6f6",
+    "mtime": 1795787046.3611596,
+    "seen": 1795787098.2746139,
+    "ast_hash": "941b87a9641efbfe0aa24268867e59cc",
     "semantic_hash": ""
   },
   "frontend/app/(dashboard)/accounts/page.tsx": {

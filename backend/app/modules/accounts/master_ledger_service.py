@@ -1,4 +1,5 @@
 import re
+from collections import defaultdict
 from datetime import date, datetime, timezone
 from decimal import Decimal
 from typing import List, Optional, Dict, Any, Tuple
@@ -969,10 +970,18 @@ async def list_billing_client_ledgers(
     res = await session.execute(stmt)
     clients = list(res.scalars().all())
 
-    # Fetch all vouchers for quick aggregation
+    # Fetch vouchers with scalar fields only and outerjoin LR for quick aggregation
     v_stmt = (
-        select(Voucher)
-        .options(selectinload(Voucher.lr))
+        select(
+            Voucher.id,
+            Voucher.billing_client_id,
+            Voucher.party_name,
+            Voucher.voucher_type,
+            Voucher.net_amount,
+            Voucher.voucher_date,
+            LR.billing_customer_id,
+        )
+        .outerjoin(LR, Voucher.lr_id == LR.id)
         .where(Voucher.is_void == False)
     )
     if office_id:
@@ -982,50 +991,80 @@ async def list_billing_client_ledgers(
             v_stmt = v_stmt.where(Voucher.issuing_office_id == office_id)
 
     v_res = await session.execute(v_stmt)
-    vouchers = list(v_res.scalars().all())
+    v_rows = v_res.all()
+
+    # Pre-index into dictionaries for O(1) matching per client
+    v_by_client_id = defaultdict(list)
+    v_by_lr_client_id = defaultdict(list)
+    v_by_party_name = defaultdict(list)
+    for r in v_rows:
+        vid, v_bc_id, v_pname, v_type, v_amt, v_date, lr_bc_id = r
+        v_item = {
+            "id": vid,
+            "type": v_type,
+            "amount": Decimal(str(v_amt or "0.00")),
+            "date": v_date,
+        }
+        if v_bc_id:
+            v_by_client_id[v_bc_id].append(v_item)
+        if lr_bc_id:
+            v_by_lr_client_id[lr_bc_id].append(v_item)
+        if v_pname:
+            v_by_party_name[v_pname.strip().lower()].append(v_item)
 
     # Fetch all accounts linked to billing clients
     acc_stmt = select(Account).where(Account.billing_client_id.is_not(None))
     acc_res = await session.execute(acc_stmt)
     acc_map = {acc.billing_client_id: acc for acc in acc_res.scalars().all()}
 
-    # Group vouchers by client
+    # Group vouchers by client using O(1) pre-indexed dictionaries
     items: List[schemas.BillingClientLedgerListItem] = []
     for client in clients:
         c_acc = acc_map.get(client.id)
         open_bal = Decimal(str(c_acc.opening_balance if c_acc else "0.00"))
         open_type = c_acc.opening_balance_type if c_acc else "DR"
 
-        # Match vouchers
-        c_vouchers = [
-            v for v in vouchers
-            if (
-                v.billing_client_id == client.id
-                or (v.lr and v.lr.billing_customer_id == client.id)
-                or (v.party_name and v.party_name.strip().lower() == client.name.strip().lower())
-                or (client.company_name and v.party_name and v.party_name.strip().lower() == client.company_name.strip().lower())
-            )
-        ]
+        # Match vouchers via indexed lookups
+        seen_vids = set()
+        c_vouchers = []
+        for v in v_by_client_id.get(client.id, []):
+            if v["id"] not in seen_vids:
+                seen_vids.add(v["id"])
+                c_vouchers.append(v)
+        for v in v_by_lr_client_id.get(client.id, []):
+            if v["id"] not in seen_vids:
+                seen_vids.add(v["id"])
+                c_vouchers.append(v)
+        if client.name:
+            for v in v_by_party_name.get(client.name.strip().lower(), []):
+                if v["id"] not in seen_vids:
+                    seen_vids.add(v["id"])
+                    c_vouchers.append(v)
+        if client.company_name:
+            for v in v_by_party_name.get(client.company_name.strip().lower(), []):
+                if v["id"] not in seen_vids:
+                    seen_vids.add(v["id"])
+                    c_vouchers.append(v)
 
         total_debit = Decimal("0.00")
         total_credit = Decimal("0.00")
         last_date: Optional[date] = None
 
         for v in c_vouchers:
-            v_amt = Decimal(str(v.net_amount or "0.00"))
-            v_date = v.voucher_date
+            v_amt = v["amount"]
+            v_date = v["date"]
             if not last_date or (v_date and v_date > last_date):
                 last_date = v_date
 
             # Invoice, Debit Note = Debit (+DR to Client receivable)
-            if v.voucher_type in [
+            if v["type"] in [
                 VoucherType.TRANSPORT_INVOICE.value,
                 VoucherType.GENERAL_INVOICE.value,
                 VoucherType.DEBIT_NOTE.value,
             ]:
                 total_debit += v_amt
             # Receipt, Credit Note = Credit (+CR from Client)
-            elif v.voucher_type in [
+            elif v["type"] in [
                 VoucherType.RECEIPT_VOUCHER.value,
                 VoucherType.CREDIT_NOTE.value,
             ]:
@@ -1929,20 +1968,81 @@ async def list_driver_ledgers(
     res = await session.execute(stmt)
     drivers = list(res.scalars().all())
 
-    # Fetch trip advances
-    adv_stmt = select(TripAdvance)
+    # Fetch trip advances with scalar fields and pre-index
+    adv_stmt = select(
+        TripAdvance.id,
+        TripAdvance.driver_id,
+        TripAdvance.driver_name,
+        TripAdvance.advance_amount,
+        TripAdvance.settled_amount,
+        TripAdvance.advance_date,
+    )
     adv_res = await session.execute(adv_stmt)
-    advances = list(adv_res.scalars().all())
+    adv_rows = adv_res.all()
+    adv_by_id = defaultdict(list)
+    adv_by_name = defaultdict(list)
+    for row in adv_rows:
+        aid, did, dname, a_amt, s_amt, a_date = row
+        item = {
+            "id": aid,
+            "advance_amount": Decimal(str(a_amt or "0.00")),
+            "settled_amount": Decimal(str(s_amt or "0.00")),
+            "date": a_date,
+        }
+        if did:
+            adv_by_id[did].append(item)
+        if dname:
+            adv_by_name[dname.strip().lower()].append(item)
 
-    # Fetch trip expenses
-    exp_stmt = select(TripExpense)
+    # Fetch trip expenses with scalar fields and pre-index
+    exp_stmt = select(
+        TripExpense.id,
+        TripExpense.driver_id,
+        TripExpense.driver_name,
+        TripExpense.amount,
+        TripExpense.expense_date,
+    )
     exp_res = await session.execute(exp_stmt)
-    expenses = list(exp_res.scalars().all())
+    exp_rows = exp_res.all()
+    exp_by_id = defaultdict(list)
+    exp_by_name = defaultdict(list)
+    for row in exp_rows:
+        eid, did, dname, e_amt, e_date = row
+        item = {
+            "id": eid,
+            "amount": Decimal(str(e_amt or "0.00")),
+            "date": e_date,
+        }
+        if did:
+            exp_by_id[did].append(item)
+        if dname:
+            exp_by_name[dname.strip().lower()].append(item)
 
-    # Fetch vouchers linked to drivers
-    v_stmt = select(Voucher).where(Voucher.is_void == False, Voucher.driver_id.is_not(None))
+    # Fetch vouchers linked to drivers with scalar fields and pre-index
+    v_stmt = select(
+        Voucher.id,
+        Voucher.driver_id,
+        Voucher.party_name,
+        Voucher.voucher_type,
+        Voucher.net_amount,
+        Voucher.voucher_date,
+    ).where(Voucher.is_void == False, Voucher.driver_id.is_not(None))
     v_res = await session.execute(v_stmt)
-    vouchers = list(v_res.scalars().all())
+    v_rows = v_res.all()
+    v_by_id = defaultdict(list)
+    v_by_name = defaultdict(list)
+    for row in v_rows:
+        vid, did, dname, vtype, v_amt, v_date = row
+        item = {
+            "id": vid,
+            "type": vtype,
+            "amount": Decimal(str(v_amt or "0.00")),
+            "date": v_date,
+        }
+        if did:
+            v_by_id[did].append(item)
+        if dname:
+            v_by_name[dname.strip().lower()].append(item)
 
     # Map accounts
     acc_stmt = select(Account).where(Account.driver_id.is_not(None))
@@ -1960,38 +2060,71 @@ async def list_driver_ledgers(
         last_date: Optional[date] = None
         tx_count = 0
 
-        # Trip Advances
-        for adv in advances:
-            if adv.driver_id == driver.id or (adv.driver_name and adv.driver_name.strip().lower() == driver.name.strip().lower()):
-                tx_count += 1
-                adv_amt = Decimal(str(adv.advance_amount or "0.00"))
-                settled_amt = Decimal(str(adv.settled_amount or "0.00"))
-                total_advances += adv_amt
-                if settled_amt > Decimal("0.00"):
-                    total_expenses += settled_amt
-                if not last_date or (adv.advance_date and adv.advance_date > last_date):
-                    last_date = adv.advance_date
+        # Trip Advances (indexed O(1))
+        seen_adv = set()
+        c_advances = []
+        for a in adv_by_id.get(driver.id, []):
+            if a["id"] not in seen_adv:
+                seen_adv.add(a["id"])
+                c_advances.append(a)
+        if driver.name:
+            for a in adv_by_name.get(driver.name.strip().lower(), []):
+                if a["id"] not in seen_adv:
+                    seen_adv.add(a["id"])
+                    c_advances.append(a)
 
-        # Trip Expenses
-        for exp in expenses:
-            if exp.driver_id == driver.id or (exp.driver_name and exp.driver_name.strip().lower() == driver.name.strip().lower()):
-                tx_count += 1
-                exp_amt = Decimal(str(exp.amount or "0.00"))
-                total_expenses += exp_amt
-                if not last_date or (exp.expense_date and exp.expense_date > last_date):
-                    last_date = exp.expense_date
+        for adv in c_advances:
+            tx_count += 1
+            adv_amt = adv["advance_amount"]
+            settled_amt = adv["settled_amount"]
+            total_advances += adv_amt
+            if settled_amt > Decimal("0.00"):
+                total_expenses += settled_amt
+            if not last_date or (adv["date"] and adv["date"] > last_date):
+                last_date = adv["date"]
 
-        # Direct Vouchers
-        for v in vouchers:
-            if v.driver_id == driver.id or (v.party_name and v.party_name.strip().lower() == driver.name.strip().lower()):
-                tx_count += 1
-                v_amt = Decimal(str(v.net_amount or "0.00"))
-                if v.voucher_type in [VoucherType.PAYMENT_VOUCHER.value, VoucherType.PAYMENT_ATH.value, "ATH_PAYMENT"]:
-                    total_advances += v_amt
-                else:
-                    total_expenses += v_amt
-                if not last_date or (v.voucher_date and v.voucher_date > last_date):
-                    last_date = v.voucher_date
+        # Trip Expenses (indexed O(1))
+        seen_exp = set()
+        c_expenses = []
+        for e in exp_by_id.get(driver.id, []):
+            if e["id"] not in seen_exp:
+                seen_exp.add(e["id"])
+                c_expenses.append(e)
+        if driver.name:
+            for e in exp_by_name.get(driver.name.strip().lower(), []):
+                if e["id"] not in seen_exp:
+                    seen_exp.add(e["id"])
+                    c_expenses.append(e)
+
+        for exp in c_expenses:
+            tx_count += 1
+            exp_amt = exp["amount"]
+            total_expenses += exp_amt
+            if not last_date or (exp["date"] and exp["date"] > last_date):
+                last_date = exp["date"]
+
+        # Direct Vouchers (indexed O(1))
+        seen_v = set()
+        c_vouchers = []
+        for v in v_by_id.get(driver.id, []):
+            if v["id"] not in seen_v:
+                seen_v.add(v["id"])
+                c_vouchers.append(v)
+        if driver.name:
+            for v in v_by_name.get(driver.name.strip().lower(), []):
+                if v["id"] not in seen_v:
+                    seen_v.add(v["id"])
+                    c_vouchers.append(v)
+
+        for v in c_vouchers:
+            tx_count += 1
+            v_amt = v["amount"]
+            if v["type"] in [VoucherType.PAYMENT_VOUCHER.value, VoucherType.PAYMENT_ATH.value, "ATH_PAYMENT"]:
+                total_advances += v_amt
+            else:
+                total_expenses += v_amt
+            if not last_date or (v["date"] and v["date"] > last_date):
+                last_date = v["date"]
 
         # Net Driver Balance (DR is recoverable from driver)
         net_opening = open_bal if open_type == "DR" else -open_bal
@@ -2550,6 +2683,9 @@ async def list_company_bank_account_ledgers(
     items: List[schemas.CompanyBankAccountLedgerListItem] = []
     has_cash_account_row = False
 
+    # Map target accounts per bank account and collect unique account ids
+    ba_target_accounts = {}
+    all_target_acc_ids = set()
     for ba in accounts:
         is_ba_cash = (
             "cash" in (ba.bank_name or "").lower() or
@@ -2557,29 +2693,60 @@ async def list_company_bank_account_ledgers(
             (ba.account_type or "").upper() == "CASH" or
             (cash_acc and ba.account_id == cash_acc.id)
         )
-        target_account_ids = [ba.account_id]
-        if is_ba_cash:
-            has_cash_account_row = True
-            if cash_acc and cash_acc.id not in target_account_ids:
-                target_account_ids.append(cash_acc.id)
+        t_ids = [ba.account_id]
+        if is_ba_cash and cash_acc and cash_acc.id not in t_ids:
+            t_ids.append(cash_acc.id)
+        ba_target_accounts[ba.id] = (is_ba_cash, t_ids)
+        for tid in t_ids:
+            if tid:
+                all_target_acc_ids.add(tid)
 
-        # Query ledger entries for debits, credits, and tx counts
-        le_q = select(
+    # Batch query ledger entries (1 query instead of N)
+    le_batch_data = {}
+    if all_target_acc_ids:
+        le_batch_q = select(
+            LedgerEntry.account_id,
             func.coalesce(func.sum(LedgerEntry.debit_amount), Decimal("0.00")),
             func.coalesce(func.sum(LedgerEntry.credit_amount), Decimal("0.00")),
             func.count(LedgerEntry.id),
             func.max(LedgerEntry.entry_date),
         ).where(
-            LedgerEntry.account_id.in_(target_account_ids),
+            LedgerEntry.account_id.in_(list(all_target_acc_ids)),
             LedgerEntry.is_reversal == False,
         )
         if from_date:
-            le_q = le_q.where(LedgerEntry.entry_date >= from_date)
+            le_batch_q = le_batch_q.where(LedgerEntry.entry_date >= from_date)
         if to_date:
-            le_q = le_q.where(LedgerEntry.entry_date <= to_date)
+            le_batch_q = le_batch_q.where(LedgerEntry.entry_date <= to_date)
+        le_batch_q = le_batch_q.group_by(LedgerEntry.account_id)
+        for row in (await session.execute(le_batch_q)).all():
+            le_batch_data[row[0]] = (row[1], row[2], row[3], row[4])
 
-        le_res = await session.execute(le_q)
-        tot_dr, tot_cr, tx_cnt, last_dt = le_res.one()
+    # Batch query prior entries if from_date (1 query instead of N)
+    prior_batch_data = {}
+    if from_date and all_target_acc_ids:
+        prior_batch_q = select(
+            LedgerEntry.account_id,
+            func.coalesce(func.sum(LedgerEntry.debit_amount), Decimal("0.00")),
+            func.coalesce(func.sum(LedgerEntry.credit_amount), Decimal("0.00")),
+        ).where(
+            LedgerEntry.account_id.in_(list(all_target_acc_ids)),
+            LedgerEntry.is_reversal == False,
+            LedgerEntry.entry_date < from_date,
+        ).group_by(LedgerEntry.account_id)
+        for row in (await session.execute(prior_batch_q)).all():
+            prior_batch_data[row[0]] = (row[1], row[2])
+
+    for ba in accounts:
+        is_ba_cash, target_account_ids = ba_target_accounts.get(ba.id, (False, [ba.account_id]))
+        if is_ba_cash:
+            has_cash_account_row = True
+
+        tot_dr = sum(le_batch_data.get(tid, (Decimal("0.00"), Decimal("0.00"), 0, None))[0] for tid in target_account_ids)
+        tot_cr = sum(le_batch_data.get(tid, (Decimal("0.00"), Decimal("0.00"), 0, None))[1] for tid in target_account_ids)
+        tx_cnt = sum(le_batch_data.get(tid, (Decimal("0.00"), Decimal("0.00"), 0, None))[2] for tid in target_account_ids)
+        last_dates = [le_batch_data.get(tid, (Decimal("0.00"), Decimal("0.00"), 0, None))[3] for tid in target_account_ids if le_batch_data.get(tid, (Decimal("0.00"), Decimal("0.00"), 0, None))[3]]
+        last_dt = max(last_dates) if last_dates else None
 
         open_bal = Decimal(str(ba.opening_balance or "0.00"))
         open_dr = open_bal if ba.opening_balance_type == "DR" else Decimal("0.00")
@@ -2587,15 +2754,8 @@ async def list_company_bank_account_ledgers(
 
         # If date range given, prior transactions adjust opening balance
         if from_date:
-            prior_q = select(
-                func.coalesce(func.sum(LedgerEntry.debit_amount), Decimal("0.00")),
-                func.coalesce(func.sum(LedgerEntry.credit_amount), Decimal("0.00")),
-            ).where(
-                LedgerEntry.account_id.in_(target_account_ids),
-                LedgerEntry.is_reversal == False,
-                LedgerEntry.entry_date < from_date,
-            )
-            p_dr, p_cr = (await session.execute(prior_q)).one()
+            p_dr = sum(prior_batch_data.get(tid, (Decimal("0.00"), Decimal("0.00")))[0] for tid in target_account_ids)
+            p_cr = sum(prior_batch_data.get(tid, (Decimal("0.00"), Decimal("0.00")))[1] for tid in target_account_ids)
             effective_open = (open_dr + p_dr) - (open_cr + p_cr)
             if effective_open >= Decimal("0.00"):
                 open_bal = effective_open
@@ -2991,10 +3151,9 @@ async def list_company_vehicle_ledgers(
     acc_res = await session.execute(acc_stmt)
     acc_map = {acc.company_vehicle_id: acc for acc in acc_res.scalars().all()}
 
-    items: List[schemas.CompanyVehicleLedgerListItem] = []
+    # Ensure accounts exist
     for v in vehicles:
-        acc = acc_map.get(v.id) or getattr(v, "account", None)
-        if not acc:
+        if v.id not in acc_map and not getattr(v, "account", None):
             acc = await get_or_create_party_account(
                 session,
                 party_type="COMPANY_VEHICLE",
@@ -3004,6 +3163,54 @@ async def list_company_vehicle_ledgers(
             )
             acc_map[v.id] = acc
 
+    # Batch query LedgerEntry totals for all vehicle accounts (1 query instead of N)
+    all_acc_ids = [acc.id for acc in acc_map.values() if acc and acc.id]
+    le_batch_data = {}
+    if all_acc_ids:
+        le_q = select(
+            LedgerEntry.account_id,
+            func.coalesce(func.sum(LedgerEntry.debit_amount), Decimal("0.00")),
+            func.coalesce(func.sum(LedgerEntry.credit_amount), Decimal("0.00")),
+            func.count(LedgerEntry.id),
+            func.max(LedgerEntry.entry_date),
+        ).where(
+            LedgerEntry.account_id.in_(all_acc_ids),
+            LedgerEntry.is_reversal == False,
+        ).group_by(LedgerEntry.account_id)
+        for row in (await session.execute(le_q)).all():
+            le_batch_data[row[0]] = (row[1], row[2], row[3], row[4])
+
+    # Batch query TripExpense totals for all vehicles (1 query instead of N)
+    veh_numbers = [v.vehicle_number for v in vehicles if v.vehicle_number]
+    exp_batch_data = defaultdict(dict)
+    if veh_numbers:
+        exp_q = select(
+            TripExpense.vehicle_number,
+            TripExpense.expense_category,
+            func.coalesce(func.sum(TripExpense.amount), Decimal("0.00")),
+        ).where(
+            TripExpense.vehicle_number.in_(veh_numbers),
+            TripExpense.status == "APPROVED",
+        ).group_by(TripExpense.vehicle_number, TripExpense.expense_category)
+        for row in (await session.execute(exp_q)).all():
+            exp_batch_data[row[0]][row[1]] = row[2]
+
+    # Batch query LR trip counts for all vehicles (1 query instead of N)
+    lr_cnt_data = {}
+    if veh_numbers:
+        lr_q = select(
+            LR.vehicle_number,
+            func.count(LR.id),
+        ).where(
+            LR.vehicle_number.in_(veh_numbers)
+        ).group_by(LR.vehicle_number)
+        for row in (await session.execute(lr_q)).all():
+            lr_cnt_data[row[0]] = row[1]
+
+    items: List[schemas.CompanyVehicleLedgerListItem] = []
+    for v in vehicles:
+        acc = acc_map.get(v.id) or getattr(v, "account", None)
+
         open_bal = Decimal(str(acc.opening_balance or "0.00")) if acc else Decimal("0.00")
         open_dr = open_bal if (acc and acc.opening_balance_type == "DR") else Decimal("0.00")
         open_cr = open_bal if (acc and acc.opening_balance_type == "CR") else Decimal("0.00")
@@ -3012,18 +3219,8 @@ async def list_company_vehicle_ledgers(
         tot_cr = Decimal("0.00")
         tx_cnt = 0
         last_dt = None
-        if acc:
-            le_q = select(
-                func.coalesce(func.sum(LedgerEntry.debit_amount), Decimal("0.00")),
-                func.coalesce(func.sum(LedgerEntry.credit_amount), Decimal("0.00")),
-                func.count(LedgerEntry.id),
-                func.max(LedgerEntry.entry_date),
-            ).where(
-                LedgerEntry.account_id == acc.id,
-                LedgerEntry.is_reversal == False,
-            )
-            le_res = await session.execute(le_q)
-            tot_dr, tot_cr, tx_cnt, last_dt = le_res.one()
+        if acc and acc.id in le_batch_data:
+            tot_dr, tot_cr, tx_cnt, last_dt = le_batch_data[acc.id]
 
         net = (open_dr + tot_dr) - (open_cr + tot_cr)
         if net >= Decimal("0.00"):
@@ -3033,24 +3230,14 @@ async def list_company_vehicle_ledgers(
             cur_bal = abs(net)
             bal_type = "CR"
 
-        exp_q = select(
-            TripExpense.expense_category,
-            func.coalesce(func.sum(TripExpense.amount), Decimal("0.00")),
-        ).where(
-            TripExpense.vehicle_number == v.vehicle_number,
-            TripExpense.status == "APPROVED",
-        ).group_by(TripExpense.expense_category)
-        exp_res = await session.execute(exp_q)
-        exp_map = {cat: amt for cat, amt in exp_res.all()}
-
+        exp_map = exp_batch_data.get(v.vehicle_number, {})
         diesel_exp = exp_map.get("DIESEL", Decimal("0.00"))
         toll_exp = exp_map.get("TOLL", Decimal("0.00"))
         maint_exp = exp_map.get("MAINTENANCE", Decimal("0.00"))
         other_exp = sum(amt for cat, amt in exp_map.items() if cat not in ("DIESEL", "TOLL", "MAINTENANCE"))
         total_op_exp = diesel_exp + toll_exp + maint_exp + other_exp
 
-        lr_cnt_q = select(func.count(LR.id)).where(LR.vehicle_number == v.vehicle_number)
-        trips_cnt = (await session.execute(lr_cnt_q)).scalar() or 0
+        trips_cnt = lr_cnt_data.get(v.vehicle_number, 0)
 
         sg_name = acc.subgroup.name if (acc and acc.subgroup) else "Company Owned Fleet Vehicles"
         sg_code = acc.subgroup.code if (acc and acc.subgroup) else "FA_COMPANY_VEHICLES"
