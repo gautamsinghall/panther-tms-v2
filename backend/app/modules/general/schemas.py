@@ -76,6 +76,7 @@ class BillingClientResponse(BillingClientBase):
     is_active: bool
     issuing_office_id: Optional[int] = None
     issuing_office_name: Optional[str] = None
+    group_company_id: Optional[int] = None
     created_at: datetime
     updated_at: datetime
 
@@ -270,29 +271,32 @@ class IndustryResponse(IndustryBase):
     model_config = ConfigDict(from_attributes=True)
 
 # --- Group Company ---
-class GroupCompanyBase(BaseModel):
-    company_name: str = Field(..., min_length=2, max_length=255)
-    legal_name: Optional[str] = None
-    cin: Optional[str] = None
+class BillingClientRef(BaseModel):
+    id: int
+    name: str
     gstin: Optional[str] = None
-    pan: Optional[str] = None
-    registered_address: Optional[str] = None
+    city: Optional[str] = None
 
-class GroupCompanyCreate(GroupCompanyBase):
+    model_config = ConfigDict(from_attributes=True)
+
+class GroupCompanyCreate(BaseModel):
+    company_name: str = Field(..., min_length=2, max_length=255)
+    smart_ledger_group: Optional[str] = None
+    billing_client_ids: List[int] = Field(default_factory=list)
     is_active: bool = True
 
 class GroupCompanyUpdate(BaseModel):
     company_name: Optional[str] = None
-    legal_name: Optional[str] = None
-    cin: Optional[str] = None
-    gstin: Optional[str] = None
-    pan: Optional[str] = None
-    registered_address: Optional[str] = None
+    smart_ledger_group: Optional[str] = None
+    billing_client_ids: Optional[List[int]] = None
     is_active: Optional[bool] = None
 
-class GroupCompanyResponse(GroupCompanyBase):
+class GroupCompanyResponse(BaseModel):
     id: int
+    company_name: str
+    smart_ledger_group: Optional[str] = None
     is_active: bool
+    billing_clients: List[BillingClientRef] = Field(default_factory=list)
     created_at: datetime
     updated_at: datetime
 

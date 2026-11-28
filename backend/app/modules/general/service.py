@@ -59,6 +59,7 @@ async def _ensure_billing_client_columns(db: AsyncSession):
     try:
         await db.execute(text("ALTER TABLE general_billing_clients ADD COLUMN IF NOT EXISTS incorporation_date DATE;"))
         await db.execute(text("ALTER TABLE general_billing_clients ADD COLUMN IF NOT EXISTS billing_state VARCHAR(100);"))
+        await db.execute(text("ALTER TABLE general_billing_clients ADD COLUMN IF NOT EXISTS group_company_id INTEGER REFERENCES general_group_companies(id) ON DELETE SET NULL;"))
         await db.commit()
     except Exception:
         await db.rollback()
@@ -320,31 +321,70 @@ async def delete_industry(db: AsyncSession, iid: int) -> Industry:
 
 # --- Group Company Service ---
 async def list_group_companies(db: AsyncSession) -> List[GroupCompany]:
-    return await _get_all(db, GroupCompany)
+    result = await db.execute(select(GroupCompany).order_by(GroupCompany.id.desc()))
+    return list(result.scalars().all())
 
 async def get_group_company(db: AsyncSession, gid: int) -> GroupCompany:
     return await _get_by_id(db, GroupCompany, gid)
+
+async def _assign_billing_clients(db: AsyncSession, gc: GroupCompany, client_ids: List[int]) -> None:
+    """Clear existing assignments for this group then set the new list."""
+    # Unassign clients that were previously assigned to this group but are no longer in the list
+    clear_stmt = (
+        select(BillingClient)
+        .where(BillingClient.group_company_id == gc.id)
+    )
+    existing = list((await db.execute(clear_stmt)).scalars().all())
+    for c in existing:
+        if c.id not in client_ids:
+            c.group_company_id = None
+    # Assign new clients (only those not already in another group)
+    if client_ids:
+        new_stmt = select(BillingClient).where(BillingClient.id.in_(client_ids))
+        new_clients = list((await db.execute(new_stmt)).scalars().all())
+        for c in new_clients:
+            c.group_company_id = gc.id
 
 async def create_group_company(db: AsyncSession, data) -> GroupCompany:
     stmt = select(GroupCompany).where(GroupCompany.company_name == data.company_name.strip())
     if (await db.execute(stmt)).scalar_one_or_none():
         raise AppException(status_code=409, error_code="GROUP_COMPANY_EXISTS", message="Group company with this name already exists.")
-    entity = GroupCompany(**data.model_dump())
+    client_ids = data.billing_client_ids if hasattr(data, "billing_client_ids") else []
+    entity = GroupCompany(
+        company_name=data.company_name,
+        smart_ledger_group=data.smart_ledger_group if hasattr(data, "smart_ledger_group") else None,
+        is_active=data.is_active,
+    )
     db.add(entity)
+    await db.flush()  # get entity.id before assigning clients
+    await _assign_billing_clients(db, entity, client_ids)
     await db.commit()
     await db.refresh(entity)
     return entity
 
 async def update_group_company(db: AsyncSession, gid: int, data) -> GroupCompany:
     entity = await _get_by_id(db, GroupCompany, gid)
-    for k, v in data.model_dump(exclude_unset=True).items():
+    update_dict = data.model_dump(exclude_unset=True)
+    client_ids = update_dict.pop("billing_client_ids", None)
+    for k, v in update_dict.items():
         setattr(entity, k, v)
+    if client_ids is not None:
+        await _assign_billing_clients(db, entity, client_ids)
     await db.commit()
     await db.refresh(entity)
     return entity
 
 async def delete_group_company(db: AsyncSession, gid: int) -> GroupCompany:
     return await _soft_delete(db, GroupCompany, gid)
+
+async def list_unassigned_billing_clients(db: AsyncSession) -> List[BillingClient]:
+    """Return active billing clients not yet assigned to any group company."""
+    result = await db.execute(
+        select(BillingClient)
+        .where(BillingClient.group_company_id.is_(None), BillingClient.is_active.is_(True))
+        .order_by(BillingClient.name)
+    )
+    return list(result.scalars().all())
 
 # --- Unit Service ---
 async def list_units(db: AsyncSession) -> List[Unit]:

@@ -182,6 +182,8 @@ class BillingClient(TenantBase):
     country = Column(String(100), default="India", nullable=True)
     is_active = Column(Boolean, default=True, nullable=False)
     issuing_office_id = Column(Integer, ForeignKey("profile_branches.id"), nullable=True, index=True)
+    # Group Company assignment (nullable – unassigned clients have NULL)
+    group_company_id = Column(Integer, ForeignKey("general_group_companies.id"), nullable=True, index=True)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
     updated_at = Column(
         DateTime(timezone=True),
@@ -191,6 +193,7 @@ class BillingClient(TenantBase):
     )
 
     issuing_office = relationship("Branch", foreign_keys=[issuing_office_id])
+    group_company = relationship("GroupCompany", foreign_keys=[group_company_id], back_populates="billing_clients")
 
 
 class Consignee(TenantBase):
@@ -310,11 +313,8 @@ class GroupCompany(TenantBase):
 
     id = Column(Integer, primary_key=True, index=True)
     company_name = Column(String(255), unique=True, nullable=False, index=True)
-    legal_name = Column(String(255), nullable=True)
-    cin = Column(String(25), nullable=True)
-    gstin = Column(String(15), nullable=True)
-    pan = Column(String(10), nullable=True)
-    registered_address = Column(Text, nullable=True)
+    # Smart Ledger Grouping label for this company (e.g. "Sundry Debtors – North")
+    smart_ledger_group = Column(String(255), nullable=True)
     is_active = Column(Boolean, default=True, nullable=False)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
     updated_at = Column(
@@ -323,6 +323,12 @@ class GroupCompany(TenantBase):
         onupdate=lambda: datetime.now(timezone.utc),
         nullable=False
     )
+
+    billing_clients = relationship("BillingClient", back_populates="group_company", lazy="selectin")
+
+    @property
+    def name(self) -> str:
+        return self.company_name
 
 
 class Unit(TenantBase):

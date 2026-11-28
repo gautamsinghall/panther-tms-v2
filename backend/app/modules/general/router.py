@@ -436,6 +436,13 @@ async def delete_industry(
 # ==============================================================================
 # 5. Group Company
 # ==============================================================================
+@router.get("/group-companies/unassigned-clients", response_model=List[schemas.BillingClientResponse], summary="List billing clients not assigned to any group company")
+async def list_unassigned_billing_clients(
+    current_user: User = Depends(require_permission("general", "group_company", "view")),
+    db: AsyncSession = Depends(get_tenant_db),
+):
+    return await service.list_unassigned_billing_clients(db)
+
 @router.get("/group-companies", response_model=List[schemas.GroupCompanyResponse], summary="List all group companies")
 async def list_group_companies(
     current_user: User = Depends(require_permission("general", "group_company", "view")),
@@ -450,7 +457,7 @@ async def create_group_company(
     db: AsyncSession = Depends(get_tenant_db),
 ):
     gc = await service.create_group_company(db, data)
-    await log_activity(db=db, user=current_user, action="GROUP_COMPANY_CREATED", module="general", entity_type="GroupCompany", entity_id=str(gc.id), entity_identifier=gc.name)
+    await log_activity(db=db, user=current_user, action="GROUP_COMPANY_CREATED", module="general", entity_type="GroupCompany", entity_id=str(gc.id), entity_identifier=gc.company_name)
     return gc
 
 @router.put("/group-companies/{id}", response_model=schemas.GroupCompanyResponse, summary="Update group company")
@@ -461,7 +468,7 @@ async def update_group_company(
     db: AsyncSession = Depends(get_tenant_db),
 ):
     gc = await service.update_group_company(db, id, data)
-    await log_activity(db=db, user=current_user, action="GROUP_COMPANY_UPDATED", module="general", entity_type="GroupCompany", entity_id=str(gc.id), entity_identifier=gc.name)
+    await log_activity(db=db, user=current_user, action="GROUP_COMPANY_UPDATED", module="general", entity_type="GroupCompany", entity_id=str(gc.id), entity_identifier=gc.company_name)
     return gc
 
 @router.delete("/group-companies/{id}", response_model=schemas.GroupCompanyResponse, summary="Deactivate group company")
@@ -471,7 +478,7 @@ async def delete_group_company(
     db: AsyncSession = Depends(get_tenant_db),
 ):
     gc = await service.delete_group_company(db, id)
-    await log_activity(db=db, user=current_user, action="GROUP_COMPANY_DEACTIVATED", module="general", entity_type="GroupCompany", entity_id=str(id), entity_identifier=getattr(gc, "name", str(id)))
+    await log_activity(db=db, user=current_user, action="GROUP_COMPANY_DEACTIVATED", module="general", entity_type="GroupCompany", entity_id=str(id), entity_identifier=getattr(gc, "company_name", str(id)))
     return gc
 
 # ==============================================================================
