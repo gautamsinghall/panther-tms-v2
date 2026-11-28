@@ -1,6 +1,8 @@
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
+from decimal import Decimal
 from typing import List, Optional, Type, TypeVar
 from sqlalchemy import func, select, or_, text
+from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.errors import AppException
 from app.tenant_db.models import (
@@ -15,7 +17,10 @@ from app.tenant_db.models import (
     MethodOfPacking,
     LoadType,
     Vendor,
+    Voucher,
+    VoucherType,
 )
+from app.modules.general import schemas
 
 T = TypeVar("T")
 
@@ -352,7 +357,6 @@ async def create_group_company(db: AsyncSession, data) -> GroupCompany:
     client_ids = data.billing_client_ids if hasattr(data, "billing_client_ids") else []
     entity = GroupCompany(
         company_name=data.company_name,
-        smart_ledger_group=data.smart_ledger_group if hasattr(data, "smart_ledger_group") else None,
         is_active=data.is_active,
     )
     db.add(entity)
@@ -385,6 +389,214 @@ async def list_unassigned_billing_clients(db: AsyncSession) -> List[BillingClien
         .order_by(BillingClient.name)
     )
     return list(result.scalars().all())
+
+async def get_group_company_ledger(
+    db: AsyncSession,
+    gid: int,
+    from_date: Optional[date] = None,
+    to_date: Optional[date] = None,
+    search: Optional[str] = None,
+    tx_type: Optional[str] = None,
+) -> schemas.GroupCompanyLedgerResponse:
+    gc = await _get_by_id(db, GroupCompany, gid)
+
+    client_stmt = select(BillingClient).where(BillingClient.group_company_id == gc.id)
+    clients_res = await db.execute(client_stmt)
+    clients = list(clients_res.scalars().all())
+
+    client_refs = [
+        schemas.BillingClientRef(id=c.id, name=c.name, gstin=c.gstin, city=c.city)
+        for c in clients
+    ]
+    client_id_map = {c.id: c.name for c in clients}
+    client_ids = list(client_id_map.keys())
+
+    if not client_ids:
+        return schemas.GroupCompanyLedgerResponse(
+            group_company_id=gc.id,
+            group_company_name=gc.company_name,
+            billing_clients=client_refs,
+            from_date=from_date,
+            to_date=to_date,
+            opening_balance=Decimal("0.00"),
+            opening_balance_type="DR",
+            total_debit=Decimal("0.00"),
+            total_credit=Decimal("0.00"),
+            closing_balance=Decimal("0.00"),
+            closing_balance_type="DR",
+            total_transactions=0,
+            transactions=[],
+        )
+
+    acc_stmt = select(Account).where(Account.billing_client_id.in_(client_ids))
+    acc_res = await db.execute(acc_stmt)
+    accounts = list(acc_res.scalars().all())
+    acc_id_map = {acc.id: acc.billing_client_id for acc in accounts if acc.billing_client_id}
+
+    initial_dr = Decimal("0.00")
+    initial_cr = Decimal("0.00")
+    for acc in accounts:
+        bal = Decimal(str(acc.opening_balance or "0.00"))
+        if acc.opening_balance_type == "DR":
+            initial_dr += bal
+        else:
+            initial_cr += bal
+
+    account_id_list = list(acc_id_map.keys())
+    voucher_filters = [Voucher.billing_client_id.in_(client_ids)]
+    if account_id_list:
+        voucher_filters.append(Voucher.account_id.in_(account_id_list))
+
+    v_stmt = (
+        select(Voucher)
+        .options(
+            selectinload(Voucher.lr),
+            selectinload(Voucher.hire_challan),
+            selectinload(Voucher.issuing_office),
+        )
+        .where(or_(*voucher_filters))
+    )
+    v_res = await db.execute(v_stmt)
+    all_vouchers = list(v_res.scalars().all())
+
+    prior_dr = Decimal("0.00")
+    prior_cr = Decimal("0.00")
+    if from_date:
+        for v in all_vouchers:
+            if not v.is_void and v.voucher_date and v.voucher_date < from_date:
+                amt = Decimal(str(v.net_amount or "0.00"))
+                if v.voucher_type in [
+                    VoucherType.TRANSPORT_INVOICE.value,
+                    VoucherType.GENERAL_INVOICE.value,
+                    VoucherType.DEBIT_NOTE.value,
+                ]:
+                    prior_dr += amt
+                elif v.voucher_type in [
+                    VoucherType.RECEIPT_VOUCHER.value,
+                    VoucherType.CREDIT_NOTE.value,
+                ]:
+                    prior_cr += amt
+
+    eff_dr = initial_dr + prior_dr
+    eff_cr = initial_cr + prior_cr
+    if eff_dr >= eff_cr:
+        opening_balance = eff_dr - eff_cr
+        opening_balance_type = "DR"
+    else:
+        opening_balance = eff_cr - eff_dr
+        opening_balance_type = "CR"
+
+    period_vouchers = []
+    for v in all_vouchers:
+        if from_date and v.voucher_date and v.voucher_date < from_date:
+            continue
+        if to_date and v.voucher_date and v.voucher_date > to_date:
+            continue
+        if tx_type and tx_type.upper() != "ALL":
+            if v.voucher_type.upper() != tx_type.upper():
+                continue
+        period_vouchers.append(v)
+
+    period_vouchers.sort(key=lambda x: (x.voucher_date or date.min, x.id))
+
+    transactions: List[schemas.GroupCompanyLedgerTransaction] = []
+    current_running = opening_balance if opening_balance_type == "DR" else -opening_balance
+    total_debit = Decimal("0.00")
+    total_credit = Decimal("0.00")
+
+    for v in period_vouchers:
+        amt = Decimal(str(v.net_amount or "0.00"))
+        is_void = bool(v.is_void)
+
+        dr_amt = Decimal("0.00")
+        cr_amt = Decimal("0.00")
+
+        if v.voucher_type in [
+            VoucherType.TRANSPORT_INVOICE.value,
+            VoucherType.GENERAL_INVOICE.value,
+            VoucherType.DEBIT_NOTE.value,
+        ]:
+            dr_amt = amt
+        elif v.voucher_type in [
+            VoucherType.RECEIPT_VOUCHER.value,
+            VoucherType.CREDIT_NOTE.value,
+        ]:
+            cr_amt = amt
+        else:
+            dr_amt = amt
+
+        if is_void:
+            v_status = "VOIDED"
+        else:
+            v_status = "POSTED"
+            current_running += (dr_amt - cr_amt)
+            total_debit += dr_amt
+            total_credit += cr_amt
+
+        ref_no = v.reference_number
+        if not ref_no and v.lr:
+            ref_no = f"LR {v.lr.lr_number}"
+        particulars = v.narration or f"{v.voucher_type.replace('_', ' ').title()} - {v.voucher_number}"
+
+        bal_type = "DR" if current_running >= Decimal("0.00") else "CR"
+
+        cid = v.billing_client_id or (acc_id_map.get(v.account_id) if v.account_id else None)
+        cname = client_id_map.get(cid) if cid else v.party_name
+
+        transactions.append(
+            schemas.GroupCompanyLedgerTransaction(
+                id=v.id,
+                entry_date=v.voucher_date or date.today(),
+                voucher_id=v.id,
+                voucher_number=v.voucher_number,
+                voucher_type=v.voucher_type,
+                client_id=cid,
+                client_name=cname,
+                reference_number=ref_no,
+                particulars=particulars,
+                debit_amount=dr_amt,
+                credit_amount=cr_amt,
+                running_balance=abs(current_running),
+                balance_type=bal_type,
+                status=v_status,
+                is_void=is_void,
+                source_type="LR" if v.lr_id else "VOUCHER",
+                source_id=v.lr_id or v.id,
+            )
+        )
+
+    if search:
+        s_term = search.strip().lower()
+        transactions = [
+            t for t in transactions
+            if s_term in t.voucher_number.lower()
+            or (t.client_name and s_term in t.client_name.lower())
+            or (t.reference_number and s_term in t.reference_number.lower())
+            or (t.particulars and s_term in t.particulars.lower())
+        ]
+
+    if current_running >= Decimal("0.00"):
+        closing_balance = current_running
+        closing_balance_type = "DR"
+    else:
+        closing_balance = abs(current_running)
+        closing_balance_type = "CR"
+
+    return schemas.GroupCompanyLedgerResponse(
+        group_company_id=gc.id,
+        group_company_name=gc.company_name,
+        billing_clients=client_refs,
+        from_date=from_date,
+        to_date=to_date,
+        opening_balance=opening_balance,
+        opening_balance_type=opening_balance_type,
+        total_debit=total_debit,
+        total_credit=total_credit,
+        closing_balance=closing_balance,
+        closing_balance_type=closing_balance_type,
+        total_transactions=len(transactions),
+        transactions=transactions,
+    )
 
 # --- Unit Service ---
 async def list_units(db: AsyncSession) -> List[Unit]:

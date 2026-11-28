@@ -157,11 +157,17 @@ async def test_general_module_crud_masters():
             headers=headers,
             json={
                 "company_name": f"Demo Logistics Roadlines {uid}",
-                "legal_name": f"Demo Logistics Roadlines Pvt Ltd {uid}",
-                "gstin": "27AAACD1234F1Z5",
             }
         )
         assert gc_res.status_code == 201
+        gc_data = gc_res.json()
+        gc_id = gc_data["id"]
+        assert gc_data["company_name"] == f"Demo Logistics Roadlines {uid}"
+
+        # Test combined ledger endpoint
+        ledger_res = await ac.get(f"/api/v1/general/group-companies/{gc_id}/ledger", headers=headers)
+        assert ledger_res.status_code == 200
+        assert ledger_res.json()["group_company_id"] == gc_id
 
         # 8. Unit CRUD
         u_res = await ac.post(

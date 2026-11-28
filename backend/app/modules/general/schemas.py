@@ -1,5 +1,6 @@
 from datetime import datetime, date
-from typing import Any, List, Optional
+from decimal import Decimal
+from typing import Any, List, Optional, Union
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 # --- Billing Client ---
@@ -281,26 +282,57 @@ class BillingClientRef(BaseModel):
 
 class GroupCompanyCreate(BaseModel):
     company_name: str = Field(..., min_length=2, max_length=255)
-    smart_ledger_group: Optional[str] = None
     billing_client_ids: List[int] = Field(default_factory=list)
     is_active: bool = True
 
 class GroupCompanyUpdate(BaseModel):
     company_name: Optional[str] = None
-    smart_ledger_group: Optional[str] = None
     billing_client_ids: Optional[List[int]] = None
     is_active: Optional[bool] = None
 
 class GroupCompanyResponse(BaseModel):
     id: int
     company_name: str
-    smart_ledger_group: Optional[str] = None
     is_active: bool
     billing_clients: List[BillingClientRef] = Field(default_factory=list)
     created_at: datetime
     updated_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+class GroupCompanyLedgerTransaction(BaseModel):
+    id: Union[int, str]
+    entry_date: date
+    voucher_id: Optional[int] = None
+    voucher_number: str
+    voucher_type: str
+    client_id: Optional[int] = None
+    client_name: Optional[str] = None
+    reference_number: Optional[str] = None
+    particulars: str
+    debit_amount: Decimal = Decimal("0.00")
+    credit_amount: Decimal = Decimal("0.00")
+    running_balance: Decimal = Decimal("0.00")
+    balance_type: str = "DR"
+    status: str = "POSTED"
+    is_void: bool = False
+    source_type: Optional[str] = None
+    source_id: Optional[int] = None
+
+class GroupCompanyLedgerResponse(BaseModel):
+    group_company_id: int
+    group_company_name: str
+    billing_clients: List[BillingClientRef] = Field(default_factory=list)
+    from_date: Optional[date] = None
+    to_date: Optional[date] = None
+    opening_balance: Decimal = Decimal("0.00")
+    opening_balance_type: str = "DR"
+    total_debit: Decimal = Decimal("0.00")
+    total_credit: Decimal = Decimal("0.00")
+    closing_balance: Decimal = Decimal("0.00")
+    closing_balance_type: str = "DR"
+    total_transactions: int = 0
+    transactions: List[GroupCompanyLedgerTransaction] = Field(default_factory=list)
 
 # --- Unit ---
 class UnitBase(BaseModel):

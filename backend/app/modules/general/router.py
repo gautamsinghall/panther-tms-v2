@@ -1,3 +1,4 @@
+from datetime import date
 from typing import List, Optional
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy import or_, select
@@ -470,6 +471,20 @@ async def update_group_company(
     gc = await service.update_group_company(db, id, data)
     await log_activity(db=db, user=current_user, action="GROUP_COMPANY_UPDATED", module="general", entity_type="GroupCompany", entity_id=str(gc.id), entity_identifier=gc.company_name)
     return gc
+
+@router.get("/group-companies/{id}/ledger", response_model=schemas.GroupCompanyLedgerResponse, summary="Get combined chronological ledger for all billing clients in a group company")
+async def get_group_company_ledger(
+    id: int,
+    from_date: Optional[date] = None,
+    to_date: Optional[date] = None,
+    search: Optional[str] = None,
+    tx_type: Optional[str] = None,
+    current_user: User = Depends(require_permission("general", "group_company", "view")),
+    db: AsyncSession = Depends(get_tenant_db),
+):
+    return await service.get_group_company_ledger(
+        db, gid=id, from_date=from_date, to_date=to_date, search=search, tx_type=tx_type
+    )
 
 @router.delete("/group-companies/{id}", response_model=schemas.GroupCompanyResponse, summary="Deactivate group company")
 async def delete_group_company(

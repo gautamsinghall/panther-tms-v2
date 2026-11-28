@@ -313,8 +313,6 @@ class GroupCompany(TenantBase):
 
     id = Column(Integer, primary_key=True, index=True)
     company_name = Column(String(255), unique=True, nullable=False, index=True)
-    # Smart Ledger Grouping label for this company (e.g. "Sundry Debtors – North")
-    smart_ledger_group = Column(String(255), nullable=True)
     is_active = Column(Boolean, default=True, nullable=False)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
     updated_at = Column(
